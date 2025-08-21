@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": false,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"lib": ["es2017", "dom"],
+		"moduleResolution": "node",
+		"module": "es6",
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "es2017",
+		"baseUrl": ".",
+		"paths": {
+			"$lib": ["./src/lib"],
+			"$lib/*": ["./src/lib/*"],
+			"$app/*": ["./node_modules/@sveltejs/kit/src/runtime/app/*"]
+		}
+	},
+	"include": ["src/**/*.js", "src/**/*.svelte", "tests/**/*.js"],
+	"exclude": ["node_modules", "build", ".svelte-kit"]
+}
