@@ -1,39 +1,60 @@
-import { PrismaClient } from '@prisma/client';
-import bcryptjs from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import { supabaseAdmin } from '../src/lib/supabase-server.js';
+import { createSupabaseAdmin } from '../src/lib/supabase-auth.js';
 
 async function main() {
-	// Check if admin user already exists
-	const existingAdmin = await prisma.user.findUnique({
-		where: { email: 'mikeslaughter@defenseunicorns.com' }
-	});
+	console.log('🌱 Starting database seed...');
+
+	// Check if admin user already exists in local database
+	const { data: existingAdmin } = await supabaseAdmin
+		.from('users')
+		.select('*')
+		.eq('email', 'mikeslaughter@defenseunicorns.com')
+		.single();
 
 	if (existingAdmin) {
-		console.log('Admin user already exists');
+		console.log('✅ Admin user already exists, skipping seed');
 		return;
 	}
 
-	// Create the admin user
-	const hashedPassword = await bcryptjs.hash('school12', 12);
-	
-	const adminUser = await prisma.user.create({
-		data: {
-			name: 'Mike',
-			email: 'mikeslaughter@defenseunicorns.com',
-			password: hashedPassword,
-			role: 'ADMIN'
-		}
-	});
+	// Create admin user in Supabase Auth and local database
+	try {
+		const { supabaseUser, localUser } = await createSupabaseAdmin(
+			'mikeslaughter@defenseunicorns.com',
+			'school12',
+			'Mike'
+		);
 
-	console.log('Created admin user:', adminUser.email);
+		console.log('✅ Created admin user in Supabase:', {
+			supabaseId: supabaseUser.id,
+			email: supabaseUser.email
+		});
+
+		console.log('✅ Created admin user in local DB:', {
+			id: localUser.id,
+			email: localUser.email,
+			name: localUser.name,
+			role: localUser.role
+		});
+	} catch (error) {
+		console.error('❌ Failed to create admin user:', error.message);
+		
+		// If user already exists in Supabase, that's okay
+		if (error.message.includes('already registered')) {
+			console.log('✅ Admin user already exists in Supabase');
+		} else {
+			throw error;
+		}
+	}
 
 	// Create some sample achievements if they don't exist
-	const achievementCount = await prisma.achievement.count();
+	const { count } = await supabaseAdmin
+		.from('achievements')
+		.select('*', { count: 'exact', head: true });
 	
-	if (achievementCount === 0) {
-		await prisma.achievement.createMany({
-			data: [
+	if (count === 0) {
+		const { error } = await supabaseAdmin
+			.from('achievements')
+			.insert([
 				{
 					name: 'First Post',
 					description: 'Submit your first LinkedIn post',
@@ -74,17 +95,20 @@ async function main() {
 					requirementType: 'streak_days',
 					requirementValue: 7
 				}
-			]
-		});
-		console.log('Created sample achievements');
+			]);
+
+		if (error) {
+			console.error('❌ Error creating achievements:', error);
+		} else {
+			console.log('✅ Created sample achievements');
+		}
 	}
+
+	console.log('🎉 Database seeded successfully!');
 }
 
 main()
 	.catch((e) => {
-		console.error(e);
+		console.error('❌ Error seeding database:', e);
 		process.exit(1);
-	})
-	.finally(async () => {
-		await prisma.$disconnect();
 	});

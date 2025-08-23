@@ -1,40 +1,38 @@
 <script>
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
-	import Background from '$lib/assets/Hero-Desktop.webp'
+	import { authenticatedRequest } from '$lib/api.js';
+	import TeamProgress from './TeamProgress.svelte';
 	let dashboardData = null;
 	let loading = true;
 	let error = '';
 
 	async function loadDashboard() {
+		console.log('🚀 Dashboard component: Starting loadDashboard');
 		try {
-			const response = await fetch('/api/dashboard');
-			const data = await response.json();
-
-			if (response.ok) {
-				dashboardData = data;
-			} else {
-				error = data.error || 'Failed to load dashboard';
-			}
+			console.log('⏱️ Dashboard component: Calling authenticatedRequest');
+			const data = await authenticatedRequest('/api/dashboard');
+			console.log('✅ Dashboard component: Got data:', data);
+			dashboardData = data;
+			error = '';
 		} catch (err) {
-			error = 'Network error loading dashboard';
+			console.error('❌ Dashboard component: Error:', err);
+			error = err.message || 'Failed to load dashboard';
 		}
 		loading = false;
+		console.log('✅ Dashboard component: loadDashboard complete');
 	}
 
 	async function updatePostAnalytics(postId) {
 		try {
-			const response = await fetch('/api/posts/update-analytics', {
+			await authenticatedRequest('/api/posts/update-analytics', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ postId })
 			});
 
-			if (response.ok) {
-				// Refresh dashboard data
-				loading = true;
-				await loadDashboard();
-			}
+			// Refresh dashboard data
+			loading = true;
+			await loadDashboard();
 		} catch (err) {
 			console.error('Failed to update analytics:', err);
 		}
@@ -46,30 +44,31 @@
 		}
 
 		try {
-			const response = await fetch(`/api/posts/${postId}`, {
+			await authenticatedRequest(`/api/posts/${postId}`, {
 				method: 'DELETE'
 			});
 
-			const data = await response.json();
-
-			if (response.ok) {
-				// Refresh dashboard data
-				loading = true;
-				await loadDashboard();
-				alert('Post deleted successfully');
-			} else {
-				alert('Failed to delete post: ' + data.error);
-			}
+			// Refresh dashboard data
+			loading = true;
+			await loadDashboard();
+			alert('Post deleted successfully');
 		} catch (err) {
 			console.error('Failed to delete post:', err);
-			alert('Failed to delete post');
+			alert('Failed to delete post: ' + err.message);
+		}
+	}
+
+	// Reactive statement to load dashboard when user becomes available
+	$: {
+		console.log('🔄 Dashboard reactive - user changed:', !!$user);
+		if ($user && !dashboardData && !error) {
+			console.log('✅ User available, loading dashboard');
+			loadDashboard();
 		}
 	}
 
 	onMount(() => {
-		if ($user) {
-			loadDashboard();
-		}
+		console.log('🚀 Dashboard onMount - user:', !!$user);
 	});
 
 	function formatDate(dateString) {
@@ -108,13 +107,13 @@
 					Welcome back, {dashboardData.user.name || 'User'}!
 				</h2>
 
-				<div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 					<!-- Stat card -->
 					<div
 						class="rounded-lg p-4 text-center"
 						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.35);"
 					>
-						<div class="text-2xl font-bold" style="color:#24b0ff;">{dashboardData.user.totalScore}</div>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{dashboardData.user.totalScore}</div>
 						<div class="text-sm" style="color:#cbd5e1;">Total Points</div>
 						<div class="text-xs" style="color:#94a3b8;">Rank #{dashboardData.user.rank}</div>
 					</div>
@@ -123,7 +122,7 @@
 						class="rounded-lg p-4 text-center"
 						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 					>
-						<div class="text-2xl font-bold" style="color:#24b0ff;">{dashboardData.stats.totalPosts}</div>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{dashboardData.stats.totalPosts}</div>
 						<div class="text-sm" style="color:#cbd5e1;">Total Posts</div>
 						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.monthlyPosts} this month</div>
 					</div>
@@ -132,7 +131,7 @@
 						class="rounded-lg p-4 text-center"
 						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 					>
-						<div class="text-2xl font-bold" style="color:#24b0ff;">{dashboardData.user.currentStreak}</div>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{dashboardData.user.currentStreak}</div>
 						<div class="text-sm" style="color:#cbd5e1;">Current Streak</div>
 						<div class="text-xs" style="color:#94a3b8;">Best: {dashboardData.user.bestStreak} days</div>
 					</div>
@@ -141,7 +140,7 @@
 						class="rounded-lg p-4 text-center"
 						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.35);"
 					>
-						<div class="text-2xl font-bold" style="color:#24b0ff;">
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">
 							{dashboardData.stats.averageEngagement}
 						</div>
 						<div class="text-sm" style="color:#cbd5e1;">Avg Engagement</div>
@@ -176,6 +175,9 @@
 					</div>
 				</div>
 			{/if}
+
+			<!-- Team Progress -->
+			<TeamProgress />
 
 			<!-- Recent Posts (GLASS) -->
 			<div
@@ -219,15 +221,15 @@
 
 									<div class="ml-4 flex space-x-2">
 										<button
-											on:click={() => updatePostAnalytics(post.id)}
-											class="rounded px-3 py-1 text-xs transition-colors"
+											onclick={() => updatePostAnalytics(post.id)}
+											class="rounded px-3 py-1 text-xs transition-colors hover:cursor-pointer"
 											style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.6);"
 										>
 											Update
 										</button>
 										<button
-											on:click={() => deletePost(post.id)}
-											class="rounded px-3 py-1 text-xs transition-colors"
+											onclick={() => deletePost(post.id)}
+											class="rounded px-3 py-1 text-xs transition-colors hover:cursor-pointer"
 											style="background-color:rgba(235,38,40,0.12); color:#ff5456; border:1px solid rgba(255,84,86,0.6);"
 										>
 											Delete

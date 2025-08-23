@@ -1,48 +1,66 @@
 <script>
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
+	import { authenticatedRequest } from '$lib/api.js';
 	import { goto } from '$app/navigation';
 
 	let myTeam = null;
 	let users = [];
 	let loading = true;
 	let error = '';
+	let hasLoadedData = false;
 
 	// Team member management
 	let showMemberModal = false;
 	let availableUsers = [];
 	let selectedUserIds = [];
 
-	onMount(async () => {
-		if (!$user || ($user.role !== 'TEAM_LEAD' && $user.role !== 'ADMIN')) {
-			goto('/');
-			return;
+	// Reactive statement to handle team lead access when user becomes available
+	$: {
+		if ($user !== null) { // User auth has finished loading
+			if (!$user || ($user.role !== 'TEAM_LEAD' && $user.role !== 'ADMIN')) {
+				goto('/');
+			} else if (!hasLoadedData) {
+				// Only load data once when user is confirmed as team lead
+				loadData();
+			}
 		}
-		await loadData();
+	}
+
+	onMount(() => {
+		// onMount kept for any non-user dependent initialization
 	});
 
 	async function loadData() {
 		loading = true;
 		try {
-			const [teamsRes, usersRes] = await Promise.all([
-				fetch('/api/admin/teams'),
-				fetch('/api/admin/users')
+			const [teamsData, usersData] = await Promise.all([
+				authenticatedRequest('/api/admin/teams'),
+				authenticatedRequest('/api/admin/users')
 			]);
-
-			if (teamsRes.ok && usersRes.ok) {
-				const teamsData = await teamsRes.json();
-				const usersData = await usersRes.json();
-				
-				// Find the team this user leads
-				myTeam = teamsData.teams.find(team => team.teamLeadId === $user.id);
-				users = usersData.users;
-			} else {
-				error = 'Failed to load data';
-			}
+			
+			console.log('🔍 Team Lead Debug:', {
+				userId: $user.id,
+				userRole: $user.role,
+				totalTeams: teamsData.teams.length,
+				teamsWithLeads: teamsData.teams.filter(t => t.teamLeadId).length
+			});
+			
+			// Find the team this user leads
+			myTeam = teamsData.teams.find(team => team.teamLeadId === $user.id);
+			console.log('🎯 Found my team:', myTeam ? `${myTeam.name} (${myTeam.id})` : 'null');
+			
+			// Debug: Show all teams and their leads
+			teamsData.teams.forEach(team => {
+				console.log(`📋 Team: ${team.name}, Lead: ${team.teamLeadId}, Match: ${team.teamLeadId === $user.id}`);
+			});
+			
+			users = usersData.users;
 		} catch (err) {
 			error = 'Network error';
 		}
 		loading = false;
+		hasLoadedData = true;
 	}
 
 	function showAddMembers() {
@@ -150,8 +168,8 @@
 						</div>
 					</div>
 					<button
-						on:click={showAddMembers}
-						class="rounded-md px-4 py-2 font-medium transition-colors"
+						onclick={showAddMembers}
+						class="rounded-md px-4 py-2 font-medium transition-colors hover:cursor-pointer"
 						style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.6);"
 					>
 						Add Members
@@ -175,8 +193,8 @@
 											<p class="text-xs" style="color:#94a3b8;">{member.role}</p>
 										</div>
 										<button
-											on:click={() => removeFromTeam(member.id)}
-											class="rounded px-2 text-sm transition-colors"
+											onclick={() => removeFromTeam(member.id)}
+											class="rounded px-2 text-sm transition-colors hover:cursor-pointer"
 											title="Remove from team"
 											style="color:#ff5456; border:1px solid rgba(255,84,86,0.5); background-color:rgba(255,84,86,0.12);"
 										>
@@ -279,16 +297,16 @@
 				
 				<div class="flex space-x-3">
 					<button
-						on:click={addUsersToTeam}
+						onclick={addUsersToTeam}
 						disabled={selectedUserIds.length === 0}
-						class="rounded-md px-4 py-2 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						class="rounded-md px-4 py-2 font-medium transition-colors hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 						style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.6);"
 					>
 						Add Selected ({selectedUserIds.length})
 					</button>
 					<button
-						on:click={() => showMemberModal = false}
-						class="rounded-md px-4 py-2 font-medium transition-colors"
+						onclick={() => showMemberModal = false}
+						class="rounded-md px-4 py-2 font-medium transition-colors hover:cursor-pointer"
 						style="background-color:rgba(148,163,184,0.15); color:#e5e7eb; border:1px solid rgba(148,163,184,0.5);"
 					>
 						Cancel
@@ -297,8 +315,8 @@
 			{:else}
 				<p class="mb-4" style="color:#cbd5e1;">No available users to add to this team.</p>
 				<button
-					on:click={() => showMemberModal = false}
-					class="rounded-md px-4 py-2 font-medium transition-colors"
+					onclick={() => showMemberModal = false}
+					class="rounded-md px-4 py-2 font-medium transition-colors hover:cursor-pointer"
 					style="background-color:rgba(148,163,184,0.15); color:#e5e7eb; border:1px solid rgba(148,163,184,0.5);"
 				>
 					Close

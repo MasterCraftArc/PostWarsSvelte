@@ -1,55 +1,48 @@
 import { json } from '@sveltejs/kit';
-import { getLeaderboardData } from '$lib/gamification.js';
+import { supabaseAdmin } from '$lib/supabase-server.js';
+import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 
-export async function GET({ url, locals }) {
+export async function GET(event) {
 	try {
-		if (!locals.user) {
+		const authenticatedUser = await getAuthenticatedUser(event);
+		if (!authenticatedUser) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
 
-		const timeframe = url.searchParams.get('timeframe') || 'all';
+		const timeframe = event.url.searchParams.get('timeframe') || 'all';
+		const scope = event.url.searchParams.get('scope') || 'company';
 
 		if (!['all', 'month', 'week'].includes(timeframe)) {
 			return json({ error: 'Invalid timeframe. Use: all, month, or week' }, { status: 400 });
 		}
 
-		const leaderboardData = await getLeaderboardData(timeframe);
+		if (!['team', 'company'].includes(scope)) {
+			return json({ error: 'Invalid scope. Use: team or company' }, { status: 400 });
+		}
 
-		// Transform the data for frontend consumption
-		const leaderboard = leaderboardData.map((user, index) => {
-			const timeframePosts = user.linkedinPosts;
-			const timeframeScore = timeframePosts.reduce((sum, post) => sum + post.totalScore, 0);
-			const timeframeEngagement = timeframePosts.reduce(
-				(sum, post) => sum + post.totalEngagement,
-				0
-			);
+		// Check team scope requirements
+		if (scope === 'team' && !authenticatedUser.teamId) {
+			return json({ error: 'User not assigned to a team' }, { status: 404 });
+		}
 
-			return {
-				rank: index + 1,
-				id: user.id,
-				name: user.name || user.email.split('@')[0],
-				email: user.email,
-				totalScore: timeframe === 'all' ? user.totalScore : timeframeScore,
-				postsThisMonth: user.postsThisMonth,
-				currentStreak: user.currentStreak,
-				postsInTimeframe: timeframePosts.length,
-				engagementInTimeframe: timeframeEngagement,
-				achievements: user.achievements.map((ua) => ({
-					name: ua.achievement.name,
-					description: ua.achievement.description,
-					icon: ua.achievement.icon,
-					points: ua.achievement.points,
-					earnedAt: ua.earnedAt
-				})),
-				isCurrentUser: user.id === locals.user.id
-			};
+		// OPTIMIZED: Single database function call instead of multiple queries
+		const { data, error } = await supabaseAdmin.rpc('get_leaderboard', {
+			p_timeframe: timeframe,
+			p_scope: scope,
+			p_team_id: authenticatedUser.teamId,
+			p_requesting_user_id: authenticatedUser.id
 		});
 
-		return json({
-			timeframe,
-			leaderboard,
-			userRank: leaderboard.find((u) => u.isCurrentUser)?.rank || null
-		});
+		if (error) {
+			console.error('Leaderboard RPC error:', error);
+			return json({ error: `Database error: ${error.message}` }, { status: 500 });
+		}
+
+		// Cache response for 5 minutes (leaderboard changes frequently but not every second)
+		const response = json(data);
+		response.headers.set('Cache-Control', 'public, max-age=300');
+		
+		return response;
 	} catch (error) {
 		console.error('Leaderboard error:', error);
 		return json({ error: 'Internal server error' }, { status: 500 });

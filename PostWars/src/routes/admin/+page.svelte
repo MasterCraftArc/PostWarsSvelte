@@ -1,8 +1,8 @@
 <script>
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
+	import { authenticatedRequest } from '$lib/api.js';
 	import { goto } from '$app/navigation';
-	import Background from '$lib/assets/Hero-Desktop.webp';
 
 	let teams = [];
 	let users = [];
@@ -31,97 +31,87 @@
 	let availableUsers = [];
 	let selectedUserIds = [];
 
-	onMount(async () => {
-		if (!$user || $user.role !== 'ADMIN') {
-			goto('/');
-			return;
+	// Reactive statement to handle admin access when user becomes available
+	$: {
+		if ($user !== null) { // User auth has finished loading
+			if (!$user || $user.role !== 'ADMIN') {
+				goto('/');
+			} else if (!users.length && !teams.length && !goals.length) {
+				// Only load data once when user is confirmed as admin
+				loadData();
+			}
 		}
-		await loadData();
+	}
+
+	onMount(() => {
+		// onMount kept for any non-user dependent initialization
 	});
 
 	async function loadData() {
 		loading = true;
 		try {
-			const [teamsRes, usersRes, goalsRes] = await Promise.all([
-				fetch('/api/admin/teams'),
-				fetch('/api/admin/users'),
-				fetch('/api/admin/goals')
+			const [teamsData, usersData, goalsData] = await Promise.all([
+				authenticatedRequest('/api/admin/teams'),
+				authenticatedRequest('/api/admin/users'),
+				authenticatedRequest('/api/admin/goals')
 			]);
 
-			if (teamsRes.ok) teams = (await teamsRes.json()).teams;
-			if (usersRes.ok) users = (await usersRes.json()).users;
-			if (goalsRes.ok) goals = (await goalsRes.json()).goals;
+			teams = teamsData.teams || [];
+			users = usersData.users || [];
+			goals = goalsData.goals || [];
 		} catch (err) {
-			error = 'Failed to load admin data';
+			error = err.message || 'Failed to load admin data';
 		}
 		loading = false;
 	}
 
 	async function createTeam() {
 		try {
-			const response = await fetch('/api/admin/teams', {
+			await authenticatedRequest('/api/admin/teams', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(newTeam)
 			});
 
-			if (response.ok) {
-				newTeam = { name: '', description: '', teamLeadId: '' };
-				showCreateTeam = false;
-				await loadData();
-			} else {
-				const data = await response.json();
-				alert('Error: ' + data.error);
-			}
+			newTeam = { name: '', description: '', teamLeadId: '' };
+			showCreateTeam = false;
+			await loadData();
 		} catch (err) {
-			alert('Failed to create team');
+			alert('Error: ' + err.message);
 		}
 	}
 
 	async function createGoal() {
 		try {
-			const response = await fetch('/api/admin/goals', {
+			await authenticatedRequest('/api/admin/goals', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(newGoal)
 			});
 
-			if (response.ok) {
-				newGoal = { 
-					title: '', 
-					description: '', 
-					type: 'POSTS_COUNT', 
-					targetValue: '', 
-					teamId: '', 
-					endDate: '' 
-				};
-				showCreateGoal = false;
-				await loadData();
-			} else {
-				const data = await response.json();
-				alert('Error: ' + data.error);
-			}
+			newGoal = { 
+				title: '', 
+				description: '', 
+				type: 'POSTS_COUNT', 
+				targetValue: '', 
+				teamId: '', 
+				endDate: '' 
+			};
+			showCreateGoal = false;
+			await loadData();
 		} catch (err) {
-			alert('Failed to create goal');
+			alert('Error: ' + err.message);
 		}
 	}
 
 	async function updateUserRole(userId, newRole) {
 		try {
-			const response = await fetch('/api/admin/users', {
+			await authenticatedRequest('/api/admin/users', {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ userId, role: newRole })
 			});
 
-			if (response.ok) {
-				await loadData();
-			} else {
-				const data = await response.json();
-				alert('Error: ' + data.error);
-			}
+			await loadData();
 		} catch (err) {
-			alert('Failed to update user role');
+			alert('Error: ' + err.message);
 		}
 	}
 
@@ -140,19 +130,14 @@
 		if (!selectedTeam || selectedUserIds.length === 0) return;
 
 		try {
-			const response = await fetch(`/api/admin/teams/${selectedTeam.id}/members`, {
+			await authenticatedRequest(`/api/admin/teams/${selectedTeam.id}/members`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ userIds: selectedUserIds })
 			});
 
-			if (response.ok) {
-				showMemberModal = false;
-				await loadData();
-			} else {
-				const data = await response.json();
-				alert('Error: ' + data.error);
-			}
+			// Success - authenticatedRequest throws on error
+			showMemberModal = false;
+			await loadData();
 		} catch (err) {
 			alert('Failed to add users to team');
 		}
@@ -162,20 +147,57 @@
 		if (!confirm('Remove this user from the team?')) return;
 
 		try {
-			const response = await fetch(`/api/admin/teams/${teamId}/members`, {
+			await authenticatedRequest(`/api/admin/teams/${teamId}/members`, {
 				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ userIds: [userId] })
 			});
 
-			if (response.ok) {
-				await loadData();
-			} else {
-				const data = await response.json();
-				alert('Error: ' + data.error);
-			}
+			// Success - authenticatedRequest throws on error
+			await loadData();
 		} catch (err) {
 			alert('Failed to remove user from team');
+		}
+	}
+
+	async function deleteTeam(teamId, teamName) {
+		if (!confirm(`Are you sure you want to delete team "${teamName}"? This will remove all members and delete all associated goals. This action cannot be undone.`)) return;
+		try {
+			await authenticatedRequest('/api/admin/teams', {
+				method: 'DELETE',
+				body: JSON.stringify({ id: teamId })
+			});
+			
+			await loadData();
+		} catch (err) {
+			alert('Failed to delete team: ' + err.message);
+		}
+	}
+
+	async function deleteUser(userId, userName) {
+		if (!confirm(`Are you sure you want to delete user "${userName}"? This will delete all their posts and achievements. This action cannot be undone.`)) return;
+		try {
+			await authenticatedRequest('/api/admin/users', {
+				method: 'DELETE',
+				body: JSON.stringify({ id: userId })
+			});
+			
+			await loadData();
+		} catch (err) {
+			alert('Failed to delete user: ' + err.message);
+		}
+	}
+
+	async function deleteGoal(goalId, goalTitle) {
+		if (!confirm(`Are you sure you want to delete goal "${goalTitle}"? This action cannot be undone.`)) return;
+		try {
+			await authenticatedRequest('/api/admin/goals', {
+				method: 'DELETE',
+				body: JSON.stringify({ id: goalId })
+			});
+			
+			await loadData();
+		} catch (err) {
+			alert('Failed to delete goal: ' + err.message);
 		}
 	}
 </script>
@@ -189,15 +211,8 @@
 		<p class="text-red-400">Access denied. Admin role required.</p>
 	</div>
 {:else}
-	<!-- Background -->
-	<div class="relative min-h-screen overflow-hidden">
-		<div class="pointer-events-none absolute inset-0">
-			<div class="absolute inset-0" style="background: radial-gradient(60% 60% at 50% 20%, rgba(36,176,255,0.18) 0%, rgba(12,26,62,0.0) 60%);"></div>
-			<img src={Background} alt="" class="h-full w-full object-cover opacity-20 mix-blend-screen" />
-		</div>
-
-		<!-- Content -->
-		<div class="relative container mx-auto px-4 py-10">
+	<!-- Content -->
+	<div class="container mx-auto px-4 py-10">
 			<h1 class="mb-8 text-3xl font-bold tracking-tight" style="color:#fdfdfd;">
 				Admin Dashboard
 			</h1>
@@ -219,8 +234,8 @@
 						<div class="mb-4 flex items-center justify-between">
 							<h2 class="text-2xl font-semibold" style="color:#fdfdfd;">Teams</h2>
 							<button
-								on:click={() => showCreateTeam = true}
-								class="rounded-lg px-4 py-2 text-white transition hover:brightness-110"
+								onclick={() => showCreateTeam = true}
+								class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
 								style="background:linear-gradient(90deg,#1392d6,#24b0ff); box-shadow:0 0 10px rgba(36,176,255,.6);">
 								Create Team
 							</button>
@@ -256,14 +271,14 @@
 									</select>
 									<div class="flex gap-2">
 										<button
-											on:click={createTeam}
-											class="rounded-lg px-4 py-2 text-white transition hover:brightness-110"
+											onclick={createTeam}
+											class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
 											style="background:linear-gradient(90deg,#16a34a,#22c55e); box-shadow:0 0 10px rgba(34,197,94,.45);">
 											Create
 										</button>
 										<button
-											on:click={() => showCreateTeam = false}
-											class="rounded-lg px-4 py-2 text-white transition hover:brightness-110"
+											onclick={() => showCreateTeam = false}
+											class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
 											style="background:linear-gradient(90deg,#6b7280,#9ca3af);">
 											Cancel
 										</button>
@@ -290,12 +305,20 @@
 												{/if}
 											</div>
 										</div>
-										<button
-											on:click={() => showTeamMembers(team)}
-											class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110"
-											style="background:linear-gradient(90deg,#7e22ce,#a855f7); box-shadow:0 0 10px rgba(168,85,247,.45);">
-											Manage Members
-										</button>
+										<div class="flex gap-2">
+											<button
+												onclick={() => showTeamMembers(team)}
+												class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110 hover:cursor-pointer"
+												style="background:linear-gradient(90deg,#7e22ce,#a855f7); box-shadow:0 0 10px rgba(168,85,247,.45);">
+												Manage Members
+											</button>
+											<button
+												onclick={() => deleteTeam(team.id, team.name)}
+												class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110 hover:cursor-pointer"
+												style="background:linear-gradient(90deg,#dc2626,#ef4444); box-shadow:0 0 10px rgba(239,68,68,.45);">
+												Delete
+											</button>
+										</div>
 									</div>
 
 									{#if team.members && team.members.length > 0}
@@ -307,8 +330,8 @@
 														style="background-color:rgba(36,176,255,0.12); color:#24b0ff; border:1px solid rgba(36,176,255,0.35);">
 														{member.name} ({member.role})
 														<button
-															on:click={() => removeFromTeam(team.id, member.id)}
-															class="ml-1 transition hover:scale-110"
+															onclick={() => removeFromTeam(team.id, member.id)}
+															class="ml-1 transition hover:scale-110 hover:cursor-pointer"
 															style="color:#24b0ff;">
 															×
 														</button>
@@ -328,8 +351,8 @@
 						<div class="mb-4 flex items-center justify-between">
 							<h2 class="text-2xl font-semibold" style="color:#fdfdfd;">Goals</h2>
 							<button
-								on:click={() => showCreateGoal = true}
-								class="rounded-lg px-4 py-2 text-white transition hover:brightness-110"
+								onclick={() => showCreateGoal = true}
+								class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
 								style="background:linear-gradient(90deg,#16a34a,#22c55e); box-shadow:0 0 10px rgba(34,197,94,.45);">
 								Create Goal
 							</button>
@@ -389,14 +412,14 @@
 								</div>
 								<div class="mt-4 flex gap-2">
 									<button
-										on:click={createGoal}
-										class="rounded-lg px-4 py-2 text-white transition hover:brightness-110"
+										onclick={createGoal}
+										class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
 										style="background:linear-gradient(90deg,#16a34a,#22c55e); box-shadow:0 0 10px rgba(34,197,94,.45);">
 										Create
 									</button>
 									<button
-										on:click={() => showCreateGoal = false}
-										class="rounded-lg px-4 py-2 text-white transition hover:brightness-110"
+										onclick={() => showCreateGoal = false}
+										class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
 										style="background:linear-gradient(90deg,#6b7280,#9ca3af);">
 										Cancel
 									</button>
@@ -422,18 +445,26 @@
 												<span>Due: {formatDate(goal.endDate)}</span>
 											</div>
 										</div>
-										<!-- Status pill (uses style ternary to avoid invalid class JS) -->
-										<span
-											class="rounded px-2 py-1 text-xs font-medium"
-											style={`${
-												goal.status === 'ACTIVE'
-													? 'background-color:rgba(34,197,94,0.12); color:#22c55e; border:1px solid rgba(34,197,94,0.4);'
-													: goal.status === 'COMPLETED'
-													? 'background-color:rgba(36,176,255,0.12); color:#24b0ff; border:1px solid rgba(36,176,255,0.4);'
-													: 'background-color:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.4);'
-											}`}>
-											{goal.status}
-										</span>
+										<div class="flex items-center gap-2">
+											<!-- Status pill (uses style ternary to avoid invalid class JS) -->
+											<span
+												class="rounded px-2 py-1 text-xs font-medium"
+												style={`${
+													goal.status === 'ACTIVE'
+														? 'background-color:rgba(34,197,94,0.12); color:#22c55e; border:1px solid rgba(34,197,94,0.4);'
+														: goal.status === 'COMPLETED'
+														? 'background-color:rgba(36,176,255,0.12); color:#24b0ff; border:1px solid rgba(36,176,255,0.4);'
+														: 'background-color:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.4);'
+												}`}>
+												{goal.status}
+											</span>
+											<button
+												onclick={() => deleteGoal(goal.id, goal.title)}
+												class="rounded px-2 py-1 text-xs text-white transition hover:brightness-110 hover:cursor-pointer"
+												style="background:linear-gradient(90deg,#dc2626,#ef4444);">
+												Delete
+											</button>
+										</div>
 									</div>
 								</div>
 							{/each}
@@ -465,8 +496,8 @@
 											<td class="px-4 py-3">
 												<select
 													value={u.role}
-													on:change={(e) => updateUserRole(u.id, e.target.value)}
-													class="rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2"
+													onchange={(e) => updateUserRole(u.id, e.target.value)}
+													class="rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 hover:cursor-pointer"
 													style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; --tw-ring-color:#24b0ff;"
 												>
 													<option value="REGULAR" class="text-slate-900">Regular</option>
@@ -477,11 +508,19 @@
 											<td class="px-4 py-3" style="color:#cbd5e1;">{u.team?.name || 'No team'}</td>
 											<td class="px-4 py-3" style="color:#fdfdfd;">{u.totalScore}</td>
 											<td class="px-4 py-3">
-												<button
-													class="text-sm underline-offset-2 transition hover:underline"
-													style="color:#24b0ff;">
-													Manage
-												</button>
+												<div class="flex gap-2">
+													<button
+														class="text-sm underline-offset-2 transition hover:underline"
+														style="color:#24b0ff;">
+														Manage
+													</button>
+													<button
+														onclick={() => deleteUser(u.id, u.name)}
+														class="rounded px-2 py-1 text-xs text-white transition hover:brightness-110 hover:cursor-pointer"
+														style="background:linear-gradient(90deg,#dc2626,#ef4444);">
+														Delete
+													</button>
+												</div>
 											</td>
 										</tr>
 									{/each}
@@ -491,7 +530,6 @@
 					</div>
 				</div>
 			{/if}
-		</div>
 	</div>
 {/if}
 
@@ -520,15 +558,15 @@
 
 				<div class="flex gap-3">
 					<button
-						on:click={addUsersToTeam}
+						onclick={addUsersToTeam}
 						disabled={selectedUserIds.length === 0}
-						class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+						class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 						style="background:linear-gradient(90deg,#1392d6,#24b0ff); box-shadow:0 0 10px rgba(36,176,255,.6);">
 						Add Selected ({selectedUserIds.length})
 					</button>
 					<button
-						on:click={() => showMemberModal = false}
-						class="rounded-lg px-4 py-2 text-white transition hover:brightness-110"
+						onclick={() => showMemberModal = false}
+						class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
 						style="background:linear-gradient(90deg,#6b7280,#9ca3af);">
 						Cancel
 					</button>
@@ -536,8 +574,8 @@
 			{:else}
 				<p class="mb-4" style="color:#cbd5e1;">No available users to add to this team.</p>
 				<button
-					on:click={() => showMemberModal = false}
-					class="rounded-lg px-4 py-2 text-white transition hover:brightness-110"
+					onclick={() => showMemberModal = false}
+					class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
 					style="background:linear-gradient(90deg,#6b7280,#9ca3af);">
 					Close
 				</button>

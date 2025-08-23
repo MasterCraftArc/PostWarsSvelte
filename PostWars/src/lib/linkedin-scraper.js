@@ -761,3 +761,6 @@ export async function linkedinScraper(url, options = {}) {
 		throw new Error('Only single post scraping is supported in this version');
 	}
 }
+
+// Export constants and functions needed by other modules
+export { SINGLE_POST_SELECTORS, extractPostData, isSinglePostUrl };

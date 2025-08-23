@@ -1,8 +1,14 @@
 <script>
 	import { user } from '$lib/stores/auth.js';
+	import { onMount } from 'svelte';
+
+
 </script>
 
-<div class="mx-auto max-w-4xl px-4 py-8">
+<!-- Home page uses the same background as other pages (from layout) -->
+
+<!-- Content -->
+<div class="relative z-10 mx-auto max-w-4xl px-4 py-8 min-h-screen">
 	<div class="mb-12 text-center">
 		<h1
 			class="mb-4 bg-gradient-to-r from-[#24b0ff] to-[#a78bfa] bg-clip-text text-5xl font-bold text-transparent"

@@ -1,144 +1,90 @@
 import { json } from '@sveltejs/kit';
-import { prisma } from '$lib/prisma/index.js';
-import { scrapeSinglePost } from '$lib/linkedin-scraper.js';
-import {
-	calculatePostScore,
-	updateUserStats,
-	checkAndAwardAchievements
-} from '$lib/gamification.js';
+import { supabaseAdmin } from '$lib/supabase-server.js';
+import { jobQueue } from '$lib/job-queue.js';
+import { postSubmissionLimiter, ipBasedLimiter } from '$lib/rate-limiter.js';
+import { handleRateLimitError, sanitizeError } from '$lib/error-handler.js';
+import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 
-export async function POST({ request, locals }) {
+export async function POST(event) {
 	try {
-		if (!locals.user) {
+		const user = await getAuthenticatedUser(event);
+		
+		if (!user) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
 
-		const { linkedinUrl } = await request.json();
+		const { linkedinUrl } = await event.request.json();
 
 		if (!linkedinUrl || !linkedinUrl.includes('linkedin.com')) {
 			return json({ error: 'Valid LinkedIn URL required' }, { status: 400 });
 		}
 
-		// Check if post already exists
-		const existingPost = await prisma.linkedinPost.findUnique({
-			where: { url: linkedinUrl }
-		});
+		// Check rate limits
+		const userId = user.id;
+		const clientIP = event.getClientAddress();
+
+		// Check per-user rate limit
+		const userLimit = postSubmissionLimiter.isAllowed(userId);
+		if (!userLimit.allowed) {
+			const rateLimitError = new Error('User rate limit exceeded');
+			const sanitized = handleRateLimitError(rateLimitError, userLimit.retryAfter);
+			return json(sanitized, { status: 429 });
+		}
+
+		// Check IP-based rate limit
+		const ipLimit = ipBasedLimiter.isAllowed(clientIP);
+		if (!ipLimit.allowed) {
+			const rateLimitError = new Error('IP rate limit exceeded');
+			const sanitized = handleRateLimitError(rateLimitError, ipLimit.retryAfter);
+			return json(sanitized, { status: 429 });
+		}
+
+		// Check if post already exists for this user
+		const { data: existingPost } = await supabaseAdmin
+			.from('linkedin_posts')
+			.select('id')
+			.eq('url', linkedinUrl)
+			.eq('userId', userId)
+			.single();
 
 		if (existingPost) {
-			return json({ error: 'Post already tracked' }, { status: 409 });
+			return json({ error: 'Post already tracked by you' }, { status: 409 });
 		}
 
-		// Scrape the LinkedIn post
-		console.log(`Scraping post for user ${locals.user.id}: ${linkedinUrl}`);
+		// Add job to queue for background processing
+		console.log(`Queuing scraping job for user ${userId}: ${linkedinUrl}`);
 
-		let scrapedData;
 		try {
-			scrapedData = await scrapeSinglePost(linkedinUrl, {
-				headed: false,
-				storageStatePath: 'linkedin_auth_state.json'
-			});
-		} catch (scrapeError) {
-			console.error('Scraping failed:', scrapeError);
-			return json(
-				{
-					error: 'Failed to scrape LinkedIn post. Please ensure the URL is accessible.'
-				},
-				{ status: 400 }
-			);
-		}
+			const job = await jobQueue.addJob('scrape-post', {
+				linkedinUrl,
+				userId
+			}, userId);
 
-		if (!scrapedData) {
-			return json({ error: 'No data could be extracted from the post' }, { status: 400 });
-		}
-
-		// Get user's current streak for scoring
-		const userPosts = await prisma.linkedinPost.findMany({
-			where: { userId: locals.user.id },
-			orderBy: { postedAt: 'desc' }
-		});
-
-		const currentStreak =
-			userPosts.length > 0 ? Math.max(...userPosts.map((p) => p.totalScore)) : 0;
-
-		// Calculate scoring
-		const scoring = calculatePostScore(
-			{
-				word_count: scrapedData.word_count,
-				reactions: scrapedData.reactions,
-				comments: scrapedData.comments,
-				reposts: scrapedData.reposts,
-				timestamp: scrapedData.timestamp
-			},
-			currentStreak
-		);
-
-		// Save to database (upsert to handle duplicates gracefully)
-		const savedPost = await prisma.linkedinPost.upsert({
-			where: {
-				linkedinId: scrapedData.id || scrapedData.linkedinId
-			},
-			create: {
-				userId: locals.user.id,
-				linkedinId: scrapedData.id || scrapedData.linkedinId,
-				url: linkedinUrl,
-				content: scrapedData.text || scrapedData.content,
-				authorName: scrapedData.author || scrapedData.authorName,
-				reactions: scrapedData.reactions,
-				comments: scrapedData.comments,
-				reposts: scrapedData.reposts,
-				totalEngagement: scrapedData.total_engagement,
-				baseScore: scoring.baseScore,
-				engagementScore: scoring.engagementScore,
-				totalScore: scoring.totalScore,
-				wordCount: scrapedData.word_count,
-				charCount: scrapedData.char_count,
-				postedAt: new Date(scrapedData.timestamp || scrapedData.postedAt),
-				lastScrapedAt: new Date()
-			},
-			update: {
-				reactions: scrapedData.reactions,
-				comments: scrapedData.comments,
-				reposts: scrapedData.reposts,
-				totalEngagement: scrapedData.total_engagement,
-				baseScore: scoring.baseScore,
-				engagementScore: scoring.engagementScore,
-				totalScore: scoring.totalScore,
-				lastScrapedAt: new Date()
+			// Automatically start processing the job queue if not already running
+			if (!jobQueue.processing) {
+				jobQueue.startProcessing();
+				console.log('🚀 Auto-started job processing for user submission');
 			}
-		});
 
-		// Create analytics record for this scraping session
-		try {
-			await prisma.postAnalytics.create({
-				data: {
-					postId: savedPost.id,
-					reactions: scrapedData.reactions,
-					comments: scrapedData.comments,
-					reposts: scrapedData.reposts,
-					totalEngagement: scrapedData.total_engagement,
-					reactionGrowth: 0,
-					commentGrowth: 0,
-					repostGrowth: 0
-				}
-			});
-		} catch (analyticsError) {
-			// Analytics creation failed, but post was saved - continue
-			console.log('Analytics creation failed:', analyticsError.message);
+			return json({
+				message: 'Post submitted for processing',
+				jobId: job.id,
+				status: 'queued',
+				estimatedWaitTime: '30-60 seconds'
+			}, { status: 202 });
+
+		} catch (queueError) {
+			// Record rate limit failure
+			if (queueError.message.includes('Rate limit')) {
+				postSubmissionLimiter.recordFailure(userId);
+				ipBasedLimiter.recordFailure(clientIP);
+			}
+			
+			const sanitized = sanitizeError(queueError, 'Failed to process request');
+			return json(sanitized, { status: 400 });
 		}
-
-		// Update user stats
-		await updateUserStats(locals.user.id);
-
-		// Check for new achievements
-		const newAchievements = await checkAndAwardAchievements(locals.user.id);
-
-		return json({
-			post: savedPost,
-			scoring: scoring,
-			newAchievements: newAchievements
-		});
 	} catch (error) {
-		console.error('Submit post error:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		const sanitized = sanitizeError(error, 'Internal server error');
+		return json(sanitized, { status: 500 });
 	}
 }

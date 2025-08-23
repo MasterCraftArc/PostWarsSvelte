@@ -1,25 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { hashPassword, verifyPassword, createJWT, verifyJWT } from './auth.js';
 
-// Mock Prisma
-vi.mock('./prisma/index.js', () => ({
-	prisma: {
-		user: {
-			create: vi.fn(),
-			findUnique: vi.fn()
-		},
-		session: {
-			create: vi.fn(),
-			findUnique: vi.fn(),
-			delete: vi.fn()
-		}
-	}
-}));
-
 describe('Auth utilities', () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-	});
 
 	describe('Password handling', () => {
 		it('should hash password correctly', async () => {

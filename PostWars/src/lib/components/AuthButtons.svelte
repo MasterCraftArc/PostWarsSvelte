@@ -3,18 +3,14 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
-	onMount(() => {
-		if ($page.data.user) {
-			user.set($page.data.user);
-		}
-	});
+	// Removed server-side user override - let client-side auth store handle user state
 </script>
 
 <div class="flex items-center space-x-4">
 	{#if $user}
 		<span class="text-[#fdfdfd]">Hello, {$user.name || $user.email}!</span>
 		<button
-	on:click={logout}
+	onclick={logout}
 	class="rounded-full px-4 py-2 text-white font-medium 
            bg-[#eb2628]/40 border border-[#ff5456]/60 
            backdrop-blur-sm shadow-lg 
@@ -26,13 +22,15 @@
 	{:else}
 		<a
 			href="/login"
-			class="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+			class="rounded-lg px-4 py-2 text-white font-medium transition hover:brightness-110 hover:cursor-pointer"
+			style="background:linear-gradient(90deg,#1392d6,#24b0ff); box-shadow:0 0 10px rgba(36,176,255,.6);"
 		>
 			Login
 		</a>
 		<a
 			href="/signup"
-			class="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
+			class="rounded-lg px-4 py-2 text-white font-medium transition hover:brightness-110 hover:cursor-pointer"
+			style="background:linear-gradient(90deg,#1392d6,#24b0ff); box-shadow:0 0 10px rgba(36,176,255,.6);"
 		>
 			Sign Up
 		</a>

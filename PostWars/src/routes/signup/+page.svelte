@@ -12,9 +12,20 @@
 </script>
 
 <svelte:head>
-	<title>Sign Up</title>
+	<title>Sign Up - PostWars</title>
 </svelte:head>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-	<SignupForm />
+<!-- Content -->
+<div class="flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+	<div class="w-full max-w-md">
+		<SignupForm />
+		<div class="mt-6 text-center">
+			<span class="text-sm" style="color:#94a3b8;">
+				Already have an account? 
+				<a href="/login" class="hover:underline transition-colors" style="color:#24b0ff;">
+					Login here
+				</a>
+			</span>
+		</div>
+	</div>
 </div>

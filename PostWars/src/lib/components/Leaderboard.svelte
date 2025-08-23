@@ -121,13 +121,13 @@
 		{:else if leaderboardData}
 			<div
 				class="rounded-xl p-6 shadow-lg backdrop-blur-md"
-				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
+				style=" border:1px solid #24b0ff;"
 			>
 				<div class="space-y-3">
 					{#each leaderboardData.leaderboard as player}
 						<div
 							class="flex items-center justify-between rounded-lg p-3"
-							style="background-color:rgba(16,35,73,0.28); border:1px solid rgba(36,176,255,0.35);"
+							
 						>
 							<!-- Rank -->
 							<div class="w-16 text-center">
@@ -189,14 +189,14 @@
 			{#if leaderboardData.leaderboard.length > 0}
 				<div
 					class="rounded-xl p-6 shadow-lg backdrop-blur-md"
-					style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
+					style=" "
 				>
 					<h3 class="mb-4 text-lg font-semibold" style="color:#fdfdfd;">Top Performers</h3>
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 						{#each leaderboardData.leaderboard.slice(0, 3) as topPlayer, index}
 							<div
-								class="rounded-lg p-4 text-center backdrop-blur-md"
-								style="background-color:rgba(16,35,73,0.28); border:1px solid #24b0ff;"
+								class="rounded-lg p-4 text-center "
+								style=""
 							>
 								<div class="mb-2 text-3xl" style="color:#24b0ff;">
 									{getRankIcon(index + 1)}

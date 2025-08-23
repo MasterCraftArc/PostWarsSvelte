@@ -1,100 +1,116 @@
 import { json } from '@sveltejs/kit';
-import { prisma } from '$lib/prisma/index.js';
+import { supabaseAdmin } from '$lib/supabase-server.js';
 import { scrapeSinglePost } from '$lib/linkedin-scraper.js';
-import { calculatePostScore, updateUserStats } from '$lib/gamification.js';
+import { calculatePostScore } from '$lib/gamification.js';
+import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 
-export async function POST({ request, locals }) {
+export async function POST(event) {
 	try {
-		if (!locals.user) {
+		const user = await getAuthenticatedUser(event);
+		if (!user) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
 
-		const { postId } = await request.json();
+		const { postId } = await event.request.json();
 
 		if (!postId) {
 			return json({ error: 'Post ID required' }, { status: 400 });
 		}
 
-		// Get the post
-		const post = await prisma.linkedinPost.findFirst({
-			where: {
-				id: postId,
-				userId: locals.user.id // Ensure user owns the post
-			},
-			include: {
-				analytics: {
-					orderBy: { recordedAt: 'desc' },
-					take: 1
-				}
-			}
-		});
+		// Get the post with latest analytics
+		const { data: post, error: postError } = await supabaseAdmin
+			.from('linkedin_posts')
+			.select(`
+				*,
+				analytics:post_analytics(*)
+			`)
+			.eq('id', postId)
+			.eq('userId', user.id)
+			.single();
 
-		if (!post) {
+		if (postError || !post) {
 			return json({ error: 'Post not found' }, { status: 404 });
 		}
 
-		// Scrape current data
+		// Sort analytics by recordedAt desc and get the latest
+		const sortedAnalytics = (post.analytics || []).sort((a, b) => 
+			new Date(b.recordedAt) - new Date(a.recordedAt)
+		);
+
+		// Use the job queue system for scraping instead of direct scraping
+		// which has better error handling and browser management
 		let currentData;
 		try {
-			currentData = await scrapeSinglePost(post.url, {
-				headed: false,
-				storageStatePath: 'linkedin_auth_state.json'
-			});
+			const { scrapeSinglePostQueued } = await import('$lib/linkedin-scraper-pool.js');
+			currentData = await scrapeSinglePostQueued(post.url, user.id);
 		} catch (scrapeError) {
 			console.error('Analytics update scraping failed:', scrapeError);
 			return json(
 				{
-					error: 'Failed to fetch updated post data'
+					error: 'Failed to fetch updated post data: ' + scrapeError.message
 				},
-				{ status: 400 }
+				{ status: 500 }
 			);
 		}
 
 		if (!currentData) {
-			return json({ error: 'No data could be extracted' }, { status: 400 });
+			return json({ error: 'No data could be extracted from the post' }, { status: 400 });
 		}
 
 		// Calculate growth since last check
-		const lastAnalytics = post.analytics[0];
+		const lastAnalytics = sortedAnalytics[0];
 		const reactionGrowth = currentData.reactions - (lastAnalytics?.reactions || post.reactions);
 		const commentGrowth = currentData.comments - (lastAnalytics?.comments || post.comments);
 		const repostGrowth = currentData.reposts - (lastAnalytics?.reposts || post.reposts);
 
 		// Recalculate scoring with current engagement
-		const userPosts = await prisma.linkedinPost.findMany({
-			where: { userId: locals.user.id },
-			orderBy: { postedAt: 'desc' }
-		});
+		const { data: userPosts } = await supabaseAdmin
+			.from('linkedin_posts')
+			.select('*')
+			.eq('userId', user.id)
+			.order('postedAt', { ascending: false });
 
-		const currentStreak = userPosts.length;
+		const currentStreak = userPosts?.length || 0;
 		const scoring = calculatePostScore(
 			{
 				word_count: post.wordCount,
 				reactions: currentData.reactions,
 				comments: currentData.comments,
 				reposts: currentData.reposts,
-				timestamp: post.postedAt.toISOString()
+				timestamp: post.postedAt // Already a string from DB
 			},
 			currentStreak
 		);
 
 		// Update post with new engagement data
-		const updatedPost = await prisma.linkedinPost.update({
-			where: { id: postId },
-			data: {
+		const { data: updatedPost, error: updateError } = await supabaseAdmin
+			.from('linkedin_posts')
+			.update({
 				reactions: currentData.reactions,
 				comments: currentData.comments,
 				reposts: currentData.reposts,
 				totalEngagement: currentData.total_engagement,
 				engagementScore: scoring.engagementScore,
 				totalScore: scoring.totalScore,
-				lastScrapedAt: new Date()
-			}
-		});
+				lastScrapedAt: new Date().toISOString()
+			})
+			.eq('id', postId)
+			.select()
+			.single();
+
+		if (updateError) {
+			console.error('Update post error:', updateError);
+			return json({ error: 'Failed to update post' }, { status: 500 });
+		}
 
 		// Create new analytics record
-		await prisma.postAnalytics.create({
-			data: {
+		const { randomUUID } = await import('crypto');
+		const analyticsId = randomUUID();
+
+		const { error: analyticsError } = await supabaseAdmin
+			.from('post_analytics')
+			.insert({
+				id: analyticsId,
 				postId: postId,
 				reactions: currentData.reactions,
 				comments: currentData.comments,
@@ -103,11 +119,24 @@ export async function POST({ request, locals }) {
 				reactionGrowth,
 				commentGrowth,
 				repostGrowth
-			}
-		});
+			});
 
-		// Update user stats
-		await updateUserStats(locals.user.id);
+		if (analyticsError) {
+			console.error('Analytics creation error:', analyticsError);
+		}
+
+		// Update user stats - calculate total score from all posts
+		const { data: allUserPosts } = await supabaseAdmin
+			.from('linkedin_posts')
+			.select('totalScore')
+			.eq('userId', user.id);
+
+		const totalUserScore = allUserPosts?.reduce((sum, post) => sum + (post.totalScore || 0), 0) || 0;
+
+		await supabaseAdmin
+			.from('users')
+			.update({ totalScore: totalUserScore })
+			.eq('id', user.id);
 
 		return json({
 			post: updatedPost,

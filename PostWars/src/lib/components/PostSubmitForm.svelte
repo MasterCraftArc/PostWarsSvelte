@@ -1,5 +1,6 @@
 <script>
 	import { user } from '$lib/stores/auth.js';
+	import { authenticatedRequest } from '$lib/api.js';
 
 	let linkedinUrl = '';
 	let loading = false;
@@ -22,28 +23,21 @@
 		success = '';
 
 		try {
-			const response = await fetch('/api/posts/submit', {
+			const data = await authenticatedRequest('/api/posts/submit', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ linkedinUrl: linkedinUrl.trim() })
 			});
 
-			const data = await response.json();
-
-			if (response.ok) {
-				success = `Post submitted successfully! Earned ${data.scoring.totalScore} points.`;
-				if (data.newAchievements?.length > 0) {
-					success += ` New achievements: ${data.newAchievements.map((a) => a.name).join(', ')}!`;
-				}
-				linkedinUrl = '';
-
-				// Refresh page data or dispatch event
-				window.location.reload();
-			} else {
-				error = data.error || 'Failed to submit post';
+			success = `Post submitted successfully! Job ID: ${data.jobId}`;
+			if (data.estimatedWaitTime) {
+				success += ` Estimated processing time: ${data.estimatedWaitTime}`;
 			}
+			linkedinUrl = '';
+
+			// Refresh page data or dispatch event
+			window.location.reload();
 		} catch (err) {
-			error = 'Network error. Please try again.';
+			error = err.message || 'Failed to submit post';
 		}
 
 		loading = false;

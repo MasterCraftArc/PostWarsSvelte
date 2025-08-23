@@ -1,4 +1,4 @@
-import { prisma } from './prisma/index.js';
+import { supabaseAdmin } from './supabase-server.js';
 
 export const SCORING_CONFIG = {
 	// Base points for posting
@@ -104,39 +104,53 @@ export function calculateUserStreak(userPosts) {
 }
 
 export async function updateUserStats(userId) {
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		include: {
-			linkedinPosts: {
-				orderBy: { postedAt: 'desc' }
-			}
-		}
-	});
+	const { data: user, error: userError } = await supabaseAdmin
+		.from('users')
+		.select('id, bestStreak')
+		.eq('id', userId)
+		.single();
 
-	if (!user) return null;
+	if (userError || !user) return null;
 
-	const currentStreak = calculateUserStreak(user.linkedinPosts);
-	const totalScore = user.linkedinPosts.reduce((sum, post) => sum + post.totalScore, 0);
+	const { data: linkedinPosts } = await supabaseAdmin
+		.from('linkedin_posts')
+		.select('totalScore, postedAt')
+		.eq('userId', userId)
+		.order('postedAt', { ascending: false });
+
+	if (!linkedinPosts) return null;
+
+	const currentStreak = calculateUserStreak(linkedinPosts);
+	const totalScore = linkedinPosts.reduce((sum, post) => sum + post.totalScore, 0);
 
 	const thisMonth = new Date();
 	thisMonth.setDate(1);
 	thisMonth.setHours(0, 0, 0, 0);
 
-	const postsThisMonth = user.linkedinPosts.filter(
+	const postsThisMonth = linkedinPosts.filter(
 		(post) => new Date(post.postedAt) >= thisMonth
 	).length;
 
 	const bestStreak = Math.max(user.bestStreak, currentStreak);
 
-	return await prisma.user.update({
-		where: { id: userId },
-		data: {
+	const { data: updatedUser, error: updateError } = await supabaseAdmin
+		.from('users')
+		.update({
 			totalScore,
 			postsThisMonth,
 			currentStreak,
 			bestStreak
-		}
-	});
+		})
+		.eq('id', userId)
+		.select()
+		.single();
+
+	if (updateError) {
+		console.error('Error updating user stats:', updateError);
+		return null;
+	}
+
+	return updatedUser;
 }
 
 export const ACHIEVEMENTS = [
@@ -183,50 +197,58 @@ export const ACHIEVEMENTS = [
 ];
 
 export async function checkAndAwardAchievements(userId) {
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		include: {
-			linkedinPosts: true,
-			achievements: {
-				include: {
-					achievement: true
-				}
-			}
-		}
-	});
+	const { data: user, error: userError } = await supabaseAdmin
+		.from('users')
+		.select('id, currentStreak')
+		.eq('id', userId)
+		.single();
 
-	if (!user) return [];
+	if (userError || !user) return [];
 
-	const earnedAchievementIds = new Set(user.achievements.map((ua) => ua.achievementId));
+	const { data: linkedinPosts } = await supabaseAdmin
+		.from('linkedin_posts')
+		.select('totalEngagement, reactions')
+		.eq('userId', userId);
 
+	const { data: userAchievements } = await supabaseAdmin
+		.from('user_achievements')
+		.select('achievementId')
+		.eq('userId', userId);
+
+	if (!linkedinPosts) return [];
+
+	const earnedAchievementIds = new Set((userAchievements || []).map((ua) => ua.achievementId));
 	const newAchievements = [];
 
 	for (const achievementData of ACHIEVEMENTS) {
-		// Skip if already earned
-		const existingAchievement = await prisma.achievement.findUnique({
-			where: { name: achievementData.name }
-		});
+		// Check if achievement exists, create if not
+		let { data: existingAchievement } = await supabaseAdmin
+			.from('achievements')
+			.select('id, name, description, icon, points')
+			.eq('name', achievementData.name)
+			.single();
 
 		if (!existingAchievement) {
-			// Create achievement if it doesn't exist
-			await prisma.achievement.create({
-				data: achievementData
-			});
-			continue;
+			const { data: createdAchievement } = await supabaseAdmin
+				.from('achievements')
+				.insert(achievementData)
+				.select('id, name, description, icon, points')
+				.single();
+			existingAchievement = createdAchievement;
 		}
 
-		if (earnedAchievementIds.has(existingAchievement.id)) continue;
+		if (!existingAchievement || earnedAchievementIds.has(existingAchievement.id)) continue;
 
 		let isEarned = false;
 
 		switch (achievementData.requirementType) {
 			case 'posts_count':
-				isEarned = user.linkedinPosts.length >= achievementData.requirementValue;
+				isEarned = linkedinPosts.length >= achievementData.requirementValue;
 				break;
 
 			case 'engagement_total':
-				const totalEngagement = user.linkedinPosts.reduce(
-					(sum, post) => sum + post.totalEngagement,
+				const totalEngagement = linkedinPosts.reduce(
+					(sum, post) => sum + (post.totalEngagement || 0),
 					0
 				);
 				isEarned = totalEngagement >= achievementData.requirementValue;
@@ -237,65 +259,103 @@ export async function checkAndAwardAchievements(userId) {
 				break;
 
 			case 'single_post_reactions':
-				const maxReactions = Math.max(...user.linkedinPosts.map((post) => post.reactions), 0);
+				const maxReactions = Math.max(...linkedinPosts.map((post) => post.reactions || 0), 0);
 				isEarned = maxReactions >= achievementData.requirementValue;
 				break;
 		}
 
 		if (isEarned) {
-			await prisma.userAchievement.create({
-				data: {
+			const { error: insertError } = await supabaseAdmin
+				.from('user_achievements')
+				.insert({
 					userId: userId,
 					achievementId: existingAchievement.id
-				}
-			});
+				});
 
-			newAchievements.push(existingAchievement);
+			if (!insertError) {
+				newAchievements.push(existingAchievement);
+			}
 		}
 	}
 
 	return newAchievements;
 }
 
-export function getLeaderboardData(timeframe = 'all') {
-	const dateFilter = {};
+export async function getLeaderboardData(timeframe = 'all', userIds = null) {
+	let dateFilter = '';
+	let userFilter = '';
 
 	if (timeframe === 'month') {
 		const startOfMonth = new Date();
 		startOfMonth.setDate(1);
 		startOfMonth.setHours(0, 0, 0, 0);
-		dateFilter.createdAt = { gte: startOfMonth };
+		dateFilter = startOfMonth.toISOString();
 	} else if (timeframe === 'week') {
 		const startOfWeek = new Date();
 		startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
 		startOfWeek.setHours(0, 0, 0, 0);
-		dateFilter.createdAt = { gte: startOfWeek };
+		dateFilter = startOfWeek.toISOString();
 	}
 
-	return prisma.user.findMany({
-		select: {
-			id: true,
-			name: true,
-			email: true,
-			totalScore: true,
-			postsThisMonth: true,
-			currentStreak: true,
-			linkedinPosts: {
-				select: {
-					totalEngagement: true,
-					totalScore: true,
-					createdAt: true
-				},
-				where: dateFilter,
-				orderBy: { createdAt: 'desc' }
-			},
-			achievements: {
-				include: {
-					achievement: true
-				}
+	// Build user query
+	let userQuery = supabaseAdmin
+		.from('users')
+		.select(`
+			id,
+			name,
+			email,
+			totalScore,
+			postsThisMonth,
+			currentStreak,
+			team:teams(name)
+		`)
+		.order('totalScore', { ascending: false })
+		.limit(50);
+
+	// Filter by specific user IDs if provided (for team leaderboard)
+	if (userIds && userIds.length > 0) {
+		userQuery = userQuery.in('id', userIds);
+	}
+
+	const { data: users, error: usersError } = await userQuery;
+
+	if (usersError || !users) {
+		console.error('Error fetching leaderboard users:', usersError);
+		return [];
+	}
+
+	// Fetch posts and achievements for each user
+	const enhancedUsers = await Promise.all(
+		users.map(async (user) => {
+			// Fetch posts with date filter if applicable
+			let postsQuery = supabaseAdmin
+				.from('linkedin_posts')
+				.select('totalEngagement, totalScore, createdAt')
+				.eq('userId', user.id)
+				.order('createdAt', { ascending: false });
+
+			if (dateFilter) {
+				postsQuery = postsQuery.gte('createdAt', dateFilter);
 			}
-		},
-		orderBy: { totalScore: 'desc' },
-		take: 50
-	});
+
+			const { data: linkedinPosts } = await postsQuery;
+
+			// Fetch user achievements
+			const { data: userAchievements } = await supabaseAdmin
+				.from('user_achievements')
+				.select(`
+					*,
+					achievement:achievements(*)
+				`)
+				.eq('userId', user.id);
+
+			return {
+				...user,
+				linkedinPosts: linkedinPosts || [],
+				achievements: userAchievements || []
+			};
+		})
+	);
+
+	return enhancedUsers;
 }
