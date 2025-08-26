@@ -6,6 +6,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import Background from '$lib/assets/Hero-Desktop.webp';
+	import DefenseUnicornsLogo from '$lib/assets/defense-unicorns-horizontal-logo-white.svg';
 
 	let { children, data } = $props();
 	let mobileMenuOpen = $state(false);
@@ -46,7 +47,7 @@
 					<!-- Logo -->
 					<div class="flex items-center">
 						<a href="/" class="flex-shrink-0">
-							<img src="src/lib/assets/defense-unicorns-horizontal-logo-white.svg" alt="Defense Unicorns" class="h-8 w-auto">
+							<img src={DefenseUnicornsLogo} alt="Defense Unicorns" class="h-8 w-auto">
 						</a>
 					</div>
 
