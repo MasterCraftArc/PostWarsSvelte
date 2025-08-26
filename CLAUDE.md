@@ -463,6 +463,40 @@ The `sed -i '' '1d'` command uses macOS syntax with empty string for in-place ed
 
 **Status:** 🔧 **FIXED** - Build script now works in Linux environment, ready for deployment
 
+### Error 7: Netlify Function Detection Failure - "0 new function(s) to upload" (Aug 26, 2025)
+
+**Error Message:**
+```
+Deploy logs show: "0 new function(s) to upload"
+Functions built successfully but not detected by Netlify
+```
+
+**Root Cause:**
+The SvelteKit functions were being copied to `build/.netlify/functions/` but Netlify expects functions in the project root `.netlify/functions/` directory. The functions directory path also needed to be explicitly specified in netlify.toml.
+
+**Diagnosis Steps Performed:**
+1. ✅ Confirmed functions were built and copied during build process
+2. ✅ Verified function files existed with correct .mjs/.json format
+3. ❌ **Found functions in wrong location** - they were in build subdirectory
+4. ✅ Functions need to be in project root `.netlify/functions/` for detection
+5. ✅ netlify.toml needed explicit functions directory configuration
+
+**Solution Applied:**
+- **Updated build script** to copy functions to project root:
+  ```json
+  "build:fix-netlify": "mkdir -p .netlify/functions && cp .netlify/functions-internal/sveltekit-render.mjs .netlify/functions/ && cp .netlify/functions-internal/sveltekit-render.json .netlify/functions/ && echo '* /.netlify/functions/sveltekit-render 200' > build/_redirects"
+  ```
+- **Added functions directory** to netlify.toml:
+  ```toml
+  [build]
+    command = "npm run build"
+    publish = "build"
+    functions = ".netlify/functions"
+  ```
+- **Verified function structure** - both .mjs and .json files in correct location
+
+**Status:** 🔧 **FIXED** - Functions now in correct location with explicit netlify.toml config, ready for deployment
+
 **Alternative Fixes:**
 - **Option 1: Use SvelteKit static adapter** if your app doesn't need SSR:
   ```javascript
