@@ -61,7 +61,8 @@
 		"dotenv": "^17.2.1",
 		"jsonwebtoken": "^9.0.2",
 		"lightningcss": "^1.30.1",
-		"playwright": "^1.55.0"
+		"playwright": "^1.55.0",
+		"chromium-bidi": "^0.8.0"
 	},
 	"optionalDependencies": {
 		"@rollup/rollup-linux-x64-gnu": "^4.28.1",

@@ -6,20 +6,35 @@ export default defineConfig({
 	build: {
 		rollupOptions: {
 			external: (id) => {
-				// Make playwright and related dependencies external
-				if (id.includes('playwright') || 
-				    id.includes('chromium') || 
-				    id.includes('puppeteer') ||
-				    id.includes('sharp')) {
+				// Make playwright and all related dependencies external
+				const externals = [
+					'playwright',
+					'playwright-core',
+					'chromium',
+					'chromium-bidi',
+					'puppeteer',
+					'sharp'
+				];
+				
+				// Make linkedin-scraper files external to prevent bundling
+				if (id.includes('linkedin-scraper')) {
 					return true;
 				}
-				return false;
+				
+				return externals.some(ext => id.includes(ext));
 			}
 		}
 	},
 	ssr: {
-		external: ['playwright', 'playwright-core'],
-		noExternal: ['@supabase/supabase-js'] // Keep essential dependencies
+		external: [
+			'playwright', 
+			'playwright-core', 
+			'chromium-bidi',
+			/^chromium-bidi\/.*/,
+			/^playwright.*/,
+			/linkedin-scraper/
+		],
+		noExternal: ['@supabase/supabase-js']
 	},
 	test: {
 		expect: { requireAssertions: true },

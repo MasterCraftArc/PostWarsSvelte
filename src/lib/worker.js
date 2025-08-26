@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { jobQueue } from './job-queue.js';
-import { browserPool } from './linkedin-scraper-pool.js';
 import { supabaseAdmin } from './supabase-server.js';
 
 class BackgroundWorker {
@@ -127,11 +126,16 @@ class BackgroundWorker {
 		}, 300000);
 	}
 
-	logStats() {
+	async logStats() {
 		const queueStats = jobQueue.getQueueStats();
-		const browserStats = browserPool.getStats();
-
-		console.log(`📊 Stats - Queue: ${queueStats.queueLength} pending, ${queueStats.activeJobs} active | Browsers: ${browserStats.activeBrowsers}/${browserStats.totalBrowsers}, Pages: ${browserStats.totalPages}`);
+		
+		try {
+			const { browserPool } = await import('./linkedin-scraper-pool.js');
+			const browserStats = browserPool.getStats();
+			console.log(`📊 Stats - Queue: ${queueStats.queueLength} pending, ${queueStats.activeJobs} active | Browsers: ${browserStats.activeBrowsers}/${browserStats.totalBrowsers}, Pages: ${browserStats.totalPages}`);
+		} catch (error) {
+			console.log(`📊 Stats - Queue: ${queueStats.queueLength} pending, ${queueStats.activeJobs} active | Browser pool unavailable`);
+		}
 	}
 
 	async cleanupOldJobs() {
@@ -172,9 +176,14 @@ class BackgroundWorker {
 			}
 
 			// Check browser pool health
-			const browserStats = browserPool.getStats();
-			if (browserStats.totalBrowsers === 0 && jobQueue.getQueueStats().queueLength > 0) {
-				console.warn('⚠️  No browsers available but jobs are queued');
+			try {
+				const { browserPool } = await import('./linkedin-scraper-pool.js');
+				const browserStats = browserPool.getStats();
+				if (browserStats.totalBrowsers === 0 && jobQueue.getQueueStats().queueLength > 0) {
+					console.warn('⚠️  No browsers available but jobs are queued');
+				}
+			} catch (error) {
+				console.log('Browser pool health check unavailable');
 			}
 
 			// Check for stuck jobs (processing for more than 10 minutes)
@@ -231,7 +240,12 @@ class BackgroundWorker {
 		this.isRunning = false;
 
 		// Cleanup browser pool
-		await browserPool.cleanup();
+		try {
+			const { browserPool } = await import('./linkedin-scraper-pool.js');
+			await browserPool.cleanup();
+		} catch (error) {
+			console.log('Browser pool cleanup unavailable');
+		}
 
 		// Supabase connections are automatically managed
 		// No explicit disconnect needed

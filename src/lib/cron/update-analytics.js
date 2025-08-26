@@ -1,5 +1,4 @@
 import { supabaseAdmin } from '../supabase-server.js';
-import { scrapeSinglePost } from '../linkedin-scraper.js';
 import { calculatePostScore, updateUserStats } from '../gamification.js';
 
 export async function updateAllPostAnalytics() {
@@ -36,6 +35,7 @@ export async function updateAllPostAnalytics() {
 				console.log(`Updating post ${post.id} (${post.url})`);
 
 				// Scrape current data
+				const { scrapeSinglePost } = await import('../linkedin-scraper.js');
 				const currentData = await scrapeSinglePost(post.url, {
 					headed: false,
 					storageStatePath: 'linkedin_auth_state.json'
