@@ -1,18 +1,11 @@
 [build]
-  command = "npm ci && npm run build"
-  publish = "PostWars/build"
-  ignore = "*.sql,create-admin.js,.env*,SECURITY_AUDIT_REPORT.md"
+  command = "npm run build"
+  functions = ".netlify/functions"
+  publish = "build"
 
 [build.environment]
   NODE_VERSION = "20"
-  NPM_FLAGS = "--production=false"
-  SECRETS_SCAN_ENABLED = "false"
 
-
-[dev]
-  command = "npm run dev"
-  port = 5173
-  publish = "PostWars/build"
 
 # Environment variables needed for deployment
 # These should be set in Netlify dashboard:
