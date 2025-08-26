@@ -3,6 +3,20 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	build: {
+		rollupOptions: {
+			external: [
+				// Exclude heavy dependencies from serverless function bundle
+				'playwright',
+				'puppeteer', 
+				'sharp',
+				'chromium'
+			]
+		}
+	},
+	ssr: {
+		noExternal: ['@supabase/supabase-js'] // Keep essential dependencies
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

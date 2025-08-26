@@ -8,19 +8,14 @@
 	let error = '';
 
 	async function loadDashboard() {
-		console.log('🚀 Dashboard component: Starting loadDashboard');
 		try {
-			console.log('⏱️ Dashboard component: Calling authenticatedRequest');
 			const data = await authenticatedRequest('/api/dashboard');
-			console.log('✅ Dashboard component: Got data:', data);
 			dashboardData = data;
 			error = '';
 		} catch (err) {
-			console.error('❌ Dashboard component: Error:', err);
 			error = err.message || 'Failed to load dashboard';
 		}
 		loading = false;
-		console.log('✅ Dashboard component: loadDashboard complete');
 	}
 
 	async function updatePostAnalytics(postId) {
@@ -34,7 +29,7 @@
 			loading = true;
 			await loadDashboard();
 		} catch (err) {
-			console.error('Failed to update analytics:', err);
+			error = err.message || 'Failed to update analytics';
 		}
 	}
 
@@ -53,23 +48,16 @@
 			await loadDashboard();
 			alert('Post deleted successfully');
 		} catch (err) {
-			console.error('Failed to delete post:', err);
-			alert('Failed to delete post: ' + err.message);
+			error = err.message || 'Failed to delete post';
 		}
 	}
 
 	// Reactive statement to load dashboard when user becomes available
 	$: {
-		console.log('🔄 Dashboard reactive - user changed:', !!$user);
 		if ($user && !dashboardData && !error) {
-			console.log('✅ User available, loading dashboard');
 			loadDashboard();
 		}
 	}
-
-	onMount(() => {
-		console.log('🚀 Dashboard onMount - user:', !!$user);
-	});
 
 	function formatDate(dateString) {
 		return new Date(dateString).toLocaleDateString('en-US', {

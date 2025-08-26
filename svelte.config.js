@@ -5,7 +5,13 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter()
+		adapter: adapter(),
+		prerender: {
+			entries: ['/', '/login', '/signup'],
+			handleHttpError: 'warn',
+			handleMissingId: 'warn',
+			handleUnseenRoutes: 'ignore'
+		}
 	}
 };
 

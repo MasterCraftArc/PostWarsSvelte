@@ -13,30 +13,20 @@ const sessionStore = session;
 
 // Initialize auth state
 if (browser) {
-	console.log('🚀 Auth store initializing...');
-	
 	// Get initial session
-	console.log('⏱️ Auth store: Getting initial session...');
 	supabase.auth.getSession().then(({ data }) => {
-		console.log('✅ Auth store: Got initial session:', !!data.session);
 		const { session: initialSession } = data;
 		sessionStore.set(initialSession);
 		if (initialSession) {
-			console.log('⏱️ Auth store: Syncing user data...');
 			syncUserData(initialSession);
-		} else {
-			console.log('❌ Auth store: No initial session found');
 		}
 		loading.set(false);
-		console.log('✅ Auth store: Initial setup complete');
 	}).catch(error => {
-		console.error('❌ Auth store: Failed to get initial session:', error);
 		loading.set(false);
 	});
 
 	// Listen for auth changes
 	supabase.auth.onAuthStateChange((event, authSession) => {
-		console.log('🔄 Auth store: Auth state changed:', event, !!authSession);
 		sessionStore.set(authSession);
 		if (authSession) {
 			syncUserData(authSession);
@@ -50,8 +40,6 @@ if (browser) {
 // Sync user data from server (includes role, gamification data)
 async function syncUserData(sessionData) {
 	try {
-		console.log('🔍 Syncing user data for:', sessionData.user.email);
-		
 		// Fetch user data from our API to get role and other info
 		const response = await fetch('/api/auth/me', {
 			headers: {
@@ -61,10 +49,8 @@ async function syncUserData(sessionData) {
 
 		if (response.ok) {
 			const userData = await response.json();
-			console.log('✅ User data synced:', userData.user.email);
 			user.set(userData.user);
 		} else {
-			console.log('⚠️ API sync failed, using fallback data for:', sessionData.user.email);
 			// Fallback to basic Supabase user data
 			user.set({
 				id: sessionData.user.id,
@@ -74,7 +60,6 @@ async function syncUserData(sessionData) {
 			});
 		}
 	} catch (error) {
-		console.error('Error syncing user data:', error);
 		// Fallback to basic Supabase user data
 		user.set({
 			id: sessionData.user.id,
@@ -146,7 +131,7 @@ export async function logout() {
 	const { error } = await supabase.auth.signOut({ scope: 'global' });
 	
 	if (error) {
-		console.error('Logout error:', error);
+		// Handle logout error if needed
 	}
 
 	if (browser) {
@@ -155,7 +140,7 @@ export async function logout() {
 			localStorage.clear();
 			sessionStorage.clear();
 		} catch (e) {
-			console.warn('Could not clear storage:', e);
+			// Storage clear failed, but user is still logged out
 		}
 		
 		window.location.href = '/';
