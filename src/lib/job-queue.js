@@ -231,7 +231,7 @@ class JobQueue extends EventEmitter {
 	async processScrapeJob(job) {
 		const { linkedinUrl, userId } = job.data;
 		
-		// Import here to avoid circular dependencies
+		// Dynamic import to avoid bundling into serverless function
 		const { scrapeSinglePostQueued } = await import('./linkedin-scraper-pool.js');
 		const { 
 			calculatePostScore, 

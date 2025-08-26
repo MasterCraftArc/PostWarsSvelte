@@ -5,16 +5,20 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	build: {
 		rollupOptions: {
-			external: [
-				// Exclude heavy dependencies from serverless function bundle
-				'playwright',
-				'puppeteer', 
-				'sharp',
-				'chromium'
-			]
+			external: (id) => {
+				// Make playwright and related dependencies external
+				if (id.includes('playwright') || 
+				    id.includes('chromium') || 
+				    id.includes('puppeteer') ||
+				    id.includes('sharp')) {
+					return true;
+				}
+				return false;
+			}
 		}
 	},
 	ssr: {
+		external: ['playwright', 'playwright-core'],
 		noExternal: ['@supabase/supabase-js'] // Keep essential dependencies
 	},
 	test: {

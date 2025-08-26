@@ -1,6 +1,5 @@
 import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase-server.js';
-import { scrapeSinglePost } from '$lib/linkedin-scraper.js';
 import { calculatePostScore } from '$lib/gamification.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 
@@ -37,14 +36,12 @@ export async function POST(event) {
 			new Date(b.recordedAt) - new Date(a.recordedAt)
 		);
 
-		// Use the job queue system for scraping instead of direct scraping
-		// which has better error handling and browser management
+		// Use the job queue system for scraping with proper error handling
 		let currentData;
 		try {
 			const { scrapeSinglePostQueued } = await import('$lib/linkedin-scraper-pool.js');
 			currentData = await scrapeSinglePostQueued(post.url, user.id);
 		} catch (scrapeError) {
-			console.error('Analytics update scraping failed:', scrapeError);
 			return json(
 				{
 					error: 'Failed to fetch updated post data: ' + scrapeError.message
