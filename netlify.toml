@@ -3,7 +3,7 @@
   publish = "build"
 
 [build.environment]
-  NODE_VERSION = "24"
+  NODE_VERSION = "22"
   SECRETS_SCAN_ENABLED = "false"
 
 # Secrets scanning configuration
