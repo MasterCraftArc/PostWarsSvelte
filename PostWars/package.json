@@ -16,7 +16,9 @@
 		"cron:update-analytics": "node src/lib/cron/update-analytics.js --update-analytics",
 		"cron:init-achievements": "node src/lib/cron/update-analytics.js --init-achievements",
 		"worker": "node src/lib/worker.js",
-		"db:seed": "node prisma/seed-supabase.js"
+		"db:seed": "node prisma/seed-supabase.js",
+		"deploy:db": "./deploy-db.sh",
+		"deploy:netlify": "netlify deploy --prod --dir=build"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
