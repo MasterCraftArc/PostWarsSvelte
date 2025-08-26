@@ -231,8 +231,17 @@ class JobQueue extends EventEmitter {
 	async processScrapeJob(job) {
 		const { linkedinUrl, userId } = job.data;
 		
-		// Dynamic import to avoid bundling into serverless function
-		const { scrapeSinglePostQueued } = await import('./linkedin-scraper-pool.js');
+		// Use try-catch to handle environment where scraper is not available
+		let scrapeSinglePostQueued;
+		try {
+			// Dynamic import using variable to avoid static analysis
+			const scraperPath = './linkedin-scraper-pool.js';
+			const scraperModule = await import(scraperPath);
+			scrapeSinglePostQueued = scraperModule.scrapeSinglePostQueued;
+		} catch (error) {
+			throw new Error('Scraping functionality is not available in this environment. Please use a dedicated worker process.');
+		}
+		
 		const { 
 			calculatePostScore, 
 			updateUserStats, 

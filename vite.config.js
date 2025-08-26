@@ -21,6 +21,12 @@ export default defineConfig({
 					return true;
 				}
 				
+				// Also check for specific file patterns
+				if (id.endsWith('linkedin-scraper-pool.js') || 
+					id.endsWith('linkedin-scraper.js')) {
+					return true;
+				}
+				
 				return externals.some(ext => id.includes(ext));
 			}
 		}
@@ -32,7 +38,12 @@ export default defineConfig({
 			'chromium-bidi',
 			/^chromium-bidi\/.*/,
 			/^playwright.*/,
-			/linkedin-scraper/
+			/.*linkedin-scraper.*\.js$/,
+			'./linkedin-scraper-pool.js',
+			'../linkedin-scraper.js',
+			'./linkedin-scraper.js',
+			// Absolute paths that might be generated
+			/.*src\/lib\/linkedin-scraper.*\.js$/
 		],
 		noExternal: ['@supabase/supabase-js']
 	},
