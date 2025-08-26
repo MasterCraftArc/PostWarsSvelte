@@ -1,5 +1,5 @@
 [build]
-  command = "npm ci && npm run build"
+  command = "npm ci || npm install && npm run build"
   publish = "build"
   ignore = "*.sql,create-admin.js,.env*,SECURITY_AUDIT_REPORT.md"
 
