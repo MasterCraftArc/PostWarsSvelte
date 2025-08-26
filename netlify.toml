@@ -7,10 +7,6 @@
   NODE_VERSION = "20"
   NPM_FLAGS = "--production=false"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
 
 [dev]
   command = "npm run dev"
