@@ -371,6 +371,43 @@ This caused Netlify to try serving a non-existent `index.html` file first before
    NODE_ENV=development npx vite preview --host 127.0.0.1 --port 4173
    ```
 
+### Error 4: Netlify 404 "Page not found" with Conflicting _redirects (Aug 26, 2025)
+
+**Error Message:**
+```
+Page not found
+Looks like you've followed a broken link or entered a URL that doesn't exist on this site.
+```
+
+**Root Cause:**
+The build/_redirects file contained conflicting redirect rules that caused Netlify to look for a non-existent `index.html` file first:
+```
+/*    /index.html   200
+* /.netlify/functions/sveltekit-render 200
+```
+
+**Diagnosis Steps Performed:**
+1. ✅ Verified netlify.toml has correct publish directory: `publish = "build"`
+2. ✅ Confirmed SvelteKit Netlify adapter is installed and configured
+3. ✅ Checked that build directory exists with proper file structure
+4. ❌ **Found conflicting _redirects rules** - this was the root cause
+5. ✅ Verified this is an SSR app that needs function-based routing
+
+**Solution Applied:**
+- **Fixed build/_redirects file** to only include the SSR function route:
+  ```
+  * /.netlify/functions/sveltekit-render 200
+  ```
+- **Updated svelte.config.js** with proper adapter options to prevent future conflicts:
+  ```javascript
+  adapter: adapter({
+    edge: false,
+    split: false  
+  })
+  ```
+
+**Status:** 🔧 **FIXED** - _redirects file corrected, ready for Netlify deployment test
+
 **Alternative Fixes:**
 - **Option 1: Use SvelteKit static adapter** if your app doesn't need SSR:
   ```javascript
