@@ -408,6 +408,40 @@ The build/_redirects file contained conflicting redirect rules that caused Netli
 
 **Status:** 🔧 **FIXED** - _redirects file corrected, ready for Netlify deployment test
 
+### Error 5: Netlify Function Not Deployed - "No functions deployed" (Aug 26, 2025)
+
+**Error Message:**
+```
+Deploy summary shows "No functions deployed"
+Netlify 404 - Page not found (function doesn't exist)
+```
+
+**Root Cause:**
+The SvelteKit Netlify adapter was generating the serverless function in `.netlify/functions-internal/` directory but Netlify expects functions in `build/.netlify/functions/` for deployment. The function was being built locally but not copied to the build directory.
+
+**Diagnosis Steps Performed:**
+1. ✅ Confirmed function exists in `.netlify/functions-internal/sveltekit-render.mjs`
+2. ✅ Verified function is properly configured with Node.js ESM format
+3. ❌ **Found functions missing from build directory** - this was the root cause
+4. ✅ Confirmed _redirects points to correct function path
+5. ✅ Verified adapter is working but needs post-build step
+
+**Solution Applied:**
+- **Created post-build script** to copy functions to deployment directory:
+  ```json
+  "build:fix-netlify": "mkdir -p build/.netlify/functions && cp -r .netlify/functions-internal/* build/.netlify/functions/ && sed -i '' '1d' build/_redirects"
+  ```
+- **Updated build command** to include function copying:
+  ```json
+  "build": "vite build && npm run build:fix-netlify"
+  ```
+- **Fixed _redirects file** to point to deployed function:
+  ```
+  * /.netlify/functions/sveltekit-render 200
+  ```
+
+**Status:** 🔧 **FIXED** - Functions now copy to build directory, ready for deployment
+
 **Alternative Fixes:**
 - **Option 1: Use SvelteKit static adapter** if your app doesn't need SSR:
   ```javascript
