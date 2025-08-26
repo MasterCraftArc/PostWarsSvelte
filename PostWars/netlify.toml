@@ -2,11 +2,12 @@
   base = "PostWars"
   command = "npm ci && npm run build"
   publish = "build"
+  ignore = "*.sql,create-admin.js,.env*,SECURITY_AUDIT_REPORT.md"
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--production=false"
-  SECRETS_SCAN_OMIT_KEYS = "PUBLIC_SUPABASE_URL,PUBLIC_SUPABASE_ANON_KEY"
+  SECRETS_SCAN_OMIT_KEYS = "PUBLIC_SUPABASE_URL,PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_KEY,DATABASE_URL,JWT_SECRET"
 
 [dev]
   command = "npm run dev"
