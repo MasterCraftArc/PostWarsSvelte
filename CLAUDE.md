@@ -341,5 +341,34 @@ Add these scripts to `package.json`:
 
 ---
 
+## 🐛 Deployment Errors & Fixes
+
+### Error 1: Tailwind CSS Native Binding Issue (Aug 26, 2025)
+
+**Error Message:**
+```
+Error: Failed to load native binding
+    at Object.<anonymous> (/opt/build/repo/node_modules/@tailwindcss/oxide/index.js:372:11)
+```
+
+**Root Cause:** 
+Tailwind CSS v4 beta uses native bindings that aren't compatible with Netlify's build environment.
+
+**Solution:**
+1. Downgrade to Tailwind CSS v3 stable
+2. Update configuration files
+3. Ensure compatibility with Netlify's Node.js environment
+
+**Fix Applied:**
+- Removed Tailwind CSS v4 beta and @tailwindcss/vite plugin
+- Installed Tailwind CSS v3.4.10 (stable) with PostCSS and autoprefixer
+- Created tailwind.config.js with proper content paths and plugins
+- Created postcss.config.js for PostCSS integration
+- Updated vite.config.js to remove v4 plugin
+- Updated src/app.css to use v3 @tailwind directives
+- ✅ Verified build works locally - build completed successfully
+
+---
+
 **Status:** 🚧 **DEPLOYMENT GUIDE READY** - Instructions provided, deployment not yet configured  
-**Last Updated:** August 23, 2025
+**Last Updated:** August 26, 2025
