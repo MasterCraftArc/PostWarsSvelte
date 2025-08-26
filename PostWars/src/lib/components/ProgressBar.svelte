@@ -1,5 +1,4 @@
 <script>
-	export let progress = 0;
 	export let target = 100;
 	export let current = 0;
 	export let label = '';
