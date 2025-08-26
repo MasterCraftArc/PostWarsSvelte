@@ -52,7 +52,7 @@
 		"vitest-browser-svelte": "^0.1.0"
 	},
 	"engines": {
-		"node": ">=18.20"
+		"node": ">=24"
 	},
 	"dependencies": {
 		"@supabase/ssr": "^0.7.0",
