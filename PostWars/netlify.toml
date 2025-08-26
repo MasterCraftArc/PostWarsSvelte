@@ -8,6 +8,7 @@
   NODE_VERSION = "20"
   NPM_FLAGS = "--production=false"
   SECRETS_SCAN_OMIT_KEYS = "PUBLIC_SUPABASE_URL,PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_KEY,DATABASE_URL,JWT_SECRET"
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/server/**,.svelte-kit/output/server/**"
 
 [dev]
   command = "npm run dev"
