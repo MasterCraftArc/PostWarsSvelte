@@ -335,7 +335,73 @@ Add these scripts to `package.json`:
 
 ## 🐛 Deployment Errors & Fixes
 
-### Error 1: Tailwind CSS Native Binding Issue (Aug 26, 2025)
+### Error 1: SvelteKit Netlify Adapter _redirects Configuration Issue (Aug 26, 2025)
+
+**Error Message:**
+```
+Netlify 404 - Page not found
+Site can't provide secure connection (local preview)
+```
+
+**Root Cause:**
+The SvelteKit Netlify adapter was generating a faulty `_redirects` file with conflicting redirect rules:
+```
+/*    /index.html   200
+* /.netlify/functions/sveltekit-render 200
+```
+
+This caused Netlify to try serving a non-existent `index.html` file first before falling back to the SSR function, resulting in 404 errors.
+
+**Solution Applied:**
+1. **Updated svelte.config.js** with proper adapter configuration:
+   ```javascript
+   adapter: adapter({
+     edge: false,
+     split: false
+   })
+   ```
+
+2. **Manually corrected the _redirects file** to only include the SSR rule:
+   ```
+   * /.netlify/functions/sveltekit-render 200
+   ```
+
+3. **Fixed local preview server** by using `NODE_ENV=development` to disable HTTPS redirect:
+   ```bash
+   NODE_ENV=development npx vite preview --host 127.0.0.1 --port 4173
+   ```
+
+**Alternative Fixes:**
+- **Option 1: Use SvelteKit static adapter** if your app doesn't need SSR:
+  ```javascript
+  import adapter from '@sveltejs/adapter-static';
+  adapter: adapter({
+    pages: 'build',
+    assets: 'build',
+    fallback: null,
+    precompress: false
+  })
+  ```
+
+- **Option 2: Configure prerendering** for specific pages in `+page.js`:
+  ```javascript
+  export const prerender = true;
+  ```
+
+- **Option 3: Add SPA fallback** if you want client-side routing:
+  ```javascript
+  adapter: adapter({
+    fallback: 'index.html'
+  })
+  ```
+
+**Diagnosis Steps:**
+1. Check if `build/_redirects` has conflicting rules
+2. Verify no HTML files exist in build directory for SSR apps
+3. Test locally with `curl -I http://localhost:4173` to check redirects
+4. Check Netlify deploy logs for redirect generation
+
+### Error 2: Tailwind CSS Native Binding Issue (Aug 26, 2025)
 
 **Error Message:**
 ```
