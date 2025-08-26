@@ -1,0 +1,24 @@
+[build]
+  base = "PostWars"
+  command = "npm ci && npm run build"
+  publish = "PostWars/build"
+  ignore = "*.sql,create-admin.js,.env*,SECURITY_AUDIT_REPORT.md"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--production=false"
+  SECRETS_SCAN_OMIT_KEYS = "PUBLIC_SUPABASE_URL,PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_KEY,DATABASE_URL,JWT_SECRET"
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/server/**,.svelte-kit/output/server/**"
+
+[dev]
+  command = "npm run dev"
+  port = 5173
+  publish = "PostWars/build"
+
+# Redirects moved to _redirects file (required by SvelteKit adapter-netlify)
+
+# Environment variables needed for deployment
+# These should be set in Netlify dashboard:
+# - PUBLIC_SUPABASE_URL
+# - PUBLIC_SUPABASE_ANON_KEY  
+# - SUPABASE_SERVICE_KEY
