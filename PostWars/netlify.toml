@@ -1,5 +1,4 @@
 [build]
-  base = "PostWars"
   command = "npm ci && npm run build"
   publish = "build"
   ignore = "*.sql,create-admin.js,.env*,SECURITY_AUDIT_REPORT.md"
