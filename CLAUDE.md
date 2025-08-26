@@ -429,7 +429,7 @@ The SvelteKit Netlify adapter was generating the serverless function in `.netlif
 **Solution Applied:**
 - **Created post-build script** to copy functions to deployment directory:
   ```json
-  "build:fix-netlify": "mkdir -p build/.netlify/functions && cp -r .netlify/functions-internal/* build/.netlify/functions/ && sed -i '' '1d' build/_redirects"
+  "build:fix-netlify": "mkdir -p build/.netlify/functions && cp -r .netlify/functions-internal/* build/.netlify/functions/ && echo '* /.netlify/functions/sveltekit-render 200' > build/_redirects"
   ```
 - **Updated build command** to include function copying:
   ```json
@@ -441,6 +441,27 @@ The SvelteKit Netlify adapter was generating the serverless function in `.netlif
   ```
 
 **Status:** 🔧 **FIXED** - Functions now copy to build directory, ready for deployment
+
+### Error 6: Linux Build Environment sed Command Failure (Aug 26, 2025)
+
+**Error Message:**
+```
+sed: can't read 1d: No such file or directory
+Command failed with exit code 2: npm run build
+```
+
+**Root Cause:**
+The `sed -i '' '1d'` command uses macOS syntax with empty string for in-place editing. Linux (Netlify's build environment) doesn't support this syntax, causing the build to fail.
+
+**Solution Applied:**
+- **Replaced sed command** with more reliable echo command:
+  ```json
+  "build:fix-netlify": "mkdir -p build/.netlify/functions && cp -r .netlify/functions-internal/* build/.netlify/functions/ && echo '* /.netlify/functions/sveltekit-render 200' > build/_redirects"
+  ```
+- **Verified cross-platform compatibility** - echo command works on both macOS and Linux
+- **Tested locally** - confirmed build process completes successfully
+
+**Status:** 🔧 **FIXED** - Build script now works in Linux environment, ready for deployment
 
 **Alternative Fixes:**
 - **Option 1: Use SvelteKit static adapter** if your app doesn't need SSR:
