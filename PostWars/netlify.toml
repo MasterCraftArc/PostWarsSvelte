@@ -13,11 +13,7 @@
   port = 5173
   publish = "build"
 
-# Redirects for SPA behavior
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Redirects moved to _redirects file (required by SvelteKit adapter-netlify)
 
 # Environment variables needed for deployment
 # These should be set in Netlify dashboard:
