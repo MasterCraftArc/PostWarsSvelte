@@ -44,14 +44,9 @@ export async function GET(event) {
 			}
 		}
 		
-		// Start processing the job queue
+		// Note: Job processing should be handled by separate worker process
 		if (jobsAdded > 0) {
-			if (!jobQueue.processing) {
-				jobQueue.startProcessing();
-				console.log('✅ Job queue processing started');
-			} else {
-				console.log('ℹ️ Job queue already processing');
-			}
+			console.log(`📋 Added ${jobsAdded} jobs to queue. Start separate worker process to handle processing.`);
 		}
 
 		// Get current queue stats

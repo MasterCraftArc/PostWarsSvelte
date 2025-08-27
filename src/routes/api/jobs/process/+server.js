@@ -62,13 +62,9 @@ export async function POST(event) {
 			}
 		}
 		
-		// Start processing the job queue
-		if (!jobQueue.processing) {
-			jobQueue.startProcessing();
-			console.log('✅ Job queue processing started');
-		} else {
-			console.log('ℹ️ Job queue already processing');
-		}
+		// Note: Job processing should be handled by separate worker process
+		// This serverless function only manages the queue, not processing
+		console.log('📋 Jobs added to queue. Start separate worker process to handle processing.');
 
 		// Get current queue stats
 		const stats = jobQueue.getQueueStats();

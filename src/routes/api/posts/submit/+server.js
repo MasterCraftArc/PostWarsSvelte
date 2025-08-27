@@ -51,8 +51,8 @@ export async function POST(event) {
 			return json({ error: 'Post already tracked by you' }, { status: 409 });
 		}
 
-		// Add job to queue for background processing
-		console.log(`Queuing scraping job for user ${userId}: ${linkedinUrl}`);
+		// Add job to database for tracking
+		console.log(`Creating scraping job for user ${userId}: ${linkedinUrl}`);
 
 		try {
 			const job = await jobQueue.addJob('scrape-post', {
@@ -60,17 +60,46 @@ export async function POST(event) {
 				userId
 			}, userId);
 
-			// Automatically start processing the job queue if not already running
-			if (!jobQueue.processing) {
-				jobQueue.startProcessing();
-				console.log('🚀 Auto-started job processing for user submission');
+			// Trigger GitHub Action for processing
+			console.log('🚀 Triggering GitHub Action for scraping job:', job.id);
+			
+			const githubToken = process.env.GITHUB_TOKEN;
+			const githubRepo = process.env.GITHUB_REPOSITORY || 'your-username/PostWarsV2';
+			
+			if (!githubToken) {
+				throw new Error('GITHUB_TOKEN environment variable not set');
 			}
+
+			const response = await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/scrape-linkedin-post.yml/dispatches`, {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${githubToken}`,
+					'Accept': 'application/vnd.github.v3+json',
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					ref: 'main',
+					inputs: {
+						job_id: job.id,
+						linkedin_url: linkedinUrl,
+						user_id: userId
+					}
+				})
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`GitHub Action trigger failed: ${response.status} ${errorText}`);
+			}
+
+			console.log('✅ GitHub Action triggered successfully');
 
 			return json({
 				message: 'Post submitted for processing',
 				jobId: job.id,
 				status: 'queued',
-				estimatedWaitTime: '30-60 seconds'
+				estimatedWaitTime: '30-90 seconds',
+				note: 'Processing via GitHub Action'
 			}, { status: 202 });
 
 		} catch (queueError) {
