@@ -1,12 +1,15 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
+	import { supabase } from '$lib/supabase-client.js';
 
 	let leaderboardData = null;
 	let companyGoals = null;
 	let loading = true;
 	let error = '';
+	let refreshing = false;
+	let updateChannel;
 
 	async function loadCompanyGoals() {
 		try {

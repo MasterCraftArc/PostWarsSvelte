@@ -307,12 +307,6 @@
 										</div>
 										<div class="flex gap-2">
 											<button
-												onclick={() => showTeamMembers(team)}
-												class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110 hover:cursor-pointer"
-												style="background:linear-gradient(90deg,#7e22ce,#a855f7); box-shadow:0 0 10px rgba(168,85,247,.45);">
-												Manage Members
-											</button>
-											<button
 												onclick={() => deleteTeam(team.id, team.name)}
 												class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110 hover:cursor-pointer"
 												style="background:linear-gradient(90deg,#dc2626,#ef4444); box-shadow:0 0 10px rgba(239,68,68,.45);">
@@ -509,11 +503,6 @@
 											<td class="px-4 py-3" style="color:#fdfdfd;">{u.totalScore}</td>
 											<td class="px-4 py-3">
 												<div class="flex gap-2">
-													<button
-														class="text-sm underline-offset-2 transition hover:underline"
-														style="color:#24b0ff;">
-														Manage
-													</button>
 													<button
 														onclick={() => deleteUser(u.id, u.name)}
 														class="rounded px-2 py-1 text-xs text-white transition hover:brightness-110 hover:cursor-pointer"
