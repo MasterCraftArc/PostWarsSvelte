@@ -37,23 +37,53 @@ jobs:
     - name: Install Playwright browsers
       run: npx playwright install --with-deps chromium
 
-    - name: Update job status to processing
+    - name: Test Supabase connection and update job status
       env:
         SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
       run: |
         node -e "
-        import('./src/lib/supabase-node.js').then(async ({ supabaseAdmin }) => {
-          const { error } = await supabaseAdmin
-            .from('jobs')
-            .update({ 
-              status: 'PROCESSING',
-              startedAt: new Date().toISOString()
-            })
-            .eq('id', '${{ github.event.inputs.job_id }}');
-          if (error) console.error('Failed to update job status:', error);
-          else console.log('Job status updated to PROCESSING');
-        });
+        (async () => {
+          try {
+            console.log('🔧 Testing Supabase connection...');
+            console.log('URL:', process.env.PUBLIC_SUPABASE_URL ? 'Set' : 'Missing');
+            console.log('Service Key:', process.env.SUPABASE_SERVICE_KEY ? 'Set (length: ' + process.env.SUPABASE_SERVICE_KEY.length + ')' : 'Missing');
+            
+            const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
+            
+            // Test connection first
+            const { data: testData, error: testError } = await supabaseAdmin
+              .from('jobs')
+              .select('id')
+              .limit(1);
+            
+            if (testError) {
+              console.error('❌ Connection test failed:', testError);
+              throw testError;
+            }
+            
+            console.log('✅ Supabase connection successful');
+            
+            // Update job status
+            const { error } = await supabaseAdmin
+              .from('jobs')
+              .update({ 
+                status: 'PROCESSING',
+                startedAt: new Date().toISOString()
+              })
+              .eq('id', '${{ github.event.inputs.job_id }}');
+              
+            if (error) {
+              console.error('❌ Failed to update job status:', error);
+              throw error;
+            } else {
+              console.log('✅ Job status updated to PROCESSING');
+            }
+          } catch (error) {
+            console.error('💥 Fatal error:', error);
+            process.exit(1);
+          }
+        })();
         "
 
     - name: Run LinkedIn scraping
