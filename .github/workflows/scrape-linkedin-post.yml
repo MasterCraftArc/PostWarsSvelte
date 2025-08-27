@@ -43,7 +43,7 @@ jobs:
         PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
       run: |
         node -e "
-        import('./src/lib/supabase-server.js').then(async ({ supabaseAdmin }) => {
+        import('./src/lib/supabase-node.js').then(async ({ supabaseAdmin }) => {
           const { error } = await supabaseAdmin
             .from('jobs')
             .update({ 
@@ -74,7 +74,7 @@ jobs:
               updateUserStats, 
               checkAndAwardAchievements 
             } = await import('./src/lib/gamification.js');
-            const { supabaseAdmin } = await import('./src/lib/supabase-server.js');
+            const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
             const { randomUUID } = await import('crypto');
             
             const linkedinUrl = '${{ github.event.inputs.linkedin_url }}';
@@ -247,7 +247,7 @@ jobs:
             console.error('❌ Scraping failed:', error.message);
             
             // Update job status to failed
-            const { supabaseAdmin } = await import('./src/lib/supabase-server.js');
+            const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
             await supabaseAdmin
               .from('jobs')
               .update({ 

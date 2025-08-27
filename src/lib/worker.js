@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { jobQueue } from './job-queue.js';
-import { supabaseAdmin } from './supabase-server.js';
+import { supabaseAdmin } from './supabase-node.js';
 
 class BackgroundWorker {
 	constructor() {

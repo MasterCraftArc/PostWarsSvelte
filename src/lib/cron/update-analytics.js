@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../supabase-server.js';
+import { supabaseAdmin } from '../supabase-node.js';
 import { calculatePostScore, updateUserStats } from '../gamification.js';
 
 export async function updateAllPostAnalytics() {

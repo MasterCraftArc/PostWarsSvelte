@@ -42,7 +42,7 @@ jobs:
           try {
             console.log('🔍 Checking for queued jobs...');
             
-            const { supabaseAdmin } = await import('./src/lib/supabase-server.js');
+            const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
             
             // Find jobs that have been queued for more than 2 minutes or stuck processing for more than 10 minutes
             const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
