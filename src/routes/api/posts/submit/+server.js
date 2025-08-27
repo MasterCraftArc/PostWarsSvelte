@@ -60,47 +60,71 @@ export async function POST(event) {
 				userId
 			}, userId);
 
-			// Trigger GitHub Action for processing
-			console.log('🚀 Triggering GitHub Action for scraping job:', job.id);
-			
 			const githubToken = process.env.GITHUB_TOKEN;
 			const githubRepo = process.env.GITHUB_REPOSITORY || 'your-username/PostWarsV2';
 			
-			if (!githubToken) {
-				throw new Error('GITHUB_TOKEN environment variable not set');
-			}
+			// Try GitHub Action first, fall back to local processing if not configured
+			if (githubToken && githubRepo !== 'your-username/PostWarsV2') {
+				try {
+					console.log('🚀 Triggering GitHub Action for scraping job:', job.id);
+					
+					const response = await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/scrape-linkedin-post.yml/dispatches`, {
+						method: 'POST',
+						headers: {
+							'Authorization': `Bearer ${githubToken}`,
+							'Accept': 'application/vnd.github.v3+json',
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							ref: 'main',
+							inputs: {
+								job_id: job.id,
+								linkedin_url: linkedinUrl,
+								user_id: userId
+							}
+						})
+					});
 
-			const response = await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/scrape-linkedin-post.yml/dispatches`, {
-				method: 'POST',
-				headers: {
-					'Authorization': `Bearer ${githubToken}`,
-					'Accept': 'application/vnd.github.v3+json',
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					ref: 'main',
-					inputs: {
-						job_id: job.id,
-						linkedin_url: linkedinUrl,
-						user_id: userId
+					if (!response.ok) {
+						const errorText = await response.text();
+						throw new Error(`GitHub Action trigger failed: ${response.status} ${errorText}`);
 					}
-				})
-			});
 
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(`GitHub Action trigger failed: ${response.status} ${errorText}`);
+					console.log('✅ GitHub Action triggered successfully');
+
+					return json({
+						message: 'Post submitted for processing',
+						jobId: job.id,
+						status: 'queued',
+						estimatedWaitTime: '30-90 seconds',
+						note: 'Processing via GitHub Action'
+					}, { status: 202 });
+
+				} catch (githubError) {
+					console.warn('GitHub Action failed, falling back to local processing:', githubError.message);
+					// Fall through to local processing
+				}
+			} else {
+				console.log('GitHub credentials not configured, using local processing');
 			}
 
-			console.log('✅ GitHub Action triggered successfully');
-
-			return json({
-				message: 'Post submitted for processing',
-				jobId: job.id,
-				status: 'queued',
-				estimatedWaitTime: '30-90 seconds',
-				note: 'Processing via GitHub Action'
-			}, { status: 202 });
+			// Local processing fallback
+			try {
+				console.log('🔄 Processing job locally:', job.id);
+				await jobQueue.processJob(job.id);
+				
+				return json({
+					message: 'Post submitted and processed successfully',
+					jobId: job.id,
+					status: 'processing',
+					estimatedWaitTime: '10-30 seconds',
+					note: 'Processing locally'
+				}, { status: 202 });
+				
+			} catch (localError) {
+				console.error('Local processing failed:', localError.message);
+				throw new Error('Both GitHub Action and local processing failed');
+			}
 
 		} catch (queueError) {
 			// Record rate limit failure
