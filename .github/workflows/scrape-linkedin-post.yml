@@ -44,52 +44,80 @@ jobs:
         curl -I https://google.com || echo "❌ Internet unreachable"
         nslookup ptblrcociqedamarytuj.supabase.co || echo "❌ DNS resolution failed"
 
-    - name: Test Supabase connection and update job status
+    - name: Comprehensive Network & Environment Diagnostics
       env:
         SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
       run: |
         node -e "
         (async () => {
-          const maxRetries = 3;
-          const retryDelay = 5000;
+          console.log('🔍 === COMPREHENSIVE DIAGNOSTICS ===');
           
-          async function retryOperation(operation, retries = maxRetries) {
-            for (let i = 0; i < retries; i++) {
-              try {
-                console.log(\`🔄 Attempt \${i + 1}/\${retries}\`);
-                return await operation();
-              } catch (error) {
-                console.error(\`❌ Attempt \${i + 1} failed:\`, error.message);
-                if (i === retries - 1) throw error;
-                console.log(\`⏱️  Waiting \${retryDelay}ms before retry...\`);
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
+          // 1. Environment diagnostics
+          console.log('Node version:', process.version);
+          console.log('Platform:', process.platform);
+          console.log('Architecture:', process.arch);
+          
+          // 2. Environment variables check
+          const url = process.env.PUBLIC_SUPABASE_URL;
+          const key = process.env.SUPABASE_SERVICE_KEY;
+          console.log('SUPABASE URL present?', !!url);
+          console.log('SUPABASE URL value:', url || 'UNDEFINED');
+          console.log('SERVICE KEY present?', !!key);
+          console.log('SERVICE KEY length:', key?.length || 'UNDEFINED');
+          
+          // 3. Direct HTTP test to Supabase REST endpoint
+          if (url && key) {
+            try {
+              console.log('🌐 Testing direct HTTP fetch to Supabase...');
+              const testUrl = url + '/rest/v1/';
+              console.log('Test URL:', testUrl);
+              
+              const response = await fetch(testUrl, {
+                method: 'GET',
+                headers: { 
+                  'apikey': key,
+                  'Authorization': 'Bearer ' + key,
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              console.log('✅ Direct fetch SUCCESS - Status:', response.status);
+              console.log('Headers:', Object.fromEntries(response.headers.entries()));
+              
+              if (!response.ok) {
+                const text = await response.text();
+                console.log('Response body:', text);
               }
+              
+            } catch (fetchError) {
+              console.error('❌ Direct fetch FAILED:', fetchError.message);
+              console.error('Error details:', fetchError);
             }
+          } else {
+            console.error('❌ Cannot test - missing URL or KEY');
           }
           
+          // 4. Test Supabase client creation
           try {
-            console.log('🔧 Testing Supabase connection with retry logic...');
-            console.log('URL:', process.env.PUBLIC_SUPABASE_URL);
-            console.log('Service Key Length:', process.env.SUPABASE_SERVICE_KEY?.length || 'Missing');
-            
+            console.log('🔧 Testing Supabase client creation...');
             const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
+            console.log('✅ Supabase client imported successfully');
             
-            // Test with retry
-            await retryOperation(async () => {
-              const { data: testData, error: testError } = await supabaseAdmin
-                .from('jobs')
-                .select('id')
-                .limit(1);
+            // Test a simple query
+            const { data, error } = await supabaseAdmin
+              .from('jobs')
+              .select('id')
+              .limit(1);
+            
+            if (error) {
+              console.error('❌ Supabase query failed:', error);
+            } else {
+              console.log('✅ Supabase query successful, rows:', data?.length || 0);
               
-              if (testError) throw testError;
-              console.log('✅ Connection test successful');
-              return testData;
-            });
-            
-            // Update job status with retry
-            await retryOperation(async () => {
-              const { error } = await supabaseAdmin
+              // Update job status if query worked
+              const { error: updateError } = await supabaseAdmin
                 .from('jobs')
                 .update({ 
                   status: 'PROCESSING',
@@ -97,13 +125,16 @@ jobs:
                 })
                 .eq('id', '${{ github.event.inputs.job_id }}');
                 
-              if (error) throw error;
-              console.log('✅ Job status updated to PROCESSING');
-            });
+              if (updateError) {
+                console.error('❌ Job status update failed:', updateError);
+              } else {
+                console.log('✅ Job status updated to PROCESSING');
+              }
+            }
             
-          } catch (error) {
-            console.error('💥 All retries failed:', error);
-            console.log('⚠️  Continuing without database updates...');
+          } catch (clientError) {
+            console.error('❌ Supabase client test failed:', clientError.message);
+            console.error('Full error:', clientError);
           }
         })();
         "
@@ -135,6 +166,11 @@ jobs:
 
           try {
             console.log('🔄 Starting LinkedIn scraping for job ${{ github.event.inputs.job_id }}');
+            
+            // Quick environment check
+            const url = process.env.PUBLIC_SUPABASE_URL;
+            const key = process.env.SUPABASE_SERVICE_KEY;
+            console.log('Environment check - URL present:', !!url, 'KEY present:', !!key);
             
             // Import required modules
             const { scrapeSinglePostQueued } = await import('./src/lib/linkedin-scraper-pool.js');
