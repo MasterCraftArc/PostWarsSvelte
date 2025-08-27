@@ -72,7 +72,7 @@ jobs:
               calculatePostScore, 
               updateUserStats, 
               checkAndAwardAchievements 
-            } = await import('./src/lib/gamification.js');
+            } = await import('./src/lib/gamification-node.js');
             const { randomUUID } = await import('crypto');
             
             // Process each job

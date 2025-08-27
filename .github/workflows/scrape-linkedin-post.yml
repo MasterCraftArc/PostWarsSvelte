@@ -73,7 +73,7 @@ jobs:
               calculatePostScore, 
               updateUserStats, 
               checkAndAwardAchievements 
-            } = await import('./src/lib/gamification.js');
+            } = await import('./src/lib/gamification-node.js');
             const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
             const { randomUUID } = await import('crypto');
             

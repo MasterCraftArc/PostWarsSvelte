@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../supabase-node.js';
-import { calculatePostScore, updateUserStats } from '../gamification.js';
+import { calculatePostScore, updateUserStats } from '../gamification-node.js';
 
 export async function updateAllPostAnalytics() {
 	console.log('Starting analytics update job...');
