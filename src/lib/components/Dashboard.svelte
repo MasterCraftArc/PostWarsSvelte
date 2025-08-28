@@ -207,14 +207,7 @@
 										</div>
 									</div>
 
-									<div class="ml-4 flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
-										<button
-											onclick={() => updatePostAnalytics(post.id)}
-											class="rounded px-3 py-1 text-xs transition-colors hover:cursor-pointer"
-											style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.6);"
-										>
-											Update
-										</button>
+									<div class="ml-4">
 										<button
 											onclick={() => deletePost(post.id)}
 											class="rounded px-3 py-1 text-xs transition-colors hover:cursor-pointer"
