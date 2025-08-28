@@ -283,7 +283,6 @@ export async function checkAndAwardAchievements(userId) {
 
 export async function getLeaderboardData(timeframe = 'all', userIds = null) {
 	let dateFilter = '';
-	let userFilter = '';
 
 	if (timeframe === 'month') {
 		const startOfMonth = new Date();

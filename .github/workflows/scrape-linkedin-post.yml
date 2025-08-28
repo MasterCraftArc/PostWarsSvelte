@@ -34,110 +34,17 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-
+
     - name: Install Playwright browsers
       run: npx playwright install --with-deps chromium
-
-    - name: Test network connectivity 
-      run: |
-        echo "🌐 Testing network connectivity..."
-        curl -I https://ptblrcociqedamarytuj.supabase.co || echo "❌ Supabase unreachable"
-        curl -I https://google.com || echo "❌ Internet unreachable"
-        nslookup ptblrcociqedamarytuj.supabase.co || echo "❌ DNS resolution failed"
-
-    - name: Comprehensive Network & Environment Diagnostics
-      env:
-        SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
-      run: |
-        node -e "
-        (async () => {
-          console.log('🔍 === COMPREHENSIVE DIAGNOSTICS ===');
-          
-          // 1. Environment diagnostics
-          console.log('Node version:', process.version);
-          console.log('Platform:', process.platform);
-          console.log('Architecture:', process.arch);
-          
-          // 2. Environment variables check
-          const url = process.env.PUBLIC_SUPABASE_URL;
-          const key = process.env.SUPABASE_SERVICE_KEY;
-          console.log('SUPABASE URL present?', !!url);
-          console.log('SUPABASE URL value:', url || 'UNDEFINED');
-          console.log('SERVICE KEY present?', !!key);
-          console.log('SERVICE KEY length:', key?.length || 'UNDEFINED');
-          
-          // 3. Direct HTTP test to Supabase REST endpoint
-          if (url && key) {
-            try {
-              console.log('🌐 Testing direct HTTP fetch to Supabase...');
-              const testUrl = url + '/rest/v1/';
-              console.log('Test URL:', testUrl);
-              
-              const response = await fetch(testUrl, {
-                method: 'GET',
-                headers: { 
-                  'apikey': key,
-                  'Authorization': 'Bearer ' + key,
-                  'Accept': 'application/json',
-                  'Content-Type': 'application/json'
-                }
-              });
-              
-              console.log('✅ Direct fetch SUCCESS - Status:', response.status);
-              console.log('Headers:', Object.fromEntries(response.headers.entries()));
-              
-              if (!response.ok) {
-                const text = await response.text();
-                console.log('Response body:', text);
-              }
-              
-            } catch (fetchError) {
-              console.error('❌ Direct fetch FAILED:', fetchError.message);
-              console.error('Error details:', fetchError);
-            }
-          } else {
-            console.error('❌ Cannot test - missing URL or KEY');
-          }
-          
-          // 4. Test Supabase client creation
-          try {
-            console.log('🔧 Testing Supabase client creation...');
-            const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
-            console.log('✅ Supabase client imported successfully');
-            
-            // Test a simple query
-            const { data, error } = await supabaseAdmin
-              .from('jobs')
-              .select('id')
-              .limit(1);
-            
-            if (error) {
-              console.error('❌ Supabase query failed:', error);
-            } else {
-              console.log('✅ Supabase query successful, rows:', data?.length || 0);
-              
-              // Update job status if query worked
-              const { error: updateError } = await supabaseAdmin
-                .from('jobs')
-                .update({ 
-                  status: 'PROCESSING',
-                  startedAt: new Date().toISOString()
-                })
-                .eq('id', '${{ github.event.inputs.job_id }}');
-                
-              if (updateError) {
-                console.error('❌ Job status update failed:', updateError);
-              } else {
-                console.log('✅ Job status updated to PROCESSING');
-              }
-            }
-            
-          } catch (clientError) {
-            console.error('❌ Supabase client test failed:', clientError.message);
-            console.error('Full error:', clientError);
-          }
-        })();
-        "
 
     - name: Run LinkedIn scraping
       env:
