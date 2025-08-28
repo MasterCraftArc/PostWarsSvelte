@@ -207,15 +207,8 @@ jobs:
                 scoring
               }, null, 2));
               
-              // Create a mock saved post for continuation
-              savedPost = {
-                id: randomUUID(),
-                linkedinId,
-                reactions: scrapedData.reactions,
-                comments: scrapedData.comments,
-                reposts: scrapedData.reposts,
-                totalScore: scoring.totalScore
-              };
+              // If we can't save the post, we can't create analytics - throw the error
+              throw new Error(`Failed to save post to database: ${dbError.message}`);
             }
             
             // Create analytics record
