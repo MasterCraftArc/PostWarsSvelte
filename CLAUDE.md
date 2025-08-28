@@ -350,4 +350,5 @@ PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_KEY=your_supabase_service_key
 ```
 
+
 This documentation provides a comprehensive overview of the PostWars codebase, its architecture, and technical implementation details for effective development and maintenance.

@@ -2,8 +2,7 @@ import { supabaseAdmin } from './supabase-server.js';
 
 export const SCORING_CONFIG = {
 	// Base points for posting
-	TEXT_POST_POINTS: 1,
-	VIDEO_POST_POINTS: 2,
+	BASE_POST_POINTS: 1,
 
 	// Engagement multipliers
 	REACTION_POINTS: 0.1,
@@ -24,10 +23,10 @@ export const SCORING_CONFIG = {
 };
 
 export function calculatePostScore(postData, userStreak = 0) {
-	const { word_count, reactions, comments, reposts, timestamp, post_type } = postData;
+	const { word_count, reactions, comments, reposts, timestamp } = postData;
 
-	// Base score - determine if text or video post
-	let score = post_type === 'video' ? SCORING_CONFIG.VIDEO_POST_POINTS : SCORING_CONFIG.TEXT_POST_POINTS;
+	// Base score
+	let score = SCORING_CONFIG.BASE_POST_POINTS;
 
 	// Engagement scoring
 	const engagementScore =
