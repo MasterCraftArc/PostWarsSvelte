@@ -1,24 +1,18 @@
 <script>
-	import { onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
-	import { supabase } from '$lib/supabase.js';
 	import TeamProgress from './TeamProgress.svelte';
 	let dashboardData = null;
 	let loading = true;
 	let error = '';
-	let subscription = null;
 
 	async function loadDashboard() {
 		try {
-			console.log('🔄 Loading dashboard at:', new Date().toISOString());
 			const data = await authenticatedRequest('/api/dashboard');
 			dashboardData = data;
-			dashboardData.lastRefresh = new Date().toISOString();
 			error = '';
-			console.log('✅ Dashboard loaded with', data.recentPosts?.length || 0, 'posts');
 		} catch (err) {
-			console.error('❌ Dashboard load failed:', err);
 			error = err.message || 'Failed to load dashboard';
 		}
 		loading = false;
@@ -58,66 +52,10 @@
 		}
 	}
 
-	// Setup real-time subscription
-	function setupRealTimeSubscription() {
-		if (!$user || subscription) return;
-		
-		subscription = supabase
-			.channel('dashboard_updates')
-			.on(
-				'postgres_changes',
-				{
-					event: '*',
-					schema: 'public',
-					table: 'linkedin_posts',
-					filter: `userId=eq.${$user.id}`
-				},
-				(payload) => {
-					console.log('Post updated, refreshing dashboard:', payload);
-					loadDashboard();
-				}
-			)
-			.on(
-				'postgres_changes',
-				{
-					event: '*',
-					schema: 'public',
-					table: 'users',
-					filter: `id=eq.${$user.id}`
-				},
-				(payload) => {
-					console.log('User data updated, refreshing dashboard:', payload);
-					loadDashboard();
-				}
-			)
-			.on(
-				'postgres_changes',
-				{
-					event: '*',
-					schema: 'public',
-					table: 'user_achievements',
-					filter: `userId=eq.${$user.id}`
-				},
-				(payload) => {
-					console.log('Achievement updated, refreshing dashboard:', payload);
-					loadDashboard();
-				}
-			)
-			.subscribe();
-	}
-
-	// Cleanup subscription
-	onDestroy(() => {
-		if (subscription) {
-			subscription.unsubscribe();
-		}
-	});
-
 	// Reactive statement to load dashboard when user becomes available
 	$: {
 		if ($user && !dashboardData && !error) {
 			loadDashboard();
-			setupRealTimeSubscription();
 		}
 	}
 
@@ -236,22 +174,7 @@
 			>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-xl font-semibold" style="color:#fdfdfd;">Recent Posts</h3>
-					<div class="flex items-center space-x-3">
-						<button
-							onclick={() => { loading = true; loadDashboard(); }}
-							class="rounded px-3 py-1 text-xs transition-colors hover:cursor-pointer"
-							style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.6);"
-							disabled={loading}
-						>
-							{loading ? 'Refreshing...' : 'Refresh'}
-						</button>
-						<span class="text-sm" style="color:#94a3b8;">{dashboardData.recentPosts.length} posts shown</span>
-						{#if dashboardData.lastRefresh}
-							<span class="text-xs" style="color:#94a3b8;">
-								Last: {new Date(dashboardData.lastRefresh).toLocaleTimeString()}
-							</span>
-						{/if}
-					</div>
+					<span class="text-sm" style="color:#94a3b8;">{dashboardData.recentPosts.length} posts shown</span>
 				</div>
 
 				{#if dashboardData.recentPosts.length === 0}

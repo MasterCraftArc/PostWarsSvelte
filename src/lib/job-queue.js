@@ -236,7 +236,7 @@ class JobQueue extends EventEmitter {
 		try {
 			// Dynamic import using variable to avoid static analysis
 			const scraperPath = './linkedin-scraper-pool.js';
-			const scraperModule = await import(scraperPath /* @vite-ignore */);
+			const scraperModule = await import(scraperPath);
 			scrapeSinglePostQueued = scraperModule.scrapeSinglePostQueued;
 		} catch (error) {
 			throw new Error('Scraping functionality is not available in this environment. Please use a dedicated worker process.');

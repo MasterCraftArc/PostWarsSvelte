@@ -111,7 +111,7 @@ export async function POST(event) {
 			// Local processing fallback
 			try {
 				console.log('🔄 Processing job locally:', job.id);
-				await jobQueue.processJob(job);
+				await jobQueue.processJob(job.id);
 				
 				return json({
 					message: 'Post submitted and processed successfully',

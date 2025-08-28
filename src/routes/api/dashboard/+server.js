@@ -18,17 +18,30 @@ export async function GET(event) {
 		console.log('⏱️ Calling RPC function for user:', user.id);
 		const rpcStart = Date.now();
 		
-		// Use direct queries for real-time data (skip potentially cached RPC)
-		console.log('⏱️ Using direct queries for fresh data...');
-		const fallbackStart = Date.now();
-		const data = await getFallbackDashboardData(user.id);
-		console.log('✅ Direct queries took:', Date.now() - fallbackStart, 'ms');
+		// Try optimized function first, fallback to original queries if it fails
+		let data;
+		const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_user_dashboard', {
+			p_user_id: user.id
+		});
+		
+		console.log('✅ RPC call took:', Date.now() - rpcStart, 'ms');
+
+		if (rpcError || !rpcData) {
+			console.log('❌ RPC function failed, falling back to original queries:', rpcError);
+			const fallbackStart = Date.now();
+			// Fallback to original implementation
+			data = await getFallbackDashboardData(user.id);
+			console.log('✅ Fallback queries took:', Date.now() - fallbackStart, 'ms');
+		} else {
+			console.log('✅ RPC function succeeded');
+			data = rpcData;
+		}
 
 		console.log('🎉 Total dashboard API time:', Date.now() - startTime, 'ms');
 
-		// No caching for real-time updates
+		// Cache response for 5 minutes
 		const response = json(data);
-		response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+		response.headers.set('Cache-Control', 'public, max-age=300');
 		
 		return response;
 	} catch (error) {
