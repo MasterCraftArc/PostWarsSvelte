@@ -109,7 +109,8 @@
 			>
 				<h4 class="font-medium" style="color:#e5e7eb;">Base Points</h4>
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
-					<li>• New post: 10 points</li>
+					<li>• Text post: 1 point</li>
+					<li>• Video post: 2 points</li>
 					<li>• Word bonus: +0.1/word over 50</li>
 					<li>• Streak multiplier: +10% per day</li>
 				</ul>
@@ -121,11 +122,19 @@
 			>
 				<h4 class="font-medium" style="color:#e5e7eb;">Engagement Points</h4>
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
-					<li>• Reaction: 1 point each</li>
-					<li>• Comment: 3 points each</li>
-					<li>• Repost: 5 points each</li>
+					<li>• Reaction: 0.1 points each</li>
+					<li>• Comment: 1 point each</li>
+					<li>• Repost: 2 points each</li>
 				</ul>
 			</div>
+		</div>
+		
+		<div class="mt-6 rounded-lg p-4 backdrop-blur-md" 
+			style="background-color:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3);">
+			<h4 class="font-medium mb-2" style="color:#22c55e;">Update Schedule</h4>
+			<p class="text-sm" style="color:#cbd5e1;">
+				Posts are scraped and updated <strong style="color:#22c55e;">twice daily at 6 AM and 6 PM UTC</strong> to track your latest engagement and update your scores automatically.
+			</p>
 		</div>
 	</div>
 {:else}

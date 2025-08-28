@@ -2,12 +2,13 @@ import { supabaseAdmin } from './supabase-node.js';
 
 export const SCORING_CONFIG = {
 	// Base points for posting
-	BASE_POST_POINTS: 10,
+	TEXT_POST_POINTS: 1,
+	VIDEO_POST_POINTS: 2,
 
 	// Engagement multipliers
-	REACTION_POINTS: 1,
-	COMMENT_POINTS: 3,
-	REPOST_POINTS: 5,
+	REACTION_POINTS: 0.1,
+	COMMENT_POINTS: 1,
+	REPOST_POINTS: 2,
 
 	// Streak bonuses
 	STREAK_MULTIPLIER: 0.1, // +10% per day streak
@@ -23,10 +24,10 @@ export const SCORING_CONFIG = {
 };
 
 export function calculatePostScore(postData, userStreak = 0) {
-	const { word_count, reactions, comments, reposts, timestamp } = postData;
+	const { word_count, reactions, comments, reposts, timestamp, post_type } = postData;
 
-	// Base score
-	let score = SCORING_CONFIG.BASE_POST_POINTS;
+	// Base score - determine if text or video post
+	let score = post_type === 'video' ? SCORING_CONFIG.VIDEO_POST_POINTS : SCORING_CONFIG.TEXT_POST_POINTS;
 
 	// Engagement scoring
 	const engagementScore =
@@ -283,7 +284,6 @@ export async function checkAndAwardAchievements(userId) {
 
 export async function getLeaderboardData(timeframe = 'all', userIds = null) {
 	let dateFilter = '';
-	let userFilter = '';
 
 	if (timeframe === 'month') {
 		const startOfMonth = new Date();
