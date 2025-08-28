@@ -269,7 +269,7 @@
 											<option value={u.id} class="text-slate-900">{u.name} ({u.email})</option>
 										{/each}
 									</select>
-									<div class="flex gap-2">
+									<div class="flex flex-col sm:flex-row gap-2">
 										<button
 											onclick={createTeam}
 											class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
@@ -305,7 +305,7 @@
 												{/if}
 											</div>
 										</div>
-										<div class="flex gap-2">
+										<div class="flex flex-col sm:flex-row gap-2">
 											<button
 												onclick={() => deleteTeam(team.id, team.name)}
 												class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110 hover:cursor-pointer"
@@ -404,7 +404,7 @@
 										style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; --tw-ring-color:#24b0ff;"
 									></textarea>
 								</div>
-								<div class="mt-4 flex gap-2">
+								<div class="mt-4 flex flex-col sm:flex-row gap-2">
 									<button
 										onclick={createGoal}
 										class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
@@ -502,7 +502,7 @@
 											<td class="px-4 py-3" style="color:#cbd5e1;">{u.team?.name || 'No team'}</td>
 											<td class="px-4 py-3" style="color:#fdfdfd;">{u.totalScore}</td>
 											<td class="px-4 py-3">
-												<div class="flex gap-2">
+												<div class="flex flex-col sm:flex-row gap-2">
 													<button
 														onclick={() => deleteUser(u.id, u.name)}
 														class="rounded px-2 py-1 text-xs text-white transition hover:brightness-110 hover:cursor-pointer"

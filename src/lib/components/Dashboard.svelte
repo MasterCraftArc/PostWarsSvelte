@@ -207,7 +207,7 @@
 										</div>
 									</div>
 
-									<div class="ml-4 flex space-x-2">
+									<div class="ml-4 flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
 										<button
 											onclick={() => updatePostAnalytics(post.id)}
 											class="rounded px-3 py-1 text-xs transition-colors hover:cursor-pointer"

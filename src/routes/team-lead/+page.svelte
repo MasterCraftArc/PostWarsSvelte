@@ -295,7 +295,7 @@
 					{/each}
 				</div>
 				
-				<div class="flex space-x-3">
+				<div class="flex flex-col sm:flex-row sm:space-x-3 space-y-2 sm:space-y-0">
 					<button
 						onclick={addUsersToTeam}
 						disabled={selectedUserIds.length === 0}
