@@ -294,6 +294,7 @@ jobs:
             }
             
             console.log('🎉 Scraping workflow completed successfully');
+            process.exit(0);
             
           } catch (error) {
             console.error('❌ Scraping failed:', error.message);
