@@ -1,5 +1,5 @@
 <script>
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
 	import { 
 		teamProgress, 
@@ -9,27 +9,15 @@
 		teamMembers, 
 		teamStats 
 	} from '$lib/stores/team.js';
-	import { initializeRealtime, cleanupRealtime } from '$lib/realtime.js';
 	import { authenticatedRequest } from '$lib/api.js';
 	import ProgressBar from './ProgressBar.svelte';
 	
-	let hasInitialized = false;
-	
-	// Initialize real-time when user is fully authenticated
+	// Load initial data if stores are empty and user is authenticated
 	$: {
-		if ($user?.id && !hasInitialized && !$teamLoading) {
-			hasInitialized = true;
-			initializeRealtime($user.id).catch(error => {
-				console.error('Failed to initialize real-time:', error);
-				hasInitialized = false; // Allow retry
-			});
+		if ($user?.id && !$teamProgress && !$teamLoading && !$teamError) {
+			loadTeamProgress();
 		}
 	}
-
-	// Clean up on component destroy
-	onDestroy(() => {
-		cleanupRealtime();
-	});
 	
 	async function loadTeamProgress() {
 		teamLoading.set(true);

@@ -24,6 +24,8 @@ import {
 } from './stores/team.js';
 
 let channels = [];
+let isInitialized = false;
+let initializationPromise = null;
 
 export async function initializeRealtime(userId) {
 	if (!userId) {
@@ -31,18 +33,40 @@ export async function initializeRealtime(userId) {
 		return;
 	}
 
-	// Clean up existing channels
-	cleanupRealtime();
+	// If already initialized or initializing, return the existing promise
+	if (isInitialized || initializationPromise) {
+		return initializationPromise;
+	}
 
+	// Create initialization promise to prevent multiple simultaneous initializations
+	initializationPromise = performInitialization(userId);
+	return initializationPromise;
+}
+
+async function performInitialization(userId) {
 	try {
-		// Initialize dashboard data
-		await loadDashboardData(userId);
+		console.log('🚀 Initializing real-time system for user:', userId);
 		
-		// Initialize leaderboard data
-		await loadLeaderboardData();
-		
-		// Initialize team data
-		await loadTeamData(userId);
+		// Clean up existing channels
+		cleanupRealtime();
+
+		// Load data in parallel instead of sequentially
+		const [dashboardResult, leaderboardResult, teamResult] = await Promise.allSettled([
+			loadDashboardData(userId),
+			loadLeaderboardData(),
+			loadTeamData(userId)
+		]);
+
+		// Log any failures but don't block initialization
+		if (dashboardResult.status === 'rejected') {
+			console.warn('Dashboard data load failed:', dashboardResult.reason);
+		}
+		if (leaderboardResult.status === 'rejected') {
+			console.warn('Leaderboard data load failed:', leaderboardResult.reason);
+		}
+		if (teamResult.status === 'rejected') {
+			console.warn('Team data load failed:', teamResult.reason);
+		}
 
 		// Set up real-time subscriptions
 		setupUserSubscription(userId);
@@ -51,9 +75,15 @@ export async function initializeRealtime(userId) {
 		setupPostsSubscription(userId);
 		setupGoalsSubscription(userId);
 
+		isInitialized = true;
+		console.log('✅ Real-time system initialized successfully');
+
 	} catch (error) {
-		console.error('Error initializing real-time:', error);
+		console.error('❌ Error initializing real-time:', error);
 		dashboardError.set('Failed to initialize real-time updates');
+		isInitialized = false;
+		initializationPromise = null;
+		throw error;
 	}
 }
 
@@ -285,6 +315,8 @@ export function cleanupRealtime() {
 		supabase.removeChannel(channel);
 	});
 	channels = [];
+	isInitialized = false;
+	initializationPromise = null;
 }
 
 // Auto cleanup on page unload

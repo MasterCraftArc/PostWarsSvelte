@@ -1,5 +1,5 @@
 <script>
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
 	import { 
 		leaderboardData, 
@@ -9,7 +9,6 @@
 		teamLeaderboards,
 		currentUserRank 
 	} from '$lib/stores/leaderboard.js';
-	import { initializeRealtime, cleanupRealtime } from '$lib/realtime.js';
 
 	const timeframeOptions = [
 		{ value: 'all', label: 'All Time' },
@@ -69,23 +68,12 @@
 		return baseClass;
 	}
 
-	let hasInitialized = false;
-	
-	// Initialize real-time when user is fully authenticated
+	// Load initial data if stores are empty and user is authenticated
 	$: {
-		if ($user?.id && !hasInitialized && !$leaderboardLoading) {
-			hasInitialized = true;
-			initializeRealtime($user.id).catch(error => {
-				console.error('Failed to initialize real-time:', error);
-				hasInitialized = false; // Allow retry
-			});
+		if ($user?.id && $leaderboardData.length === 0 && !$leaderboardLoading && !$leaderboardError) {
+			loadLeaderboard();
 		}
 	}
-
-	// Clean up on component destroy
-	onDestroy(() => {
-		cleanupRealtime();
-	});
 </script>
 
 {#if $user}
