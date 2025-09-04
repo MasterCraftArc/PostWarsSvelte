@@ -17,7 +17,7 @@
 	
 	// Initialize real-time system and load data
 	$: {
-		if ($user?.id && !hasInitialized && !$teamLoading) {
+		if ($user?.id && !hasInitialized) {
 			hasInitialized = true;
 			// Always initialize real-time system (singleton pattern prevents duplicates)
 			initializeRealtime($user.id);

@@ -16,7 +16,7 @@
 	
 	// Initialize real-time when user is fully authenticated
 	$: {
-		if ($user?.id && !hasInitialized && !$dashboardLoading) {
+		if ($user?.id && !hasInitialized) {
 			hasInitialized = true;
 			initializeRealtime($user.id).catch(error => {
 				console.error('Failed to initialize real-time:', error);

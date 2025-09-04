@@ -4,7 +4,7 @@ import { writable } from 'svelte/store';
 export const leaderboardData = writable([]);
 
 // Loading and error states
-export const leaderboardLoading = writable(true);
+export const leaderboardLoading = writable(false);
 export const leaderboardError = writable('');
 
 // Current timeframe filter

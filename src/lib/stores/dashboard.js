@@ -4,7 +4,7 @@ import { writable } from 'svelte/store';
 export const dashboardData = writable(null);
 
 // Loading and error states
-export const dashboardLoading = writable(true);
+export const dashboardLoading = writable(false);
 export const dashboardError = writable('');
 
 // Individual user stats for reactive updates
