@@ -1,36 +1,6 @@
-#!/usr/bin/env node
+import { supabaseAdmin } from '../supabase-node.js';
 
-/**
- * Daily Goal Progress Update Script
- * 
- * This script updates all active goal progress once per day.
- * It should be run via cron job or similar scheduling system.
- * 
- * Usage:
- *   node src/lib/cron/update-goals.js
- *   npm run cron:update-goals
- */
-
-import dotenv from 'dotenv';
-
-// Load environment variables first before importing supabase client
-dotenv.config();
-
-// Create direct supabase admin client for cron scripts
-import { createClient } from '@supabase/supabase-js';
-const supabaseAdmin = createClient(
-	process.env.PUBLIC_SUPABASE_URL,
-	process.env.SUPABASE_SERVICE_KEY,
-	{
-		auth: {
-			autoRefreshToken: false,
-			persistSession: false
-		}
-	}
-);
-
-// Function to update goal progress (copied from API)
-async function updateGoalsProgress() {
+export async function updateGoalsProgress() {
 	try {
 		const { data: goals, error: goalsError } = await supabaseAdmin
 			.from('goals')
@@ -159,63 +129,24 @@ async function updateGoalsProgress() {
 	}
 }
 
-async function main() {
-	console.log('🎯 Starting daily goal progress update...');
-	console.log(`📅 Run time: ${new Date().toISOString()}`);
+// CLI support for running cron jobs manually
+if (process.env.NODE_ENV !== 'production') {
+	const args = process.argv.slice(2);
 
-	try {
-		// Update all goal progress
+	// Default behavior - run the update
+	(async () => {
+		console.log('🎯 Starting daily goal progress update...');
+		console.log(`📅 Run time: ${new Date().toISOString()}`);
+		
 		const result = await updateGoalsProgress();
-
+		
 		if (result.success) {
 			console.log(`✅ Successfully updated ${result.goalsUpdated} goals`);
 		} else {
 			console.error(`❌ Goal update failed: ${result.error}`);
-			process.exit(1);
 		}
-
-	} catch (error) {
-		console.error('💥 Fatal error during goal update:', error);
-		process.exit(1);
-	}
-
-	console.log('🎉 Daily goal update completed successfully');
-	process.exit(0);
+		
+		console.log('🎉 Daily goal update completed successfully');
+		process.exit(result.success ? 0 : 1);
+	})();
 }
-
-// Handle command line arguments
-const args = process.argv.slice(2);
-
-if (args.includes('--help') || args.includes('-h')) {
-	console.log(`
-Usage: node src/lib/cron/update-goals.js [options]
-
-Options:
-  --help, -h     Show this help message
-  --dry-run     Show what would be updated without making changes
-  --verbose     Show detailed progress information
-
-This script updates all active goal progress based on current team member data.
-It should be run once daily via cron job or similar scheduling system.
-
-Example cron entry (runs daily at 2 AM):
-0 2 * * * cd /path/to/your/app && npm run cron:update-goals
-
-Environment variables required:
-  - SUPABASE_SERVICE_KEY
-  - PUBLIC_SUPABASE_URL
-	`);
-	process.exit(0);
-}
-
-if (args.includes('--dry-run')) {
-	console.log('🔍 DRY RUN MODE - No changes will be made');
-	// Override the update function to just log what would happen
-	// Implementation would go here for dry run mode
-}
-
-// Run the main function
-main().catch(error => {
-	console.error('Unhandled error:', error);
-	process.exit(1);
-});
