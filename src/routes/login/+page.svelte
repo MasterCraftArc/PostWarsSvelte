@@ -4,11 +4,12 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
-	onMount(() => {
+	// Reactive redirect - runs whenever $user changes
+	$: {
 		if ($user) {
-			goto('/');
+			goto('/dashboard');
 		}
-	});
+	}
 </script>
 
 <svelte:head>
