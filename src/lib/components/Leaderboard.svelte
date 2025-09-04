@@ -69,10 +69,16 @@
 		return baseClass;
 	}
 
-	// Initialize real-time when user is available
+	let hasInitialized = false;
+	
+	// Initialize real-time when user is fully authenticated
 	$: {
-		if ($user?.id) {
-			initializeRealtime($user.id);
+		if ($user?.id && !hasInitialized && !$leaderboardLoading) {
+			hasInitialized = true;
+			initializeRealtime($user.id).catch(error => {
+				console.error('Failed to initialize real-time:', error);
+				hasInitialized = false; // Allow retry
+			});
 		}
 	}
 

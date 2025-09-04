@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { authenticatedRequest } from './api.js';
 import { 
 	dashboardData, 
 	dashboardLoading, 
@@ -25,7 +26,10 @@ import {
 let channels = [];
 
 export async function initializeRealtime(userId) {
-	if (!userId) return;
+	if (!userId) {
+		console.warn('Cannot initialize real-time: no userId provided');
+		return;
+	}
 
 	// Clean up existing channels
 	cleanupRealtime();
@@ -58,10 +62,9 @@ async function loadDashboardData(userId) {
 	dashboardError.set('');
 
 	try {
-		const response = await fetch('/api/dashboard');
-		const data = await response.json();
+		const data = await authenticatedRequest('/api/dashboard');
 
-		if (response.ok) {
+		if (data) {
 			dashboardData.set(data);
 			userStats.set({
 				totalScore: data.user.totalScore || 0,
@@ -71,11 +74,9 @@ async function loadDashboardData(userId) {
 				rank: data.user.rank || 0
 			});
 			recentPosts.set(data.recentPosts || []);
-		} else {
-			dashboardError.set(data.error || 'Failed to load dashboard');
 		}
 	} catch (error) {
-		dashboardError.set('Network error loading dashboard');
+		dashboardError.set(error.message || 'Failed to load dashboard');
 	} finally {
 		dashboardLoading.set(false);
 	}
@@ -86,17 +87,14 @@ async function loadLeaderboardData() {
 	leaderboardError.set('');
 
 	try {
-		const response = await fetch('/api/leaderboard');
-		const data = await response.json();
+		const data = await authenticatedRequest('/api/leaderboard');
 
-		if (response.ok) {
+		if (data) {
 			leaderboardData.set(data.users || []);
 			teamLeaderboards.set(data.teams || {});
-		} else {
-			leaderboardError.set(data.error || 'Failed to load leaderboard');
 		}
 	} catch (error) {
-		leaderboardError.set('Network error loading leaderboard');
+		leaderboardError.set(error.message || 'Failed to load leaderboard');
 	} finally {
 		leaderboardLoading.set(false);
 	}
@@ -107,19 +105,16 @@ async function loadTeamData(userId) {
 	teamError.set('');
 
 	try {
-		const response = await fetch('/api/team-progress');
-		const data = await response.json();
+		const data = await authenticatedRequest('/api/team-progress');
 
-		if (response.ok) {
+		if (data) {
 			teamProgress.set(data);
 			activeGoals.set(data.goals || []);
 			teamMembers.set(data.members || []);
 			teamStats.set(data.teamStats || {});
-		} else {
-			teamError.set(data.error || 'Failed to load team data');
 		}
 	} catch (error) {
-		teamError.set('Network error loading team data');
+		teamError.set(error.message || 'Failed to load team data');
 	} finally {
 		teamLoading.set(false);
 	}
@@ -179,8 +174,7 @@ function setupLeaderboardSubscription() {
 
 function setupTeamSubscription(userId) {
 	// Get user's team first, then subscribe to team changes
-	fetch('/api/dashboard')
-		.then(response => response.json())
+	authenticatedRequest('/api/dashboard')
 		.then(data => {
 			const teamId = data.user?.teamId;
 			if (!teamId) return;
@@ -207,6 +201,9 @@ function setupTeamSubscription(userId) {
 				.subscribe();
 
 			channels.push(teamChannel);
+		})
+		.catch(error => {
+			console.error('Error setting up team subscription:', error);
 		});
 }
 
