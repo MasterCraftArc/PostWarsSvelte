@@ -1,11 +1,15 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
-
-	let leaderboardData = null;
-	let loading = true;
-	let error = '';
-	let timeframe = 'all';
+	import { 
+		leaderboardData, 
+		leaderboardLoading, 
+		leaderboardError,
+		leaderboardTimeframe,
+		teamLeaderboards,
+		currentUserRank 
+	} from '$lib/stores/leaderboard.js';
+	import { initializeRealtime, cleanupRealtime } from '$lib/realtime.js';
 
 	const timeframeOptions = [
 		{ value: 'all', label: 'All Time' },
@@ -14,24 +18,27 @@
 	];
 
 	async function loadLeaderboard() {
-		loading = true;
+		leaderboardLoading.set(true);
 		try {
-			const response = await fetch(`/api/leaderboard?timeframe=${timeframe}`);
+			const response = await fetch(`/api/leaderboard?timeframe=${$leaderboardTimeframe}`);
 			const data = await response.json();
 
 			if (response.ok) {
-				leaderboardData = data;
+				leaderboardData.set(data.users || []);
+				currentUserRank.set(data.userRank || null);
+				teamLeaderboards.set(data.teams || {});
+				leaderboardError.set('');
 			} else {
-				error = data.error || 'Failed to load leaderboard';
+				leaderboardError.set(data.error || 'Failed to load leaderboard');
 			}
 		} catch (err) {
-			error = 'Network error loading leaderboard';
+			leaderboardError.set('Network error loading leaderboard');
 		}
-		loading = false;
+		leaderboardLoading.set(false);
 	}
 
 	function handleTimeframeChange(event) {
-		timeframe = event.target.value;
+		leaderboardTimeframe.set(event.target.value);
 		loadLeaderboard();
 	}
 
@@ -62,10 +69,16 @@
 		return baseClass;
 	}
 
-	onMount(() => {
-		if ($user) {
-			loadLeaderboard();
+	// Initialize real-time when user is available
+	$: {
+		if ($user?.id) {
+			initializeRealtime($user.id);
 		}
+	}
+
+	// Clean up on component destroy
+	onDestroy(() => {
+		cleanupRealtime();
 	});
 </script>
 
@@ -80,7 +93,7 @@
 				<h2 class="text-2xl font-bold" style="color:#fdfdfd;">Leaderboard</h2>
 
 				<select
-					bind:value={timeframe}
+					bind:value={$leaderboardTimeframe}
 					on:change={handleTimeframeChange}
 					class="rounded-md px-3 py-2 focus:outline-none focus:ring-2"
 					style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; focus:ring-color:#24b0ff;"
@@ -91,13 +104,13 @@
 				</select>
 			</div>
 
-			{#if leaderboardData?.userRank}
+			{#if $currentUserRank}
 				<div
 					class="rounded-lg p-4 text-center backdrop-blur-md"
 					style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff;"
 				>
 					<div class="text-lg font-semibold" style="color:#24b0ff;">
-						Your Current Rank: #{leaderboardData.userRank}
+						Your Current Rank: #{$currentUserRank}
 					</div>
 					<div class="text-sm" style="color:#cbd5e1;">
 						{timeframeOptions.find((opt) => opt.value === timeframe)?.label || 'All Time'}
@@ -107,24 +120,24 @@
 		</div>
 
 		<!-- Leaderboard -->
-		{#if loading}
+		{#if $leaderboardLoading}
 			<div class="flex items-center justify-center py-12">
 				<div class="h-12 w-12 animate-spin rounded-full border-b-2" style="border-color:#24b0ff;"></div>
 			</div>
-		{:else if error}
+		{:else if $leaderboardError}
 			<div
 				class="rounded px-4 py-3"
 				style="border:1px solid #ff5456; background-color:rgba(255,84,86,0.12); color:#ff5456;"
 			>
-				{error}
+				{$leaderboardError}
 			</div>
-		{:else if leaderboardData}
+		{:else if $leaderboardData}
 			<div
 				class="rounded-xl p-6 shadow-lg backdrop-blur-md"
 				style=" border:1px solid #24b0ff;"
 			>
 				<div class="space-y-3">
-					{#each leaderboardData.leaderboard as player}
+					{#each $leaderboardData as player}
 						<div
 							class="flex items-center justify-between rounded-lg p-3"
 							
@@ -178,7 +191,7 @@
 					{/each}
 				</div>
 
-				{#if leaderboardData.leaderboard.length === 0}
+				{#if $leaderboardData.length === 0}
 					<div class="py-8 text-center" style="color:#94a3b8;">
 						No users found for this timeframe.
 					</div>
@@ -186,14 +199,14 @@
 			</div>
 
 			<!-- Achievement highlights for top performers -->
-			{#if leaderboardData.leaderboard.length > 0}
+			{#if $leaderboardData.length > 0}
 				<div
 					class="rounded-xl p-6 shadow-lg backdrop-blur-md"
 					style=" "
 				>
 					<h3 class="mb-4 text-lg font-semibold" style="color:#fdfdfd;">Top Performers</h3>
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-						{#each leaderboardData.leaderboard.slice(0, 3) as topPlayer, index}
+						{#each $leaderboardData.slice(0, 3) as topPlayer, index}
 							<div
 								class="rounded-lg p-4 text-center "
 								style=""

@@ -1,22 +1,28 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
+	import { 
+		dashboardData, 
+		dashboardLoading, 
+		dashboardError, 
+		userStats, 
+		recentPosts 
+	} from '$lib/stores/dashboard.js';
+	import { initializeRealtime, cleanupRealtime } from '$lib/realtime.js';
 	import { authenticatedRequest } from '$lib/api.js';
 	import TeamProgress from './TeamProgress.svelte';
-	let dashboardData = null;
-	let loading = true;
-	let error = '';
 
-	async function loadDashboard() {
-		try {
-			const data = await authenticatedRequest('/api/dashboard');
-			dashboardData = data;
-			error = '';
-		} catch (err) {
-			error = err.message || 'Failed to load dashboard';
+	// Initialize real-time when user is available
+	$: {
+		if ($user?.id) {
+			initializeRealtime($user.id);
 		}
-		loading = false;
 	}
+
+	// Clean up on component destroy
+	onDestroy(() => {
+		cleanupRealtime();
+	});
 
 	async function updatePostAnalytics(postId) {
 		try {
@@ -24,12 +30,9 @@
 				method: 'POST',
 				body: JSON.stringify({ postId })
 			});
-
-			// Refresh dashboard data
-			loading = true;
-			await loadDashboard();
+			// Real-time subscriptions will automatically update the UI
 		} catch (err) {
-			error = err.message || 'Failed to update analytics';
+			dashboardError.set(err.message || 'Failed to update analytics');
 		}
 	}
 
@@ -42,22 +45,13 @@
 			await authenticatedRequest(`/api/posts/${postId}`, {
 				method: 'DELETE'
 			});
-
-			// Refresh dashboard data
-			loading = true;
-			await loadDashboard();
+			// Real-time subscriptions will automatically update the UI
 			alert('Post deleted successfully');
 		} catch (err) {
-			error = err.message || 'Failed to delete post';
+			dashboardError.set(err.message || 'Failed to delete post');
 		}
 	}
 
-	// Reactive statement to load dashboard when user becomes available
-	$: {
-		if ($user && !dashboardData && !error) {
-			loadDashboard();
-		}
-	}
 
 	function formatDate(dateString) {
 		return new Date(dateString).toLocaleDateString('en-US', {
@@ -75,15 +69,15 @@
 </script>
 
 {#if $user}
-	{#if loading}
+	{#if $dashboardLoading}
 		<div class="flex items-center justify-center py-12">
 			<div class="h-12 w-12 animate-spin rounded-full border-b-2" style="border-color:#24b0ff;"></div>
 		</div>
-	{:else if error}
+	{:else if $dashboardError}
 		<div class="mb-6 rounded border px-4 py-3" style="border-color:#ff5456; background-color:rgba(255,84,86,0.12); color:#ff5456;">
-			{error}
+			{$dashboardError}
 		</div>
-	{:else if dashboardData}
+	{:else if $dashboardData}
 		<div class="space-y-6">
 
 			<!-- User Stats Overview (GLASS) -->
@@ -92,7 +86,7 @@
 				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
 			>
 				<h2 class="mb-6 text-2xl font-bold" style="color:#fdfdfd;">
-					Welcome back, {dashboardData.user.name || 'User'}!
+					Welcome back, {$dashboardData?.user?.name || 'User'}!
 				</h2>
 
 				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -101,27 +95,27 @@
 						class="rounded-lg p-4 text-center"
 						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.35);"
 					>
-						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{dashboardData.user.totalScore}</div>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{$userStats.totalScore}</div>
 						<div class="text-sm" style="color:#cbd5e1;">Total Points</div>
-						<div class="text-xs" style="color:#94a3b8;">Rank #{dashboardData.user.rank}</div>
+						<div class="text-xs" style="color:#94a3b8;">Rank #{$userStats.rank}</div>
 					</div>
 
 					<div
 						class="rounded-lg p-4 text-center"
 						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 					>
-						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{dashboardData.stats.totalPosts}</div>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{$userStats.totalPosts}</div>
 						<div class="text-sm" style="color:#cbd5e1;">Total Posts</div>
-						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.monthlyPosts} this month</div>
+						<div class="text-xs" style="color:#94a3b8;">{$dashboardData?.stats?.monthlyPosts || 0} this month</div>
 					</div>
 
 					<div
 						class="rounded-lg p-4 text-center"
 						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 					>
-						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{dashboardData.user.currentStreak}</div>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{$userStats.currentStreak}</div>
 						<div class="text-sm" style="color:#cbd5e1;">Current Streak</div>
-						<div class="text-xs" style="color:#94a3b8;">Best: {dashboardData.user.bestStreak} days</div>
+						<div class="text-xs" style="color:#94a3b8;">Best: {$dashboardData?.user?.bestStreak || 0} days</div>
 					</div>
 
 					<div
@@ -174,16 +168,16 @@
 			>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-xl font-semibold" style="color:#fdfdfd;">Recent Posts</h3>
-					<span class="text-sm" style="color:#94a3b8;">{dashboardData.recentPosts.length} posts shown</span>
+					<span class="text-sm" style="color:#94a3b8;">{$recentPosts.length} posts shown</span>
 				</div>
 
-				{#if dashboardData.recentPosts.length === 0}
+				{#if $recentPosts.length === 0}
 					<p class="py-8 text-center" style="color:#94a3b8;">
 						No posts yet. Submit your first LinkedIn post to get started!
 					</p>
 				{:else}
 					<div class="space-y-4">
-						{#each dashboardData.recentPosts as post}
+						{#each $recentPosts as post}
 							<!-- Individual Post Card (GLASS) -->
 							<div
 								class="rounded-lg p-4 transition-shadow hover:shadow-xl"

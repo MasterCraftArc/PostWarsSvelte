@@ -1,36 +1,50 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
+	import { 
+		teamProgress, 
+		teamLoading, 
+		teamError, 
+		activeGoals, 
+		teamMembers, 
+		teamStats 
+	} from '$lib/stores/team.js';
+	import { initializeRealtime, cleanupRealtime } from '$lib/realtime.js';
 	import { authenticatedRequest } from '$lib/api.js';
 	import ProgressBar from './ProgressBar.svelte';
 	
-	let teamData = null;
-	let loading = true;
-	let error = '';
-	let hasLoadedData = false;
-	
-	// Reactive statement to load team progress when user becomes available
+	// Initialize real-time when user is available
 	$: {
-		if ($user !== null && !hasLoadedData) {
-			loadTeamProgress();
+		if ($user?.id) {
+			initializeRealtime($user.id);
 		}
 	}
+
+	// Clean up on component destroy
+	onDestroy(() => {
+		cleanupRealtime();
+	});
 	
 	async function loadTeamProgress() {
-		loading = true;
+		teamLoading.set(true);
 		try {
 			const data = await authenticatedRequest('/api/team-progress');
-			teamData = data;
-			error = '';
+			teamProgress.set(data);
+			activeGoals.set(data.goals || []);
+			teamMembers.set(data.members || []);
+			teamStats.set(data.teamStats || {});
+			teamError.set('');
 		} catch (err) {
-			error = err.message || 'Failed to load team progress';
+			teamError.set(err.message || 'Failed to load team progress');
 		}
-		loading = false;
-		hasLoadedData = true;
+		teamLoading.set(false);
 	}
 	
 	onMount(() => {
-		// onMount kept for any non-user dependent initialization
+		// Load initial data when component mounts
+		if ($user) {
+			loadTeamProgress();
+		}
 	});
 	
 	function getGoalTypeLabel(type) {
@@ -65,18 +79,18 @@
 	}
 </script>
 
-{#if loading}
+{#if $teamLoading}
 	<div class="flex items-center justify-center py-8">
 		<div class="h-8 w-8 animate-spin rounded-full border-b-2" style="border-color:#24b0ff;"></div>
 	</div>
-{:else if error}
+{:else if $teamError}
 	<div 
 		class="rounded-lg p-4"
 		style="border:1px solid #ff5456; background-color:rgba(255,84,86,0.12); color:#ff5456;"
 	>
-		{error}
+		{$teamError}
 	</div>
-{:else if teamData}
+{:else if $teamProgress}
 	<div class="space-y-6">
 		<!-- Team Header -->
 		<div 
@@ -85,15 +99,15 @@
 		>
 			<div class="flex items-center justify-between mb-4">
 				<div>
-					<h2 class="text-2xl font-bold" style="color:#fdfdfd;">{teamData.team?.name || 'No Team Assigned'}</h2>
-					{#if teamData.team?.description}
-						<p class="text-sm mt-1" style="color:#94a3b8;">{teamData.team.description}</p>
+					<h2 class="text-2xl font-bold" style="color:#fdfdfd;">{$teamProgress?.team?.name || 'No Team Assigned'}</h2>
+					{#if $teamProgress?.team?.description}
+						<p class="text-sm mt-1" style="color:#94a3b8;">{$teamProgress.team.description}</p>
 					{/if}
 				</div>
-				{#if teamData.team?.teamLead}
+				{#if $teamProgress?.team?.teamLead}
 					<div class="text-right">
 						<div class="text-sm" style="color:#94a3b8;">Team Lead</div>
-						<div class="font-medium" style="color:#24b0ff;">{teamData.team.teamLead.name}</div>
+						<div class="font-medium" style="color:#24b0ff;">{$teamProgress.team.teamLead.name}</div>
 					</div>
 				{/if}
 			</div>
@@ -104,7 +118,7 @@
 					class="rounded-lg p-3 text-center"
 					style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 				>
-					<div class="text-xl font-bold" style="color:#24b0ff;">{teamData.stats.totalMembers}</div>
+					<div class="text-xl font-bold" style="color:#24b0ff;">{$teamStats.totalMembers || 0}</div>
 					<div class="text-xs" style="color:#94a3b8;">Members</div>
 				</div>
 				
@@ -112,7 +126,7 @@
 					class="rounded-lg p-3 text-center"
 					style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 				>
-					<div class="text-xl font-bold" style="color:#24b0ff;">{teamData.stats.totalScore.toLocaleString()}</div>
+					<div class="text-xl font-bold" style="color:#24b0ff;">{($teamStats.totalScore || 0).toLocaleString()}</div>
 					<div class="text-xs" style="color:#94a3b8;">Total Score</div>
 				</div>
 				
@@ -120,7 +134,7 @@
 					class="rounded-lg p-3 text-center"
 					style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 				>
-					<div class="text-xl font-bold" style="color:#24b0ff;">{teamData.stats.totalPostsThisMonth}</div>
+					<div class="text-xl font-bold" style="color:#24b0ff;">{$teamStats.totalPostsThisMonth || 0}</div>
 					<div class="text-xs" style="color:#94a3b8;">Posts This Month</div>
 				</div>
 				
@@ -128,14 +142,14 @@
 					class="rounded-lg p-3 text-center"
 					style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 				>
-					<div class="text-xl font-bold" style="color:#24b0ff;">{teamData.stats.averageStreak}</div>
+					<div class="text-xl font-bold" style="color:#24b0ff;">{$teamStats.averageStreak || 0}</div>
 					<div class="text-xs" style="color:#94a3b8;">Avg Streak</div>
 				</div>
 			</div>
 		</div>
 		
 		<!-- Active Goals -->
-		{#if teamData.goals && teamData.goals.length > 0}
+		{#if $activeGoals && $activeGoals.length > 0}
 			<div 
 				class="rounded-xl p-6 shadow-lg backdrop-blur-md"
 				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
@@ -143,7 +157,7 @@
 				<h3 class="text-xl font-semibold mb-4" style="color:#fdfdfd;">Team Goals</h3>
 				
 				<div class="space-y-4">
-					{#each teamData.goals as goal}
+					{#each $activeGoals as goal}
 						<div 
 							class="rounded-lg p-4"
 							style="background-color:rgba(16,35,73,0.28); border:1px solid rgba(36,176,255,0.35);"
