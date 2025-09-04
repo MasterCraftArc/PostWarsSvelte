@@ -26,6 +26,9 @@ jobs:
     - name: Install dependencies
       run: npm ci --ignore-scripts
 
+    - name: Clean SvelteKit artifacts
+      run: rm -rf .svelte-kit node_modules/.svelte-kit
+
     - name: Update goals
       env:
         SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
