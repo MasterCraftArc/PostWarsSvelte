@@ -11,7 +11,23 @@
  *   npm run cron:update-goals
  */
 
-import { supabaseAdmin } from '../supabase-server.js';
+import dotenv from 'dotenv';
+
+// Load environment variables first before importing supabase client
+dotenv.config();
+
+// Create direct supabase admin client for cron scripts
+import { createClient } from '@supabase/supabase-js';
+const supabaseAdmin = createClient(
+	process.env.PUBLIC_SUPABASE_URL,
+	process.env.SUPABASE_SERVICE_KEY,
+	{
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false
+		}
+	}
+);
 
 // Function to update goal progress (copied from API)
 async function updateGoalsProgress() {
