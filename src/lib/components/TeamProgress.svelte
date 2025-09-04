@@ -10,12 +10,17 @@
 		teamStats 
 	} from '$lib/stores/team.js';
 	import { authenticatedRequest } from '$lib/api.js';
+	import { initializeRealtime } from '$lib/realtime.js';
 	import ProgressBar from './ProgressBar.svelte';
 	
-	// Load initial data if stores are empty and user is authenticated
+	let hasInitialized = false;
+	
+	// Initialize real-time system and load data
 	$: {
-		if ($user?.id && !$teamProgress && !$teamLoading && !$teamError) {
-			loadTeamProgress();
+		if ($user?.id && !hasInitialized && !$teamLoading) {
+			hasInitialized = true;
+			// Always initialize real-time system (singleton pattern prevents duplicates)
+			initializeRealtime($user.id);
 		}
 	}
 	

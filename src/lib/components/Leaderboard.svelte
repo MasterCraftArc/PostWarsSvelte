@@ -9,6 +9,7 @@
 		teamLeaderboards,
 		currentUserRank 
 	} from '$lib/stores/leaderboard.js';
+	import { initializeRealtime } from '$lib/realtime.js';
 
 	const timeframeOptions = [
 		{ value: 'all', label: 'All Time' },
@@ -68,10 +69,14 @@
 		return baseClass;
 	}
 
-	// Load initial data if stores are empty and user is authenticated
+	let hasInitialized = false;
+	
+	// Initialize real-time system and load data
 	$: {
-		if ($user?.id && $leaderboardData.length === 0 && !$leaderboardLoading && !$leaderboardError) {
-			loadLeaderboard();
+		if ($user?.id && !hasInitialized && !$leaderboardLoading) {
+			hasInitialized = true;
+			// Always initialize real-time system (singleton pattern prevents duplicates)
+			initializeRealtime($user.id);
 		}
 	}
 </script>
