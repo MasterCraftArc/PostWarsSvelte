@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase-server.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
-import { calculatePostScore } from '$lib/gamification-node.js';
+import { calculatePostScore, checkAndAwardAchievements } from '$lib/gamification-node.js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 
@@ -266,6 +266,16 @@ export async function POST(event) {
 			});
 		}
 
+		// Check and award achievements after updating metrics
+		console.log('Checking achievements after metrics update...');
+		let newAchievements = [];
+		try {
+			newAchievements = await checkAndAwardAchievements(currentPost.userId);
+			console.log('Achievements check completed:', newAchievements?.length || 0, 'new achievements');
+		} catch (achievementError) {
+			console.error('Achievement check failed:', achievementError);
+		}
+
 		return json({
 			success: true,
 			message: 'Post metrics updated successfully',
@@ -276,6 +286,7 @@ export async function POST(event) {
 				newTotalScore: updatedUser?.totalScore,
 				rpcSuccess: !rpcError
 			},
+			newAchievements: newAchievements || [],
 			audit: {
 				updatedBy: authenticatedUser.email,
 				reason: reason || 'Manual metrics correction',
