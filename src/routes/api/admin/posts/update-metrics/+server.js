@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase-server.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
-import { calculatePostScore } from '$lib/gamification-node.js';
+import { calculatePostScore, checkAndAwardAchievements } from '$lib/gamification-node.js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 
@@ -224,9 +224,32 @@ export async function POST(event) {
 
 		let updatedUser = null;
 		if (rpcError) {
-			console.error('Could not update user total score:', rpcError);
+			console.error('RPC function failed, trying manual update. Error:', rpcError);
+			
+			// Manual fallback: Calculate total score from all user's posts
+			const { data: userPosts } = await supabaseAdmin
+				.from('linkedin_posts')
+				.select('totalScore')
+				.eq('userId', currentPost.userId);
+			
+			const newTotalScore = userPosts?.reduce((sum, post) => sum + (post.totalScore || 0), 0) || 0;
+			
+			// Update user's total score manually
+			const { data: manualUpdateData, error: manualError } = await supabaseAdmin
+				.from('users')
+				.update({ totalScore: newTotalScore })
+				.eq('id', currentPost.userId)
+				.select('totalScore, name')
+				.single();
+			
+			if (!manualError) {
+				updatedUser = manualUpdateData;
+				console.log('Manual user score update successful:', newTotalScore);
+			} else {
+				console.error('Manual user score update also failed:', manualError);
+			}
 		} else {
-			console.log('Successfully updated user total score');
+			console.log('RPC function succeeded');
 			
 			// Verify the update worked by fetching the user's new total score
 			const { data: userData } = await supabaseAdmin
@@ -236,11 +259,21 @@ export async function POST(event) {
 				.single();
 			
 			updatedUser = userData;
-			console.log('User total score after update:', {
+			console.log('User total score after RPC update:', {
 				userId: currentPost.userId,
 				userName: updatedUser?.name,
 				newTotalScore: updatedUser?.totalScore
 			});
+		}
+
+		// Check and award achievements after updating metrics
+		console.log('Checking achievements after metrics update...');
+		let newAchievements = [];
+		try {
+			newAchievements = await checkAndAwardAchievements(currentPost.userId);
+			console.log('Achievements check completed:', newAchievements?.length || 0, 'new achievements');
+		} catch (achievementError) {
+			console.error('Achievement check failed:', achievementError);
 		}
 
 		return json({
@@ -253,6 +286,7 @@ export async function POST(event) {
 				newTotalScore: updatedUser?.totalScore,
 				rpcSuccess: !rpcError
 			},
+			newAchievements: newAchievements || [],
 			audit: {
 				updatedBy: authenticatedUser.email,
 				reason: reason || 'Manual metrics correction',
