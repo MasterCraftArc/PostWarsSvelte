@@ -222,18 +222,20 @@ export async function POST(event) {
 			p_user_id: currentPost.userId
 		});
 
+		let updatedUser = null;
 		if (rpcError) {
 			console.error('Could not update user total score:', rpcError);
 		} else {
 			console.log('Successfully updated user total score');
 			
 			// Verify the update worked by fetching the user's new total score
-			const { data: updatedUser } = await supabaseAdmin
+			const { data: userData } = await supabaseAdmin
 				.from('users')
 				.select('totalScore, name')
 				.eq('id', currentPost.userId)
 				.single();
 			
+			updatedUser = userData;
 			console.log('User total score after update:', {
 				userId: currentPost.userId,
 				userName: updatedUser?.name,
@@ -245,6 +247,12 @@ export async function POST(event) {
 			success: true,
 			message: 'Post metrics updated successfully',
 			post: updatedPost,
+			userScoreUpdate: {
+				userId: currentPost.userId,
+				userName: updatedUser?.name,
+				newTotalScore: updatedUser?.totalScore,
+				rpcSuccess: !rpcError
+			},
 			audit: {
 				updatedBy: authenticatedUser.email,
 				reason: reason || 'Manual metrics correction',
