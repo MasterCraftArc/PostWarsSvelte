@@ -11,11 +11,8 @@ export const SCORING_CONFIG = {
 
 	// Streak bonuses
 	STREAK_MULTIPLIER: 0.1, // +10% per day streak
-	MAX_STREAK_BONUS: 2.0, // Cap at 200% bonus
+	MAX_STREAK_BONUS: 1.5, // Cap at 150% bonus
 
-	// Word count bonuses
-	MIN_WORDS_FOR_BONUS: 50,
-	WORD_BONUS_POINTS: 0.1, // 0.1 points per word over minimum
 
 	// Freshness decay (points decrease over time)
 	FRESH_HOURS: 24,
@@ -23,7 +20,7 @@ export const SCORING_CONFIG = {
 };
 
 export function calculatePostScore(postData, userStreak = 0) {
-	const { word_count, reactions, comments, reposts, timestamp } = postData;
+	const { reactions, comments, reposts, timestamp } = postData;
 
 	// Base score
 	let score = SCORING_CONFIG.BASE_POST_POINTS;
@@ -34,11 +31,6 @@ export function calculatePostScore(postData, userStreak = 0) {
 		comments * SCORING_CONFIG.COMMENT_POINTS +
 		reposts * SCORING_CONFIG.REPOST_POINTS;
 
-	// Word count bonus
-	const wordBonus =
-		word_count > SCORING_CONFIG.MIN_WORDS_FOR_BONUS
-			? (word_count - SCORING_CONFIG.MIN_WORDS_FOR_BONUS) * SCORING_CONFIG.WORD_BONUS_POINTS
-			: 0;
 
 	// Streak multiplier
 	const streakMultiplier = Math.min(
@@ -46,8 +38,8 @@ export function calculatePostScore(postData, userStreak = 0) {
 		SCORING_CONFIG.MAX_STREAK_BONUS
 	);
 
-	// Apply streak bonus to base + word bonus
-	const baseWithBonus = (score + wordBonus) * streakMultiplier;
+	// Apply streak bonus to base score
+	const baseWithBonus = score * streakMultiplier;
 
 	// Freshness factor
 	const postDate = new Date(timestamp);
@@ -63,12 +55,11 @@ export function calculatePostScore(postData, userStreak = 0) {
 	const finalScore = Math.round((baseWithBonus + engagementScore) * freshnessFactor);
 
 	return {
-		baseScore: Math.round(score + wordBonus),
+		baseScore: Math.round(score),
 		engagementScore: Math.round(engagementScore),
 		totalScore: finalScore,
 		breakdown: {
 			basePoints: score,
-			wordBonus: Math.round(wordBonus),
 			streakMultiplier: streakMultiplier,
 			engagementPoints: engagementScore,
 			freshnessFactor: freshnessFactor

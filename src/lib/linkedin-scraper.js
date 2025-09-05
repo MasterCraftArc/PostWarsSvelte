@@ -536,11 +536,18 @@ async function extractEngagementMetrics(postContainer) {
 			n.context.includes('view')
 		);
 		
+		// Filter out time-based numbers (like "51m", "2h", "3d", etc.) and other metadata
 		const standaloneNumbers = allNumbers.filter(n => 
 			!n.context.includes('reaction') && !n.context.includes('like') && 
 			!n.context.includes('comment') && !n.context.includes('repost') && 
 			!n.context.includes('share') && !n.context.includes('impression') && 
-			!n.context.includes('view') && n.count > 1
+			!n.context.includes('view') && 
+			!n.original.match(/\d+[wdhm]\s*$/i) && // Filter out time patterns like "51m", "2h", "3d"
+			!n.context.includes('ago') && 
+			!n.context.includes('week') && !n.context.includes('day') && 
+			!n.context.includes('hour') && !n.context.includes('minute') &&
+			!n.context.includes('month') && !n.context.includes('year') &&
+			n.count > 1
 		);
 
 		console.log(`Found ${contextualNumbers.length} contextual numbers and ${standaloneNumbers.length} standalone numbers`);

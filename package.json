@@ -18,7 +18,6 @@
 		"cron:init-achievements": "node src/lib/cron/update-analytics.js --init-achievements",
 		"cron:update-goals": "node src/lib/cron/update-goals.js",
 		"worker": "node src/lib/worker.js",
-		"db:seed": "node prisma/seed-supabase.js",
 		"deploy:db": "./deploy-db.sh",
 		"deploy:netlify": "netlify deploy --prod --dir=build"
 	},

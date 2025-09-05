@@ -386,6 +386,7 @@
 										style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; --tw-ring-color:#24b0ff;"
 									>
 										<option value="" class="text-slate-900">Select Team</option>
+										<option value="company" class="text-slate-900">🏢 Company-wide Goal</option>
 										{#each teams as team}
 											<option value={team.id} class="text-slate-900">{team.name}</option>
 										{/each}
@@ -435,7 +436,7 @@
 												<span>Type: {goal.type.replace('_', ' ')}</span>
 												<span>Target: {goal.targetValue}</span>
 												<span>Current: {goal.currentValue}</span>
-												<span>Team: {goal.team.name}</span>
+												<span>Team: {goal.teamId === 'company-team-id' ? '🏢 Company-wide' : goal.team?.name || 'Unknown'}</span>
 												<span>Due: {formatDate(goal.endDate)}</span>
 											</div>
 										</div>

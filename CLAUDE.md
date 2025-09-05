@@ -115,7 +115,6 @@ src/lib/gamification.js
 - Base points: 10 per post
 - Engagement multipliers: Likes (1x), Comments (3x), Reposts (5x)
 - Streak bonuses: +10% per consecutive day (max 200%)
-- Word count bonuses: 0.1 points per word over 50 words
 - Freshness decay: 2% decay per day after 24 hours
 ```
 
@@ -193,10 +192,6 @@ function calculatePostScore(postData, userStreak = 0) {
   const streakBonus = Math.min(userStreak * 0.1, 2.0);
   score *= (1 + streakBonus);
   
-  // Word count bonus
-  if (word_count > 50) {
-    score += (word_count - 50) * 0.1;
-  }
   
   // Freshness decay
   const hoursOld = (Date.now() - timestamp) / (1000 * 60 * 60);

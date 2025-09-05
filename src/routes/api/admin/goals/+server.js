@@ -199,7 +199,20 @@ export async function POST(event) {
 		// Handle team vs company goals
 		let finalTeamId = teamId;
 		
-		if (teamId && teamId !== 'company-team-id') {
+		if (!teamId || teamId === 'company') {
+			// Company goal - only admins can create
+			if (user.role !== 'ADMIN') {
+				return json({ error: 'Only admins can create company-wide goals' }, { status: 403 });
+			}
+			// Use the special company team ID
+			finalTeamId = 'company-team-id';
+		} else if (teamId === 'company-team-id') {
+			// Direct company-team-id (shouldn't happen from UI but handle it)
+			if (user.role !== 'ADMIN') {
+				return json({ error: 'Only admins can create company-wide goals' }, { status: 403 });
+			}
+			finalTeamId = 'company-team-id';
+		} else {
 			// Regular team goal - verify team exists and user has permission
 			const { data: team, error: teamError } = await supabaseAdmin
 				.from('teams')
@@ -215,13 +228,6 @@ export async function POST(event) {
 			if (user.role === 'TEAM_LEAD' && team.teamLeadId !== user.id) {
 				return json({ error: 'You can only create goals for your own team' }, { status: 403 });
 			}
-		} else if (!teamId || teamId === 'company') {
-			// Company goal - only admins can create
-			if (user.role !== 'ADMIN') {
-				return json({ error: 'Only admins can create company-wide goals' }, { status: 403 });
-			}
-			// Use the special company team ID
-			finalTeamId = 'company-team-id';
 		}
 
 		// Generate UUID for the goal
