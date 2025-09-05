@@ -1,18 +1,17 @@
-import { supabaseAdmin } from './supabase-node.js';
+import { supabaseAdmin } from './supabase-server.js';
 
 export const SCORING_CONFIG = {
 	// Base points for posting
-	BASE_POST_POINTS: 1,
+	BASE_POST_POINTS: 10,
 
 	// Engagement multipliers
-	REACTION_POINTS: 0.1,
-	COMMENT_POINTS: 1,
-	REPOST_POINTS: 2,
+	REACTION_POINTS: 1,
+	COMMENT_POINTS: 3,
+	REPOST_POINTS: 5,
 
 	// Streak bonuses
 	STREAK_MULTIPLIER: 0.1, // +10% per day streak
 	MAX_STREAK_BONUS: 1.5, // Cap at 150% bonus
-
 
 	// Freshness decay (points decrease over time)
 	FRESH_HOURS: 24,

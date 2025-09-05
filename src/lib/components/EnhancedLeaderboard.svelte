@@ -230,7 +230,7 @@
 										{#if player.teamName !== 'No Team'}
 											{player.teamName} •
 										{/if}
-										{player.postsInTimeframe} total posts
+										{(player.postsInTimeframe || 0)} posts
 									</div>
 								</div>
 
@@ -244,8 +244,8 @@
 
 								<!-- Engagement -->
 								<div class="text-right mr-6">
-									<div class="text-lg font-semibold" style="color:#22c55e;">
-										{player.engagementInTimeframe}
+									<div class="text-lg font-semibold" style="color:#22c55e;" title="Total engagement from all posts">
+										{(player.engagementInTimeframe || 0).toLocaleString()}
 									</div>
 									<div class="text-sm" style="color:#94a3b8;">engagement</div>
 								</div>

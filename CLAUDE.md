@@ -1,5 +1,48 @@
 # PostWars - Repository Analysis & Claude Code Documentation
 
+## 🚨 CURRENT ISSUES TO FIX
+
+### Issue #1: Incorrect Engagement Metrics from Scraping
+**Problem:** LinkedIn scraper sometimes pulls incorrect engagement numbers (e.g., interpreting "51m" timestamp as 51 million engagements)
+**Impact:** Inflated scores and incorrect leaderboard rankings
+**Solution Needed:** 
+1. Add manual metrics correction capability in admin panel
+2. Add ability to update existing post metrics
+3. Add validation to prevent unrealistic engagement numbers
+
+### Issue #2: Leaderboard Not Showing Actual Post Engagement
+**Problem:** Leaderboard engagement column not pulling actual data from linkedin_posts table
+**Impact:** Users can't see their real engagement metrics on leaderboard
+**Solution Needed:**
+1. Fix leaderboard API to properly aggregate post engagement metrics
+2. Update leaderboard UI to display actual likes, comments, reposts
+3. Ensure total engagement calculation is accurate
+
+## 📋 TASK LIST FOR FIXES
+
+### Phase 1: Analyze Current State
+- [ ] Review leaderboard API endpoint (/api/leaderboard)
+- [ ] Check how engagement is currently calculated
+- [ ] Identify database queries that need fixing
+
+### Phase 2: Manual Metrics Correction Feature
+- [ ] Create admin API endpoint to update post metrics
+- [ ] Add UI in admin panel to edit post engagement data
+- [ ] Add validation for reasonable engagement limits
+- [ ] Add audit log for manual corrections
+
+### Phase 3: Fix Leaderboard Engagement Display
+- [ ] Update leaderboard API to JOIN with linkedin_posts table
+- [ ] Calculate actual engagement totals per user
+- [ ] Update UI to show real engagement breakdown
+- [ ] Add tooltips showing likes/comments/reposts breakdown
+
+### Phase 4: Testing & Verification
+- [ ] Test manual metrics update functionality
+- [ ] Verify leaderboard shows correct data
+- [ ] Test edge cases and error handling
+- [ ] Document changes for future reference
+
 ## 🎯 Project Overview
 
 **PostWars** is a gamified LinkedIn engagement platform that transforms LinkedIn posting into a competitive team-based game. Users submit LinkedIn posts, which are scraped for engagement metrics (likes, comments, shares) and converted into points through a sophisticated scoring system.
