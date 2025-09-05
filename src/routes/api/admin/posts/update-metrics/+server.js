@@ -71,11 +71,11 @@ export async function POST(event) {
 			return json({ error: 'Post not found' }, { status: 404 });
 		}
 
-		// Prepare update object with new metrics
+		// Prepare update object with new metrics (ensure integer values)
 		const updateData = {
-			reactions: reactions !== undefined ? reactions : currentPost.reactions,
-			comments: comments !== undefined ? comments : currentPost.comments,
-			reposts: reposts !== undefined ? reposts : currentPost.reposts,
+			reactions: reactions !== undefined ? parseInt(reactions) : currentPost.reactions,
+			comments: comments !== undefined ? parseInt(comments) : currentPost.comments,
+			reposts: reposts !== undefined ? parseInt(reposts) : currentPost.reposts,
 			updatedAt: new Date().toISOString()
 		};
 
@@ -110,8 +110,8 @@ export async function POST(event) {
 			timestamp: new Date(currentPost.postedAt).getTime()
 		}, userStreak);
 
-		updateData.baseScore = scoreData.breakdown.basePoints + scoreData.breakdown.wordBonus;
-		updateData.engagementScore = scoreData.breakdown.engagementPoints;
+		updateData.baseScore = Math.round(scoreData.breakdown.basePoints);
+		updateData.engagementScore = Math.round(scoreData.breakdown.engagementPoints);
 		updateData.totalScore = scoreData.totalScore;
 
 		// Update the post

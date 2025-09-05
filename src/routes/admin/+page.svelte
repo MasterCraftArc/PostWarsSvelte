@@ -546,19 +546,19 @@
 													</div>
 												</td>
 												<td class="px-4 py-3 text-center" style="color:#fdfdfd;">
-													{post.reactions.toLocaleString()}
+													{(post.reactions || 0).toLocaleString()}
 												</td>
 												<td class="px-4 py-3 text-center" style="color:#fdfdfd;">
-													{post.comments.toLocaleString()}
+													{(post.comments || 0).toLocaleString()}
 												</td>
 												<td class="px-4 py-3 text-center" style="color:#fdfdfd;">
-													{post.reposts.toLocaleString()}
+													{(post.reposts || 0).toLocaleString()}
 												</td>
 												<td class="px-4 py-3 text-center font-semibold" style="color:#22c55e;">
-													{post.totalEngagement.toLocaleString()}
+													{(post.totalEngagement || 0).toLocaleString()}
 												</td>
 												<td class="px-4 py-3 text-center font-semibold" style="color:#fbbf24;">
-													{post.totalScore.toLocaleString()}
+													{(post.totalScore || 0).toLocaleString()}
 												</td>
 												<td class="px-4 py-3 text-center">
 													<button
@@ -599,7 +599,7 @@
 									<div class="space-y-4">
 										<div>
 											<label class="block text-sm font-medium mb-1" style="color:#102349;">
-												Reactions ({selectedPost.reactions.toLocaleString()} → {editedMetrics.reactions.toLocaleString()})
+												Reactions ({(selectedPost.reactions || 0).toLocaleString()} → {(editedMetrics.reactions || 0).toLocaleString()})
 											</label>
 											<input
 												type="number"
@@ -613,7 +613,7 @@
 										
 										<div>
 											<label class="block text-sm font-medium mb-1" style="color:#102349;">
-												Comments ({selectedPost.comments.toLocaleString()} → {editedMetrics.comments.toLocaleString()})
+												Comments ({(selectedPost.comments || 0).toLocaleString()} → {(editedMetrics.comments || 0).toLocaleString()})
 											</label>
 											<input
 												type="number"
@@ -627,7 +627,7 @@
 										
 										<div>
 											<label class="block text-sm font-medium mb-1" style="color:#102349;">
-												Reposts ({selectedPost.reposts.toLocaleString()} → {editedMetrics.reposts.toLocaleString()})
+												Reposts ({(selectedPost.reposts || 0).toLocaleString()} → {(editedMetrics.reposts || 0).toLocaleString()})
 											</label>
 											<input
 												type="number"
