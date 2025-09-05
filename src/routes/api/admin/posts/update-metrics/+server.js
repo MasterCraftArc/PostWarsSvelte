@@ -2,6 +2,8 @@ import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase-server.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 import { calculatePostScore } from '$lib/gamification-node.js';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 
 // Maximum reasonable engagement limits to prevent data corruption
 const ENGAGEMENT_LIMITS = {
@@ -14,6 +16,17 @@ const ENGAGEMENT_LIMITS = {
 export async function POST(event) {
 	try {
 		console.log('=== UPDATE METRICS API START ===');
+		
+		// Log environment variables (safely)
+		console.log('Environment Check:', {
+			hasSupabaseUrl: !!PUBLIC_SUPABASE_URL,
+			hasAnonKey: !!PUBLIC_SUPABASE_ANON_KEY, 
+			hasServiceKey: !!SUPABASE_SERVICE_KEY,
+			supabaseUrl: PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
+			domain: event.url.hostname,
+			origin: event.request.headers.get('origin'),
+			userAgent: event.request.headers.get('user-agent')?.substring(0, 50)
+		});
 		
 		// Check authentication
 		console.log('Step 1: Checking authentication...');
