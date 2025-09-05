@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase-node.js';
+import { supabaseAdmin } from './supabase-server.js';
 
 export const SCORING_CONFIG = {
 	// Base points for posting
