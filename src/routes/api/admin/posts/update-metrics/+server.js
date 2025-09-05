@@ -226,6 +226,19 @@ export async function POST(event) {
 			console.error('Could not update user total score:', rpcError);
 		} else {
 			console.log('Successfully updated user total score');
+			
+			// Verify the update worked by fetching the user's new total score
+			const { data: updatedUser } = await supabaseAdmin
+				.from('users')
+				.select('totalScore, name')
+				.eq('id', currentPost.userId)
+				.single();
+			
+			console.log('User total score after update:', {
+				userId: currentPost.userId,
+				userName: updatedUser?.name,
+				newTotalScore: updatedUser?.totalScore
+			});
 		}
 
 		return json({
