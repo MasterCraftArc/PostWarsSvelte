@@ -99,7 +99,18 @@ export async function POST(event) {
 			.eq('id', currentPost.userId)
 			.single();
 
-		const userStreak = userData?.currentStreak || 0;
+		// Cap user streak to prevent explosive scoring
+		const userStreak = Math.min(userData?.currentStreak || 0, 10);
+
+		// Log values for debugging
+		console.log('Debug scoring:', {
+			reactions: updateData.reactions,
+			comments: updateData.comments,
+			reposts: updateData.reposts,
+			userStreak,
+			wordCount: currentPost.wordCount,
+			timestamp: new Date(currentPost.postedAt).getTime()
+		});
 
 		// Calculate new scores
 		const scoreData = calculatePostScore({
@@ -109,6 +120,8 @@ export async function POST(event) {
 			wordCount: currentPost.wordCount,
 			timestamp: new Date(currentPost.postedAt).getTime()
 		}, userStreak);
+
+		console.log('Score calculation result:', scoreData);
 
 		updateData.baseScore = Math.round(scoreData.breakdown.basePoints);
 		updateData.engagementScore = Math.round(scoreData.breakdown.engagementPoints);
@@ -162,11 +175,16 @@ export async function POST(event) {
 			});
 
 		// Update user's total score
-		await supabaseAdmin.rpc('update_user_total_score', {
+		console.log('Updating user total score for userId:', currentPost.userId);
+		const { error: rpcError } = await supabaseAdmin.rpc('update_user_total_score', {
 			p_user_id: currentPost.userId
-		}).catch(err => {
-			console.error('Could not update user total score:', err.message);
 		});
+
+		if (rpcError) {
+			console.error('Could not update user total score:', rpcError);
+		} else {
+			console.log('Successfully updated user total score');
+		}
 
 		return json({
 			success: true,
