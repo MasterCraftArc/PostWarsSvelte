@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase-server.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
+import { calculatePostScore } from '$lib/gamification-node.js';
 
 // Maximum reasonable engagement limits to prevent data corruption
 const ENGAGEMENT_LIMITS = {
@@ -90,7 +91,6 @@ export async function POST(event) {
 		}
 
 		// Recalculate scores using gamification logic
-		const { calculatePostScore } = await import('$lib/gamification-node.js');
 		
 		// Get user's current streak for score calculation
 		const { data: userData } = await supabaseAdmin
