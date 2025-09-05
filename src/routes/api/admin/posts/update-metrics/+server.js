@@ -239,12 +239,24 @@ export async function POST(event) {
 		});
 
 	} catch (error) {
+		console.error('=== CRITICAL ERROR ===');
 		console.error('Error in update post metrics:', error);
 		console.error('Error stack:', error.stack);
+		
+		// Return detailed error info for debugging
 		return json({ 
 			error: 'Internal server error', 
 			details: error.message,
-			stack: error.stack
+			stack: error.stack,
+			name: error.name,
+			environment: {
+				hasSupabaseUrl: !!PUBLIC_SUPABASE_URL,
+				hasAnonKey: !!PUBLIC_SUPABASE_ANON_KEY,
+				hasServiceKey: !!SUPABASE_SERVICE_KEY,
+				nodeEnv: process.env.NODE_ENV,
+				netlifyContext: process.env.CONTEXT
+			},
+			debug: 'This is a debug response to diagnose the 500 error'
 		}, { status: 500 });
 	}
 }
