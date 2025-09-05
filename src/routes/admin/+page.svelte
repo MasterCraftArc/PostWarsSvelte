@@ -7,6 +7,7 @@
 	let teams = [];
 	let users = [];
 	let goals = [];
+	let posts = [];
 	let loading = true;
 	let error = '';
 
@@ -24,6 +25,11 @@
 		teamId: '', 
 		endDate: '' 
 	};
+
+	// Post metrics editing
+	let showEditMetrics = false;
+	let selectedPost = null;
+	let editedMetrics = { reactions: 0, comments: 0, reposts: 0, reason: '' };
 
 	// Team member management
 	let showMemberModal = false;
@@ -50,15 +56,17 @@
 	async function loadData() {
 		loading = true;
 		try {
-			const [teamsData, usersData, goalsData] = await Promise.all([
+			const [teamsData, usersData, goalsData, postsData] = await Promise.all([
 				authenticatedRequest('/api/admin/teams'),
 				authenticatedRequest('/api/admin/users'),
-				authenticatedRequest('/api/admin/goals')
+				authenticatedRequest('/api/admin/goals'),
+				authenticatedRequest('/api/admin/posts')
 			]);
 
 			teams = teamsData.teams || [];
 			users = usersData.users || [];
 			goals = goalsData.goals || [];
+			posts = postsData.posts || [];
 		} catch (err) {
 			error = err.message || 'Failed to load admin data';
 		}
@@ -198,6 +206,39 @@
 			await loadData();
 		} catch (err) {
 			alert('Failed to delete goal: ' + err.message);
+		}
+	}
+
+	function openEditMetrics(post) {
+		selectedPost = post;
+		editedMetrics = {
+			reactions: post.reactions,
+			comments: post.comments,
+			reposts: post.reposts,
+			reason: ''
+		};
+		showEditMetrics = true;
+	}
+
+	async function updatePostMetrics() {
+		try {
+			await authenticatedRequest('/api/admin/posts/update-metrics', {
+				method: 'POST',
+				body: JSON.stringify({
+					postId: selectedPost.id,
+					reactions: editedMetrics.reactions,
+					comments: editedMetrics.comments,
+					reposts: editedMetrics.reposts,
+					reason: editedMetrics.reason
+				})
+			});
+
+			showEditMetrics = false;
+			selectedPost = null;
+			await loadData();
+			alert('Post metrics updated successfully');
+		} catch (err) {
+			alert('Error updating metrics: ' + err.message);
 		}
 	}
 </script>
@@ -464,6 +505,171 @@
 								</div>
 							{/each}
 						</div>
+					</div>
+
+					<!-- Posts Management Section -->
+					<div class="rounded-xl p-6 shadow-lg backdrop-blur-md"
+						style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;">
+						<h2 class="mb-4 text-2xl font-semibold" style="color:#fdfdfd;">Posts Management</h2>
+						
+						{#if posts.length > 0}
+							<div class="overflow-x-auto rounded-lg max-h-96 overflow-y-auto"
+								style="background-color:rgba(16,35,73,0.28); border:1px solid rgba(36,176,255,0.35);">
+								<table class="min-w-full table-auto">
+									<thead class="sticky top-0" style="background-color:rgba(16,35,73,0.95);">
+										<tr class="border-b" style="border-color:rgba(36,176,255,0.25);">
+											<th class="px-4 py-3 text-left text-sm font-semibold" style="color:#cbd5e1;">User</th>
+											<th class="px-4 py-3 text-left text-sm font-semibold" style="color:#cbd5e1;">Posted</th>
+											<th class="px-4 py-3 text-center text-sm font-semibold" style="color:#cbd5e1;">Reactions</th>
+											<th class="px-4 py-3 text-center text-sm font-semibold" style="color:#cbd5e1;">Comments</th>
+											<th class="px-4 py-3 text-center text-sm font-semibold" style="color:#cbd5e1;">Reposts</th>
+											<th class="px-4 py-3 text-center text-sm font-semibold" style="color:#cbd5e1;">Total</th>
+											<th class="px-4 py-3 text-center text-sm font-semibold" style="color:#cbd5e1;">Score</th>
+											<th class="px-4 py-3 text-center text-sm font-semibold" style="color:#cbd5e1;">Actions</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each posts as post}
+											<tr class="transition hover:bg-white/5 border-b" style="border-color:rgba(36,176,255,0.15);">
+												<td class="px-4 py-3">
+													<div>
+														<div style="color:#fdfdfd;" class="font-medium">{post.userName}</div>
+														<div style="color:#94a3b8;" class="text-xs">{post.userEmail}</div>
+													</div>
+												</td>
+												<td class="px-4 py-3">
+													<div style="color:#cbd5e1;" class="text-sm">
+														{new Date(post.postedAt).toLocaleDateString()}
+													</div>
+													<div style="color:#94a3b8;" class="text-xs">
+														{new Date(post.postedAt).toLocaleTimeString()}
+													</div>
+												</td>
+												<td class="px-4 py-3 text-center" style="color:#fdfdfd;">
+													{post.reactions.toLocaleString()}
+												</td>
+												<td class="px-4 py-3 text-center" style="color:#fdfdfd;">
+													{post.comments.toLocaleString()}
+												</td>
+												<td class="px-4 py-3 text-center" style="color:#fdfdfd;">
+													{post.reposts.toLocaleString()}
+												</td>
+												<td class="px-4 py-3 text-center font-semibold" style="color:#22c55e;">
+													{post.totalEngagement.toLocaleString()}
+												</td>
+												<td class="px-4 py-3 text-center font-semibold" style="color:#fbbf24;">
+													{post.totalScore.toLocaleString()}
+												</td>
+												<td class="px-4 py-3 text-center">
+													<button
+														onclick={() => openEditMetrics(post)}
+														class="rounded-lg px-3 py-1 text-xs text-white transition hover:brightness-110 hover:cursor-pointer"
+														style="background:linear-gradient(90deg,#1392d6,#24b0ff);">
+														Edit Metrics
+													</button>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						{:else}
+							<div class="py-8 text-center" style="color:#94a3b8;">
+								No posts found.
+							</div>
+						{/if}
+
+						<!-- Edit Metrics Modal -->
+						{#if showEditMetrics && selectedPost}
+							<div class="fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm"
+								style="background-color:rgba(0,0,0,0.5);">
+								<div class="w-full max-w-md rounded-xl p-6 shadow-2xl backdrop-blur-md"
+									style="background-color:rgba(255,255,255,0.95); border:2px solid #24b0ff;">
+									<h3 class="mb-4 text-xl font-bold" style="color:#102349;">Edit Post Metrics</h3>
+									
+									<div class="mb-4 p-3 rounded-lg" style="background-color:rgba(36,176,255,0.1);">
+										<div class="text-sm" style="color:#102349;">
+											<strong>User:</strong> {selectedPost.userName}
+										</div>
+										<div class="text-sm mt-1" style="color:#102349;">
+											<strong>Posted:</strong> {new Date(selectedPost.postedAt).toLocaleString()}
+										</div>
+									</div>
+
+									<div class="space-y-4">
+										<div>
+											<label class="block text-sm font-medium mb-1" style="color:#102349;">
+												Reactions ({selectedPost.reactions.toLocaleString()} → {editedMetrics.reactions.toLocaleString()})
+											</label>
+											<input
+												type="number"
+												bind:value={editedMetrics.reactions}
+												min="0"
+												max="100000"
+												class="w-full rounded-md px-3 py-2 text-slate-900 focus:outline-none focus:ring-2"
+												style="border:1px solid #24b0ff; --tw-ring-color:#24b0ff;"
+											/>
+										</div>
+										
+										<div>
+											<label class="block text-sm font-medium mb-1" style="color:#102349;">
+												Comments ({selectedPost.comments.toLocaleString()} → {editedMetrics.comments.toLocaleString()})
+											</label>
+											<input
+												type="number"
+												bind:value={editedMetrics.comments}
+												min="0"
+												max="10000"
+												class="w-full rounded-md px-3 py-2 text-slate-900 focus:outline-none focus:ring-2"
+												style="border:1px solid #24b0ff; --tw-ring-color:#24b0ff;"
+											/>
+										</div>
+										
+										<div>
+											<label class="block text-sm font-medium mb-1" style="color:#102349;">
+												Reposts ({selectedPost.reposts.toLocaleString()} → {editedMetrics.reposts.toLocaleString()})
+											</label>
+											<input
+												type="number"
+												bind:value={editedMetrics.reposts}
+												min="0"
+												max="5000"
+												class="w-full rounded-md px-3 py-2 text-slate-900 focus:outline-none focus:ring-2"
+												style="border:1px solid #24b0ff; --tw-ring-color:#24b0ff;"
+											/>
+										</div>
+										
+										<div>
+											<label class="block text-sm font-medium mb-1" style="color:#102349;">
+												Reason for Change
+											</label>
+											<textarea
+												bind:value={editedMetrics.reason}
+												placeholder="e.g., Correcting scraping error"
+												rows="2"
+												class="w-full rounded-md px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2"
+												style="border:1px solid #24b0ff; --tw-ring-color:#24b0ff;"
+											></textarea>
+										</div>
+										
+										<div class="flex flex-col sm:flex-row gap-2 mt-6">
+											<button
+												onclick={updatePostMetrics}
+												class="flex-1 rounded-lg px-4 py-2 text-white font-semibold transition hover:brightness-110 hover:cursor-pointer"
+												style="background:linear-gradient(90deg,#16a34a,#22c55e); box-shadow:0 0 10px rgba(34,197,94,.45);">
+												Update Metrics
+											</button>
+											<button
+												onclick={() => showEditMetrics = false}
+												class="flex-1 rounded-lg px-4 py-2 text-white font-semibold transition hover:brightness-110 hover:cursor-pointer"
+												style="background:linear-gradient(90deg,#6b7280,#9ca3af);">
+												Cancel
+											</button>
+										</div>
+									</div>
+								</div>
+							</div>
+						{/if}
 					</div>
 
 					<!-- Users Section -->
