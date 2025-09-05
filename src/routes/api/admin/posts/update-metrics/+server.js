@@ -129,7 +129,6 @@ export async function POST(event) {
 
 		// Create audit log entry
 		const auditEntry = {
-			id: crypto.randomUUID(),
 			entityType: 'POST_METRICS',
 			entityId: postId,
 			action: 'MANUAL_UPDATE',
@@ -182,7 +181,12 @@ export async function POST(event) {
 
 	} catch (error) {
 		console.error('Error in update post metrics:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		console.error('Error stack:', error.stack);
+		return json({ 
+			error: 'Internal server error', 
+			details: error.message,
+			stack: error.stack
+		}, { status: 500 });
 	}
 }
 
