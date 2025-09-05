@@ -224,9 +224,32 @@ export async function POST(event) {
 
 		let updatedUser = null;
 		if (rpcError) {
-			console.error('Could not update user total score:', rpcError);
+			console.error('RPC function failed, trying manual update. Error:', rpcError);
+			
+			// Manual fallback: Calculate total score from all user's posts
+			const { data: userPosts } = await supabaseAdmin
+				.from('linkedin_posts')
+				.select('totalScore')
+				.eq('userId', currentPost.userId);
+			
+			const newTotalScore = userPosts?.reduce((sum, post) => sum + (post.totalScore || 0), 0) || 0;
+			
+			// Update user's total score manually
+			const { data: manualUpdateData, error: manualError } = await supabaseAdmin
+				.from('users')
+				.update({ totalScore: newTotalScore })
+				.eq('id', currentPost.userId)
+				.select('totalScore, name')
+				.single();
+			
+			if (!manualError) {
+				updatedUser = manualUpdateData;
+				console.log('Manual user score update successful:', newTotalScore);
+			} else {
+				console.error('Manual user score update also failed:', manualError);
+			}
 		} else {
-			console.log('Successfully updated user total score');
+			console.log('RPC function succeeded');
 			
 			// Verify the update worked by fetching the user's new total score
 			const { data: userData } = await supabaseAdmin
@@ -236,7 +259,7 @@ export async function POST(event) {
 				.single();
 			
 			updatedUser = userData;
-			console.log('User total score after update:', {
+			console.log('User total score after RPC update:', {
 				userId: currentPost.userId,
 				userName: updatedUser?.name,
 				newTotalScore: updatedUser?.totalScore
