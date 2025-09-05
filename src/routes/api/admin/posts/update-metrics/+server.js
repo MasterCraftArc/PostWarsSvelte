@@ -206,14 +206,15 @@ export async function POST(event) {
 		};
 
 		// Store audit log (create table if needed)
-		await supabaseAdmin
-			.from('audit_logs')
-			.insert(auditEntry)
-			.catch(err => {
-				// Log to console if audit table doesn't exist
-				console.log('Audit log entry:', auditEntry);
-				console.error('Could not write to audit_logs:', err.message);
-			});
+		try {
+			await supabaseAdmin
+				.from('audit_logs')
+				.insert(auditEntry);
+		} catch (err) {
+			// Log to console if audit table doesn't exist
+			console.log('Audit log entry:', auditEntry);
+			console.error('Could not write to audit_logs:', err.message);
+		}
 
 		// Update user's total score
 		console.log('Updating user total score for userId:', currentPost.userId);
