@@ -110,8 +110,7 @@
 				<h4 class="font-medium" style="color:#e5e7eb;">Base Points</h4>
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
 					<li>• New post: 1 point</li>
-					<li>• Word bonus: +0.1/word over 50</li>
-					<li>• Streak multiplier: +10% per day</li>
+					<li>• Streak multiplier: +10% per day (max 50%)</li>
 				</ul>
 			</div>
 

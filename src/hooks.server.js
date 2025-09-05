@@ -19,6 +19,7 @@ export async function handle({ event, resolve }) {
 		"default-src 'self'",
 		"script-src 'self' 'unsafe-inline'", // unsafe-inline needed for SvelteKit hydration
 		"style-src 'self' 'unsafe-inline'", // unsafe-inline needed for component styles
+		"worker-src 'self' blob:", // Allow workers from blob URLs (fixes Supabase worker error)
 		"img-src 'self' data: https:",
 		"font-src 'self'",
 		`connect-src 'self' https://${supabaseUrl}`, // Dynamic Supabase URL
