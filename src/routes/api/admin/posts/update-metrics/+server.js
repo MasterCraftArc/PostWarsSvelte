@@ -13,19 +13,27 @@ const ENGAGEMENT_LIMITS = {
 
 export async function POST(event) {
 	try {
+		console.log('=== UPDATE METRICS API START ===');
+		
 		// Check authentication
+		console.log('Step 1: Checking authentication...');
 		const authenticatedUser = await getAuthenticatedUser(event);
 		if (!authenticatedUser) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
+		console.log('Step 1: Authentication successful', authenticatedUser.email);
 
 		// Check admin role
+		console.log('Step 2: Checking admin role...');
 		if (authenticatedUser.role !== 'ADMIN') {
 			return json({ error: 'Admin access required' }, { status: 403 });
 		}
+		console.log('Step 2: Admin role confirmed');
 
+		console.log('Step 3: Parsing request body...');
 		const body = await event.request.json();
 		const { postId, reactions, comments, reposts, reason } = body;
+		console.log('Step 3: Request body parsed', { postId, reactions, comments, reposts });
 
 		// Validate input
 		if (!postId) {
@@ -62,14 +70,24 @@ export async function POST(event) {
 		}
 
 		// Fetch current post data
-		const { data: currentPost, error: fetchError } = await supabaseAdmin
-			.from('linkedin_posts')
-			.select('*')
-			.eq('id', postId)
-			.single();
+		console.log('Step 4: Fetching current post data...');
+		let currentPost;
+		try {
+			const { data: fetchedPost, error: fetchError } = await supabaseAdmin
+				.from('linkedin_posts')
+				.select('*')
+				.eq('id', postId)
+				.single();
 
-		if (fetchError || !currentPost) {
-			return json({ error: 'Post not found' }, { status: 404 });
+			if (fetchError || !fetchedPost) {
+				console.log('Step 4: Post fetch failed', fetchError);
+				return json({ error: 'Post not found' }, { status: 404 });
+			}
+			currentPost = fetchedPost;
+			console.log('Step 4: Post fetched successfully', currentPost.id);
+		} catch (dbError) {
+			console.error('Step 4: Database error during post fetch:', dbError);
+			return json({ error: 'Database connection error' }, { status: 500 });
 		}
 
 		// Prepare update object with new metrics (ensure integer values)
@@ -91,41 +109,51 @@ export async function POST(event) {
 		}
 
 		// Recalculate scores using gamification logic
-		
-		// Get user's current streak for score calculation
-		const { data: userData } = await supabaseAdmin
-			.from('users')
-			.select('currentStreak')
-			.eq('id', currentPost.userId)
-			.single();
+		console.log('Step 5: Starting score calculation...');
+		try {
+			// Get user's current streak for score calculation
+			console.log('Step 5a: Fetching user streak...');
+			const { data: userData } = await supabaseAdmin
+				.from('users')
+				.select('currentStreak')
+				.eq('id', currentPost.userId)
+				.single();
 
-		// Cap user streak to prevent explosive scoring
-		const userStreak = Math.min(userData?.currentStreak || 0, 10);
+			// Cap user streak to prevent explosive scoring
+			const userStreak = Math.min(userData?.currentStreak || 0, 10);
+			console.log('Step 5b: User streak calculated:', userStreak);
 
-		// Log values for debugging
-		console.log('Debug scoring:', {
-			reactions: updateData.reactions,
-			comments: updateData.comments,
-			reposts: updateData.reposts,
-			userStreak,
-			wordCount: currentPost.wordCount,
-			timestamp: new Date(currentPost.postedAt).getTime()
-		});
+			// Log values for debugging
+			console.log('Step 5c: Preparing score calculation with:', {
+				reactions: updateData.reactions,
+				comments: updateData.comments,
+				reposts: updateData.reposts,
+				userStreak,
+				wordCount: currentPost.wordCount,
+				timestamp: new Date(currentPost.postedAt).getTime()
+			});
 
-		// Calculate new scores
-		const scoreData = calculatePostScore({
-			reactions: updateData.reactions,
-			comments: updateData.comments,
-			reposts: updateData.reposts,
-			wordCount: currentPost.wordCount,
-			timestamp: new Date(currentPost.postedAt).getTime()
-		}, userStreak);
+			// Calculate new scores
+			console.log('Step 5d: Calling calculatePostScore...');
+			const scoreData = calculatePostScore({
+				reactions: updateData.reactions,
+				comments: updateData.comments,
+				reposts: updateData.reposts,
+				wordCount: currentPost.wordCount,
+				timestamp: new Date(currentPost.postedAt).getTime()
+			}, userStreak);
 
-		console.log('Score calculation result:', scoreData);
+			console.log('Step 5e: Score calculation result:', scoreData);
 
-		updateData.baseScore = Math.round(scoreData.breakdown.basePoints);
-		updateData.engagementScore = Math.round(scoreData.breakdown.engagementPoints);
-		updateData.totalScore = scoreData.totalScore;
+			updateData.baseScore = Math.round(scoreData.breakdown.basePoints);
+			updateData.engagementScore = Math.round(scoreData.breakdown.engagementPoints);
+			updateData.totalScore = scoreData.totalScore;
+			
+			console.log('Step 5f: Score calculation completed successfully');
+		} catch (scoreError) {
+			console.error('Step 5: Score calculation failed:', scoreError);
+			return json({ error: 'Score calculation error', details: scoreError.message }, { status: 500 });
+		}
 
 		// Update the post
 		const { data: updatedPost, error: updateError } = await supabaseAdmin
