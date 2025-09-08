@@ -418,6 +418,11 @@ async function extractEngagementMetrics(postContainer) {
 		];
 
 		const repostSelectors = [
+			// PRIORITY: Direct match for the exact pattern you found
+			'span[aria-hidden="true"]:has-text("reposts")',
+			'span[aria-hidden="true"]:has-text("shares")',
+			'span[aria-hidden="true"]:text-matches("\\d+\\s+reposts?")',
+			'span[aria-hidden="true"]:text-matches("\\d+\\s+shares?")',
 			// Primary: LinkedIn's specific social counts classes
 			'.social-details-social-counts__shares-count',
 			'.social-details-social-counts__reposts-count',
@@ -441,8 +446,6 @@ async function extractEngagementMetrics(postContainer) {
 			'button[aria-label*="repost"] span:not([aria-label])',
 			'button[aria-label*="share"] span:not([aria-label])',
 			// Fallback selectors
-			'span[aria-hidden="true"]:has-text("reposts")',
-			'span[aria-hidden="true"]:has-text("shares")',
 			'button[aria-label*="repost"]:has([aria-hidden="true"])',
 			'button[aria-label*="share"]:has([aria-hidden="true"])',
 			// Generic social action selectors
