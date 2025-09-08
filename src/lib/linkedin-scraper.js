@@ -693,12 +693,17 @@ async function extractEngagementMetrics(postContainer) {
 						const elementText = await element.textContent();
 						console.log(`  Checking element: "${elementText?.trim()}"`);
 						
-						// Look for number + repost/share patterns
+						// Look for number + repost/share patterns - be more aggressive
 						const patterns = [
 							/(\d+(?:,\d{3})*)\s*repost/gi,
 							/(\d+(?:,\d{3})*)\s*share/gi,
 							/repost\s*(\d+(?:,\d{3})*)/gi,
-							/share\s*(\d+(?:,\d{3})*)/gi
+							/share\s*(\d+(?:,\d{3})*)/gi,
+							// Additional patterns for LinkedIn variations
+							/(\d+(?:,\d{3})*)\s*people.*repost/gi,
+							/(\d+(?:,\d{3})*)\s*people.*shar/gi,
+							/(\d+(?:,\d{3})*)\s*others.*repost/gi,
+							/(\d+(?:,\d{3})*)\s*others.*shar/gi
 						];
 						
 						for (const pattern of patterns) {
@@ -717,7 +722,73 @@ async function extractEngagementMetrics(postContainer) {
 					}
 				}
 				
-				// Method 2: Full text search as backup
+				// Method 1.5: Look specifically at the page header/top for repost indicators
+				try {
+					const pageHeader = await postContainer.page().locator('header, .feed-shared-header, .update-components-header').first();
+					if (await pageHeader.count() > 0) {
+						const headerText = await pageHeader.textContent();
+						console.log(`🔍 Checking page header for repost info: "${headerText?.substring(0, 200)}"`);
+						
+						const headerPatterns = [
+							/(\d+(?:,\d{3})*)\s*people.*repost/gi,
+							/(\d+(?:,\d{3})*)\s*people.*shar/gi,
+							/(\d+(?:,\d{3})*)\s*others.*repost/gi,
+							/(\d+(?:,\d{3})*)\s*others.*shar/gi,
+							/repost.*(\d+(?:,\d{3})*)/gi,
+							/shar.*(\d+(?:,\d{3})*)/gi
+						];
+						
+						for (const pattern of headerPatterns) {
+							const match = headerText?.match(pattern);
+							if (match) {
+								const count = normalizeCount(match[1]);
+								if (count > 0 && count < 1000000) {
+									reposts = Math.max(reposts, count);
+									console.log(`🎯 Found reposts in page header: ${count} from "${match[0]}"`);
+									break;
+								}
+							}
+						}
+					}
+				} catch (e) {
+					console.log('Could not check page header for reposts');
+				}
+				
+				// Method 2: Check the entire page (not just post container) for repost indicators
+				if (reposts === 0) {
+					try {
+						const entirePageText = await postContainer.page().textContent();
+						console.log('🔍 Searching entire page for repost indicators...');
+						console.log(`Page text sample: "${entirePageText.substring(0, 500)}"`);
+						
+						// Look for patterns that indicate reposts at page level
+						const pageRepostPatterns = [
+							/(\d+(?:,\d{3})*)\s*people.*repost/gi,
+							/(\d+(?:,\d{3})*)\s*people.*shar/gi,
+							/(\d+(?:,\d{3})*)\s*others.*repost/gi, 
+							/(\d+(?:,\d{3})*)\s*others.*shar/gi,
+							/repost.*by.*(\d+(?:,\d{3})*)/gi,
+							/shared.*by.*(\d+(?:,\d{3})*)/gi,
+							/(\d+(?:,\d{3})*)\s*reposts?/gi,
+							/(\d+(?:,\d{3})*)\s*shares?/gi
+						];
+						
+						for (const pattern of pageRepostPatterns) {
+							const matches = [...entirePageText.matchAll(pattern)];
+							for (const match of matches) {
+								const count = normalizeCount(match[1]);
+								if (count > 0 && count < 1000000) {
+									reposts = Math.max(reposts, count);
+									console.log(`🎯 Found reposts from entire page: ${count} from pattern: "${match[0]}"`);
+								}
+							}
+						}
+					} catch (e) {
+						console.log('Could not search entire page text');
+					}
+				}
+				
+				// Method 3: Full text search as backup
 				if (reposts === 0) {
 					const allPostText = await postContainer.innerText({ timeout: 2000 });
 					console.log('🔍 Trying full text search for repost patterns...');
