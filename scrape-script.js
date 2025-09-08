@@ -34,7 +34,7 @@
     console.log('Environment check - URL present:', !!url, 'KEY present:', !!key);
     
     // Import required modules
-    const { scrapeSinglePostQueued } = await import('./src/lib/linkedin-scraper-pool.js');
+    const { scrapeSinglePost } = await import('./src/lib/linkedin-scraper.js');
     const { 
       calculatePostScore, 
       updateUserStats, 
@@ -45,7 +45,10 @@
     
     // Scrape the LinkedIn post
     console.log('📡 Scraping LinkedIn post:', linkedinUrl);
-    const scrapedData = await scrapeSinglePostQueued(linkedinUrl, userId);
+    const scrapedData = await scrapeSinglePost(linkedinUrl, {
+      headed: false,
+      storageStatePath: `linkedin_auth_${userId}.json`
+    });
     
     if (!scrapedData) {
       throw new Error('No data could be extracted from the post');

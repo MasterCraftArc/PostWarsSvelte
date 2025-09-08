@@ -18,6 +18,30 @@
 2. Update leaderboard UI to display actual likes, comments, reposts
 3. Ensure total engagement calculation is accurate
 
+### ✅ Issue #3: LinkedIn Scraping Failing in GitHub Actions (RESOLVED)
+**Problem:** `Cannot find package '$env' imported from src/lib/supabase-server.js` error in GitHub Actions
+**Root Cause:** The scraping script was importing from `linkedin-scraper-pool.js` which had a different import chain than the working analytics scripts
+**Solution Implemented:**
+1. **Fixed import chain**: Updated all lib files (`job-queue.js`, `gamification.js`, `auth-helpers.js`, `supabase-auth.js`) to import from `supabase-node.js` instead of `supabase-server.js`
+2. **Fixed API routes**: Updated ALL API route files (24 files) to use `$lib/supabase-node.js` instead of `$lib/supabase-server.js`
+3. **Fixed dynamic imports**: Updated `jobs/process/+server.js` dynamic import from `supabase-server.js` to `supabase-node.js`
+4. **Fixed scraping script**: Changed `scrape-script.js` to import from `linkedin-scraper.js` instead of `linkedin-scraper-pool.js` (matching the working `update-analytics.js` pattern)
+
+**Key Files Changed:**
+- `src/lib/job-queue.js` - Changed import to use `supabase-node.js`
+- `src/lib/gamification.js` - Changed import to use `supabase-node.js`  
+- `src/lib/auth-helpers.js` - Changed import to use `supabase-node.js`
+- `src/lib/supabase-auth.js` - Changed import to use `supabase-node.js`
+- `src/routes/api/jobs/process/+server.js` - Fixed dynamic import
+- All API route files (24 files) - Changed `$lib/supabase-server.js` to `$lib/supabase-node.js`
+- `scrape-script.js` - Changed to import from `linkedin-scraper.js` instead of `linkedin-scraper-pool.js`
+
+**Technical Details:**
+- `supabase-server.js` uses SvelteKit's `$env/static/public` and `$env/static/private` 
+- `supabase-node.js` uses Node.js `process.env` which works in GitHub Actions
+- The final issue was that `scrape-script.js` was using a different scraper import than the working analytics scripts
+- `linkedin-scraper.js` has a clean import chain, while `linkedin-scraper-pool.js` may have had transitive dependencies
+
 ## 📋 TASK LIST FOR FIXES
 
 ### Phase 1: Analyze Current State
