@@ -418,7 +418,14 @@ async function extractEngagementMetrics(postContainer) {
 		];
 
 		const repostSelectors = [
-			// PRIORITY: Direct match for the exact pattern you found
+			// PRIORITY: Exact DOM pattern from LinkedIn (2024 structure)
+			'.social-details-social-counts__btn[aria-label*="reposts"] span[aria-hidden="true"]',
+			'.social-details-social-counts__btn[aria-label*="shares"] span[aria-hidden="true"]',
+			'.social-details-social-counts__count-value-hover[aria-label*="reposts"] span[aria-hidden="true"]',
+			'.social-details-social-counts__count-value-hover[aria-label*="shares"] span[aria-hidden="true"]',
+			'button[aria-label*="reposts"] span[aria-hidden="true"]',
+			'button[aria-label*="shares"] span[aria-hidden="true"]',
+			// Alternative: Direct match for the exact pattern you found
 			'span[aria-hidden="true"]:has-text("reposts")',
 			'span[aria-hidden="true"]:has-text("shares")',
 			'span[aria-hidden="true"]:text-matches("\\d+\\s+reposts?")',
@@ -529,24 +536,43 @@ async function extractEngagementMetrics(postContainer) {
 
 		// Additional repost extraction: Look for specific repost/share button patterns
 		try {
+			// Method 1: Look in social action bars
 			const socialActionButtons = await postContainer.locator('.feed-shared-social-action-bar button').all();
 			for (const button of socialActionButtons) {
 				const ariaLabel = await button.getAttribute('aria-label');
 				if (ariaLabel && (ariaLabel.toLowerCase().includes('repost') || ariaLabel.toLowerCase().includes('share'))) {
-					// Look for count in the button or nearby elements
 					const buttonText = await button.textContent();
 					const countMatch = buttonText?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 					if (countMatch) {
 						const count = normalizeCount(countMatch[1]);
 						if (count > reposts) {
 							reposts = count;
-							console.log(`✅ Found reposts from button aria-label "${ariaLabel}": ${reposts}`);
+							console.log(`✅ Found reposts from social action button "${ariaLabel}": ${reposts}`);
+						}
+					}
+				}
+			}
+
+			// Method 2: Look for the specific LinkedIn social details buttons
+			const socialDetailsButtons = await postContainer.locator('button[aria-label*="reposts"], button[aria-label*="shares"]').all();
+			for (const button of socialDetailsButtons) {
+				const ariaLabel = await button.getAttribute('aria-label');
+				const buttonText = await button.textContent();
+				console.log(`🔍 Found social details button with aria-label: "${ariaLabel}", text: "${buttonText?.trim()}"`);
+				
+				if (buttonText) {
+					const countMatch = buttonText.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
+					if (countMatch) {
+						const count = normalizeCount(countMatch[1]);
+						if (count > reposts) {
+							reposts = count;
+							console.log(`✅ Found reposts from social details button "${ariaLabel}": ${reposts}`);
 						}
 					}
 				}
 			}
 		} catch (e) {
-			// Continue
+			console.log('Error in additional repost extraction:', e.message);
 		}
 
 		// Method 2: Enhanced text parsing (always run to catch missed numbers)
