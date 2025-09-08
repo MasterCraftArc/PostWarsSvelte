@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/supabase-server.js';
+import { supabaseAdmin } from '$lib/supabase-node.js';
 
 export async function GET({ params }) {
 	try {

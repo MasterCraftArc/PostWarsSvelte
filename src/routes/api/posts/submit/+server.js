@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/supabase-server.js';
+import { supabaseAdmin } from '$lib/supabase-node.js';
 import { jobQueue } from '$lib/job-queue.js';
 import { postSubmissionLimiter, ipBasedLimiter } from '$lib/rate-limiter.js';
 import { handleRateLimitError, sanitizeError } from '$lib/error-handler.js';

@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/supabase-server.js';
+import { supabaseAdmin } from '$lib/supabase-node.js';
 import { getOrCreateUser } from '$lib/supabase-auth.js';
 import { handleAuthError } from '$lib/error-handler.js';
 

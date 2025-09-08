@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { supabaseAdmin } from '$lib/supabase-server.js';
+import { supabaseAdmin } from '$lib/supabase-node.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 import { calculatePostScore, checkAndAwardAchievements } from '$lib/gamification-node.js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { jobQueue } from '$lib/job-queue.js';
-import { supabaseAdmin } from '$lib/supabase-server.js';
+import { supabaseAdmin } from '$lib/supabase-node.js';
 
 // GET /api/jobs/auto-process - Automatically load and process queued jobs
 export async function GET(event) {
