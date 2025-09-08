@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase-server.js';
+import { supabaseAdmin } from './supabase-node.js';
 
 /**
  * Get user from Supabase session and sync with local database

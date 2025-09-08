@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase-server.js';
+import { supabaseAdmin } from './supabase-node.js';
 
 /**
  * Extract and validate Supabase session from Authorization header
