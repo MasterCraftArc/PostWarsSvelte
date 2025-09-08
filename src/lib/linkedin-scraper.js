@@ -423,15 +423,31 @@ async function extractEngagementMetrics(postContainer) {
 			'.social-details-social-counts__reposts-count',
 			'span.social-details-social-counts__shares-count',
 			'span.social-details-social-counts__reposts-count',
+			// Updated LinkedIn selectors (2024)
+			'.feed-shared-social-action-bar__action-button .social-details-social-counts__count-value',
+			'.feed-shared-social-action-bar [aria-label*="repost"] .social-details-social-counts__count-value',
+			'.feed-shared-social-action-bar [aria-label*="share"] .social-details-social-counts__count-value',
+			'.feed-shared-social-action-bar button[aria-label*="repost"] span[aria-hidden="true"]',
+			'.feed-shared-social-action-bar button[aria-label*="share"] span[aria-hidden="true"]',
 			// Alternative formats
 			'.social-counts-shares__count',
-			'.reposts-count',
+			'.reposts-count', 
+			'.shares-count',
 			'.social-counts__shares',
+			'.social-counts__reposts',
+			// Button-based selectors
+			'button[data-control-name="share"] span[aria-hidden="true"]',
+			'button[data-control-name="repost"] span[aria-hidden="true"]',
+			'button[aria-label*="repost"] span:not([aria-label])',
+			'button[aria-label*="share"] span:not([aria-label])',
 			// Fallback selectors
 			'span[aria-hidden="true"]:has-text("reposts")',
 			'span[aria-hidden="true"]:has-text("shares")',
 			'button[aria-label*="repost"]:has([aria-hidden="true"])',
-			'button[aria-label*="share"]:has([aria-hidden="true"])'
+			'button[aria-label*="share"]:has([aria-hidden="true"])',
+			// Generic social action selectors
+			'.social-actions-button[aria-label*="repost"] span',
+			'.social-actions-button[aria-label*="share"] span'
 		];
 
 		// Try to extract from engagement bar
@@ -492,6 +508,28 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 
+		// Additional repost extraction: Look for specific repost/share button patterns
+		try {
+			const socialActionButtons = await postContainer.locator('.feed-shared-social-action-bar button').all();
+			for (const button of socialActionButtons) {
+				const ariaLabel = await button.getAttribute('aria-label');
+				if (ariaLabel && (ariaLabel.toLowerCase().includes('repost') || ariaLabel.toLowerCase().includes('share'))) {
+					// Look for count in the button or nearby elements
+					const buttonText = await button.textContent();
+					const countMatch = buttonText?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
+					if (countMatch) {
+						const count = normalizeCount(countMatch[1]);
+						if (count > reposts) {
+							reposts = count;
+							console.log(`✅ Found reposts from button aria-label "${ariaLabel}": ${reposts}`);
+						}
+					}
+				}
+			}
+		} catch (e) {
+			// Continue
+		}
+
 		// Method 2: Enhanced text parsing (always run to catch missed numbers)
 		const fullText = await postContainer.innerText({ timeout: 2000 });
 		console.log('Analyzing post text:', fullText.substring(0, 800));
@@ -503,12 +541,20 @@ async function extractEngagementMetrics(postContainer) {
 			/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+(comments?)/gi,
 			/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+(reposts?|shares?)/gi,
 			/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+(impressions?|views?)/gi,
+			// Enhanced repost patterns
+			/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+(?:people?\s+)?(?:reposted|shared)\s+this/gi,
+			/repost(?:ed)?\s+by\s+(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/gi,
+			/shared?\s+by\s+(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/gi,
 			// Numbers followed by "others reacted" or similar
 			/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+(?:others?\s+)?(?:reacted|liked)/gi,
+			/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+(?:others?\s+)?(?:reposted|shared)/gi,
 			// Numbers at start of lines (common in engagement stats)
 			/^(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s*$/gm,
 			// Numbers in parentheses or following specific patterns
-			/\((\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\)/gi
+			/\((\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\)/gi,
+			// LinkedIn specific patterns
+			/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+reposts?\s*$/gmi,
+			/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+shares?\s*$/gmi
 		];
 
 		// Extract all numbers from the text
@@ -541,7 +587,8 @@ async function extractEngagementMetrics(postContainer) {
 			!n.context.includes('reaction') && !n.context.includes('like') && 
 			!n.context.includes('comment') && !n.context.includes('repost') && 
 			!n.context.includes('share') && !n.context.includes('impression') && 
-			!n.context.includes('view') && 
+			!n.context.includes('view') && !n.context.includes('reposted') && 
+			!n.context.includes('shared') &&
 			!n.original.match(/\d+[wdhm]\s*$/i) && // Filter out time patterns like "51m", "2h", "3d"
 			!n.context.includes('ago') && 
 			!n.context.includes('week') && !n.context.includes('day') && 
@@ -560,7 +607,8 @@ async function extractEngagementMetrics(postContainer) {
 			} else if (context.includes('comment')) {
 				comments = Math.max(comments, count);
 				console.log(`Assigned ${count} to comments from context: "${original}"`);
-			} else if (context.includes('repost') || context.includes('share')) {
+			} else if (context.includes('repost') || context.includes('share') || 
+					   context.includes('reposted') || context.includes('shared')) {
 				reposts = Math.max(reposts, count);
 				console.log(`Assigned ${count} to reposts from context: "${original}"`);
 			} else if (context.includes('impression') || context.includes('view')) {
@@ -583,6 +631,34 @@ async function extractEngagementMetrics(postContainer) {
 					reactions = count;
 					break; // Only take the largest standalone number for reactions
 				}
+			}
+		}
+
+		// Final repost detection attempt using more aggressive text parsing
+		if (reposts === 0) {
+			try {
+				// Look for repost indicators in the full text more aggressively
+				const allPostText = await postContainer.innerText({ timeout: 2000 });
+				const repostIndicators = [
+					/(\d+(?:,\d{3})*)\s*repost/gi,
+					/(\d+(?:,\d{3})*)\s*share/gi,
+					/repost\s*(\d+(?:,\d{3})*)/gi,
+					/share\s*(\d+(?:,\d{3})*)/gi,
+					/(\d+(?:,\d{3})*)\s*(?:people\s+)?(?:reposted|shared)/gi
+				];
+				
+				for (const pattern of repostIndicators) {
+					const matches = [...allPostText.matchAll(pattern)];
+					for (const match of matches) {
+						const count = normalizeCount(match[1]);
+						if (count > 0 && count < 1000000) { // Reasonable upper limit
+							reposts = Math.max(reposts, count);
+							console.log(`🎯 Final repost detection found: ${count} from pattern: "${match[0]}"`);
+						}
+					}
+				}
+			} catch (e) {
+				// Continue
 			}
 		}
 
