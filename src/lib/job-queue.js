@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { supabaseAdmin } from './supabase-server.js';
+import { supabaseAdmin } from './supabase-node.js';
 
 class JobQueue extends EventEmitter {
 	constructor() {
