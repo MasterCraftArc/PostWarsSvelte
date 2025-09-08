@@ -492,11 +492,27 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 
+		// Debug: Let's see what spans with aria-hidden="true" actually exist
+		try {
+			const allAriaHiddenSpans = await postContainer.locator('span[aria-hidden="true"]').all();
+			console.log(`🔍 Found ${allAriaHiddenSpans.length} spans with aria-hidden="true"`);
+			for (let i = 0; i < Math.min(allAriaHiddenSpans.length, 10); i++) {
+				const spanText = await allAriaHiddenSpans[i].textContent();
+				console.log(`  Span ${i}: "${spanText}"`);
+			}
+		} catch (e) {
+			console.log('Could not debug aria-hidden spans');
+		}
+
 		for (const selector of repostSelectors) {
 			try {
 				const element = await postContainer.locator(selector).first();
-				if (await element.isVisible({ timeout: 1000 })) {
+				const elementCount = await element.count();
+				console.log(`🔍 Trying selector "${selector}": found ${elementCount} elements`);
+				
+				if (elementCount > 0 && await element.isVisible({ timeout: 1000 })) {
 					const text = await element.textContent();
+					console.log(`  Element text: "${text?.trim()}"`);
 					const match = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 					if (match) {
 						const count = normalizeCount(match[1]);
@@ -507,7 +523,7 @@ async function extractEngagementMetrics(postContainer) {
 					}
 				}
 			} catch (e) {
-				// Continue to next selector
+				console.log(`  Error with selector "${selector}": ${e.message}`);
 			}
 		}
 
@@ -637,31 +653,70 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 
-		// Final repost detection attempt using more aggressive text parsing
+		// Final repost detection attempt using more aggressive approaches
 		if (reposts === 0) {
 			try {
-				// Look for repost indicators in the full text more aggressively
-				const allPostText = await postContainer.innerText({ timeout: 2000 });
-				const repostIndicators = [
-					/(\d+(?:,\d{3})*)\s*repost/gi,
-					/(\d+(?:,\d{3})*)\s*share/gi,
-					/repost\s*(\d+(?:,\d{3})*)/gi,
-					/share\s*(\d+(?:,\d{3})*)/gi,
-					/(\d+(?:,\d{3})*)\s*(?:people\s+)?(?:reposted|shared)/gi
-				];
+				console.log('🔍 No reposts found via selectors, trying direct text search...');
 				
-				for (const pattern of repostIndicators) {
-					const matches = [...allPostText.matchAll(pattern)];
-					for (const match of matches) {
-						const count = normalizeCount(match[1]);
-						if (count > 0 && count < 1000000) { // Reasonable upper limit
-							reposts = Math.max(reposts, count);
-							console.log(`🎯 Final repost detection found: ${count} from pattern: "${match[0]}"`);
+				// Method 1: Find all elements containing "repost" or "share" text
+				const repostElements = await postContainer.locator('*:has-text("repost"), *:has-text("reposts"), *:has-text("share"), *:has-text("shares")').all();
+				console.log(`Found ${repostElements.length} elements containing repost/share text`);
+				
+				for (const element of repostElements) {
+					try {
+						const elementText = await element.textContent();
+						console.log(`  Checking element: "${elementText?.trim()}"`);
+						
+						// Look for number + repost/share patterns
+						const patterns = [
+							/(\d+(?:,\d{3})*)\s*repost/gi,
+							/(\d+(?:,\d{3})*)\s*share/gi,
+							/repost\s*(\d+(?:,\d{3})*)/gi,
+							/share\s*(\d+(?:,\d{3})*)/gi
+						];
+						
+						for (const pattern of patterns) {
+							const match = elementText?.match(pattern);
+							if (match) {
+								const count = normalizeCount(match[1]);
+								if (count > 0 && count < 1000000) {
+									reposts = Math.max(reposts, count);
+									console.log(`🎯 Found reposts in element text: ${count} from "${match[0]}"`);
+									break;
+								}
+							}
+						}
+					} catch (e) {
+						continue;
+					}
+				}
+				
+				// Method 2: Full text search as backup
+				if (reposts === 0) {
+					const allPostText = await postContainer.innerText({ timeout: 2000 });
+					console.log('🔍 Trying full text search for repost patterns...');
+					
+					const repostIndicators = [
+						/(\d+(?:,\d{3})*)\s*reposts?/gi,
+						/(\d+(?:,\d{3})*)\s*shares?/gi,
+						/reposts?\s*(\d+(?:,\d{3})*)/gi,
+						/shares?\s*(\d+(?:,\d{3})*)/gi,
+						/(\d+(?:,\d{3})*)\s*(?:people\s+)?(?:reposted|shared)/gi
+					];
+					
+					for (const pattern of repostIndicators) {
+						const matches = [...allPostText.matchAll(pattern)];
+						for (const match of matches) {
+							const count = normalizeCount(match[1]);
+							if (count > 0 && count < 1000000) { // Reasonable upper limit
+								reposts = Math.max(reposts, count);
+								console.log(`🎯 Final repost detection found: ${count} from pattern: "${match[0]}"`);
+							}
 						}
 					}
 				}
 			} catch (e) {
-				// Continue
+				console.log('Error in final repost detection:', e.message);
 			}
 		}
 
