@@ -246,7 +246,7 @@ class JobQueue extends EventEmitter {
 			calculatePostScore, 
 			updateUserStats, 
 			checkAndAwardAchievements 
-		} = await import('./gamification.js');
+		} = await import('./gamification-node.js');
 
 		// Scrape the post using browser pool
 		const scrapedData = await scrapeSinglePostQueued(linkedinUrl, userId);
