@@ -27,7 +27,7 @@ export async function POST(event) {
 	try {
 		
 		// First, load any queued jobs from the database
-		const { supabaseAdmin } = await import('$lib/supabase-server.js');
+		const { supabaseAdmin } = await import('$lib/supabase-node.js');
 		const { data: queuedJobs, error: jobsError } = await supabaseAdmin
 			.from('jobs')
 			.select('*')
