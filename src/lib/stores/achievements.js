@@ -1,7 +1,8 @@
+import { writable } from 'svelte/store';
 import { authenticatedRequest } from '$lib/api.js';
 
-// Svelte 5 state for user recent achievements data
-export let userAchievements = $state({});
+// Svelte store for user recent achievements data
+export const userAchievements = writable({});
 
 /**
  * Fetch recent achievements for users
@@ -23,8 +24,11 @@ export async function fetchUserRecentAchievements(userIds) {
 		});
 
 		if (response.success) {
-			// Update the state with fetched data
-			Object.assign(userAchievements, response.achievements);
+			// Update the store with fetched data
+			userAchievements.update(current => ({
+				...current,
+				...response.achievements
+			}));
 
 			return response.achievements;
 		}
@@ -37,10 +41,11 @@ export async function fetchUserRecentAchievements(userIds) {
 }
 
 /**
- * Get recent achievement for a specific user from state
- * @param {string} userId - User ID
+ * Get recent achievement for a specific user from store
+ * @param {string} userId - User ID  
+ * @param {Object} $userAchievements - Store value
  * @returns {Object|null} Recent achievement or null
  */
-export function getUserRecentAchievement(userId) {
-	return userAchievements[userId] || null;
+export function getUserRecentAchievement(userId, $userAchievements) {
+	return $userAchievements[userId] || null;
 }

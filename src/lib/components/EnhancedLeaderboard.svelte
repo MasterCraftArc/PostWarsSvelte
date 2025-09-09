@@ -159,8 +159,8 @@
 
 								<!-- Recent Achievement -->
 								<div class="mr-4 text-center">
-									{#if getUserRecentAchievement(player.id)}
-										{@const recentAchievement = getUserRecentAchievement(player.id)}
+									{#if getUserRecentAchievement(player.id, $userAchievements)}
+										{@const recentAchievement = getUserRecentAchievement(player.id, $userAchievements)}
 										<div
 											class="text-lg"
 											title="{recentAchievement.name} - {recentAchievement.points} points"
