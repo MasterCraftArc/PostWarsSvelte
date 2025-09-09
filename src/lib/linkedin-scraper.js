@@ -241,11 +241,23 @@ async function expandPostContent(postContainer) {
 	}
 
 	const seeMoreSelectors = [
+		// Text-based selectors (most reliable)
 		"button:text-matches('see more', 'i')",
-		"button:text-matches('show more', 'i')",
+		"button:text-matches('show more', 'i')", 
+		"*:text-matches('see more', 'i')",
+		"*:text-matches('show more', 'i')",
+		"*:text-matches('more', 'i')",
+		// LinkedIn specific classes
 		'.feed-shared-inline-show-more-text__button',
 		'.feed-shared-text__see-more-link',
-		'button[aria-expanded="false"]'
+		'.feed-shared-text-view__see-more-link',
+		// Aria attributes
+		'button[aria-expanded="false"]',
+		'[role="button"][aria-expanded="false"]',
+		// Generic patterns
+		'button:has-text("more")',
+		'span:has-text("more")',
+		'a:has-text("more")'
 	];
 
 	let expanded = false;
@@ -682,10 +694,13 @@ async function extractEngagementMetrics(postContainer) {
 				const context = match[0].toLowerCase();
 				const count = normalizeCount(countStr, context);
 				
+				// Log ALL matches, including filtered ones
+				console.log(`Pattern match: "${match[0]}" -> count: ${count} (${count === 0 ? 'FILTERED' : 'ACCEPTED'})`);
+				
 				// Skip if count is 0 (filtered out)
 				if (count > 0) {
 					allNumbers.push({ count, context, original: match[0] });
-					console.log(`Found number: ${count} in context: "${match[0]}"`);
+					console.log(`✅ Found number: ${count} in context: "${match[0]}"`);
 				}
 			}
 		}
@@ -928,6 +943,10 @@ async function extractPostData(postContainer, postIndex) {
 		await expandPostContent(postContainer);
 
 		const rawText = await postContainer.innerText({ timeout: 3000 });
+		console.log(`🔍 Raw text length: ${rawText.length} characters`);
+		console.log(`🔍 Raw text (first 500 chars): "${rawText.substring(0, 500)}"`);
+		console.log(`🔍 Raw text (last 200 chars): "${rawText.substring(Math.max(0, rawText.length - 200))}"`);
+		
 		if (rawText.trim().length < 10) return null;
 
 		const authorInfo = await extractAuthorData(postContainer);
@@ -987,6 +1006,17 @@ export async function scrapeSinglePost(url, options = {}) {
 		await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
 		console.log('✅ Page loaded, waiting for content to stabilize...');
 		await page.waitForTimeout(8000);  // Longer wait for LinkedIn's lazy loading
+		
+		// Try to scroll the page to load more content
+		console.log('🔄 Scrolling page to trigger content loading...');
+		await page.evaluate(() => {
+			window.scrollTo(0, document.body.scrollHeight);
+		});
+		await page.waitForTimeout(3000);
+		await page.evaluate(() => {
+			window.scrollTo(0, 0);
+		});
+		await page.waitForTimeout(2000);
 
 		let postContainer = null;
 		for (const selector of SINGLE_POST_SELECTORS) {
