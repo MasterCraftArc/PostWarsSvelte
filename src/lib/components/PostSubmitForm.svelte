@@ -28,14 +28,17 @@
 				body: JSON.stringify({ linkedinUrl: linkedinUrl.trim() })
 			});
 
-			success = `Post submitted successfully! Job ID: ${data.jobId}`;
+			success = `✅ Post submitted successfully! Your submission is being processed.`;
 			if (data.estimatedWaitTime) {
-				success += ` Estimated processing time: ${data.estimatedWaitTime}`;
+				success += ` Estimated processing time: ${data.estimatedWaitTime}.`;
 			}
+			success += ` Check your Recent Posts on the Dashboard to track progress.`;
 			linkedinUrl = '';
 
-			// Refresh page data or dispatch event
-			window.location.reload();
+			// Don't reload - let user see the confirmation message
+			setTimeout(() => {
+				success = '';
+			}, 8000);
 		} catch (err) {
 			error = err.message || 'Failed to submit post';
 		}

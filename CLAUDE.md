@@ -1,638 +1,382 @@
-# PostWars - Repository Analysis & Claude Code Documentation
+# PostWars - Architecture & Development Guidelines
 
-## 🚨 CURRENT ISSUES TO FIX
+## 🚨 OUTSTANDING ISSUES
 
-### Issue #1: Incorrect Engagement Metrics from Scraping
-**Problem:** LinkedIn scraper sometimes pulls incorrect engagement numbers (e.g., interpreting "51m" timestamp as 51 million engagements)
-**Impact:** Inflated scores and incorrect leaderboard rankings
-**Solution Needed:** 
-1. Add manual metrics correction capability in admin panel
-2. Add ability to update existing post metrics
-3. Add validation to prevent unrealistic engagement numbers
+### Issue #1: Incorrect Engagement Metrics from Scraping  
+**Problem:** LinkedIn scraper sometimes pulls incorrect engagement numbers (interpreting timestamps as engagement)  
+**Impact:** Inflated scores and incorrect leaderboard rankings  
+**Status:** 🔥 **CRITICAL** - Must be fixed before production use  
 
-### Issue #2: Leaderboard Not Showing Actual Post Engagement
-**Problem:** Leaderboard engagement column not pulling actual data from linkedin_posts table
-**Impact:** Users can't see their real engagement metrics on leaderboard
-**Solution Needed:**
-1. Fix leaderboard API to properly aggregate post engagement metrics
-2. Update leaderboard UI to display actual likes, comments, reposts
-3. Ensure total engagement calculation is accurate
+### Issue #2: Leaderboard Engagement Display  
+**Problem:** Leaderboard not showing actual post engagement from database  
+**Impact:** Users cannot see real engagement metrics  
+**Status:** 🔥 **CRITICAL** - Affects user experience  
 
-### ✅ Issue #3: LinkedIn Scraping Failing in GitHub Actions (RESOLVED)
-**Problem:** `Cannot find package '$env' imported from src/lib/supabase-server.js` error in GitHub Actions
-**Root Cause:** The scraping script was importing from `linkedin-scraper-pool.js` which had a different import chain than the working analytics scripts
-**Solution Implemented:**
-1. **Fixed import chain**: Updated all lib files (`job-queue.js`, `gamification.js`, `auth-helpers.js`, `supabase-auth.js`) to import from `supabase-node.js` instead of `supabase-server.js`
-2. **Fixed API routes**: Updated ALL API route files (24 files) to use `$lib/supabase-node.js` instead of `$lib/supabase-server.js`
-3. **Fixed dynamic imports**: Updated `jobs/process/+server.js` dynamic import from `supabase-server.js` to `supabase-node.js`
-4. **Fixed scraping script**: Changed `scrape-script.js` to import from `linkedin-scraper.js` instead of `linkedin-scraper-pool.js` (matching the working `update-analytics.js` pattern)
+### Issue #6: Post Submission Confirmation  
+**Problem:** Users receive no confirmation when they submit a post  
+**Impact:** Users don't know if their submission was received (scraping happens 1-2x daily)  
+**Status:** 🟡 **HIGH** - Poor user experience  
+**Requirements:**
+- Show immediate confirmation after post submission
+- Display all submitted posts in "Recent Posts" section
+- Include points breakdown per post for transparency
 
-**Key Files Changed:**
-- `src/lib/job-queue.js` - Changed import to use `supabase-node.js`
-- `src/lib/gamification.js` - Changed import to use `supabase-node.js`  
-- `src/lib/auth-helpers.js` - Changed import to use `supabase-node.js`
-- `src/lib/supabase-auth.js` - Changed import to use `supabase-node.js`
-- `src/routes/api/jobs/process/+server.js` - Fixed dynamic import
-- All API route files (24 files) - Changed `$lib/supabase-server.js` to `$lib/supabase-node.js`
-- `scrape-script.js` - Changed to import from `linkedin-scraper.js` instead of `linkedin-scraper-pool.js`
+### Issue #7: Missing Engagement Rules Documentation  
+**Problem:** Users don't understand the scoring system or engagement rules  
+**Impact:** Users can't optimize their posts or understand point calculations  
+**Status:** 🟡 **HIGH** - User confusion  
+**Requirements:**
+- Add scoring rules explanation to submit post page
+- Provide tl;dr + link to full documentation
+- Show current scoring config (BASE_POST_POINTS: 1, REACTION_POINTS: 0.1, etc.)
 
-**Technical Details:**
-- `supabase-server.js` uses SvelteKit's `$env/static/public` and `$env/static/private` 
-- `supabase-node.js` uses Node.js `process.env` which works in GitHub Actions
-- The final issue was that `scrape-script.js` was using a different scraper import than the working analytics scripts
-- `linkedin-scraper.js` has a clean import chain, while `linkedin-scraper-pool.js` may have had transitive dependencies
+### Issue #8: Team System Clarity  
+**Problem:** Users don't understand team mechanics (Active Goals, team joining/switching)  
+**Impact:** Users confused about team features and how to participate  
+**Status:** 🟡 **HIGH** - Feature adoption blocker  
+**Requirements:**
+- Explain what "Active Goals" and "Questions" sections mean
+- Clarify team assignment process
+- Add team joining/switching functionality or explanation
 
-## 📋 TASK LIST FOR FIXES
+## ✅ RESOLVED ISSUES
 
-### Phase 1: Analyze Current State
-- [ ] Review leaderboard API endpoint (/api/leaderboard)
-- [ ] Check how engagement is currently calculated
-- [ ] Identify database queries that need fixing
+### ✅ Issue #3: Scoring System Inconsistency (FIXED - Jan 2025)
+**Problem:** Two different gamification systems with conflicting scoring  
+**Solution:** Consolidated to single `gamification.js` with conservative scoring  
+**Files Fixed:** 6 files updated to use consistent scoring algorithm  
 
-### Phase 2: Manual Metrics Correction Feature
-- [ ] Create admin API endpoint to update post metrics
-- [ ] Add UI in admin panel to edit post engagement data
-- [ ] Add validation for reasonable engagement limits
-- [ ] Add audit log for manual corrections
+### ✅ Issue #4: Architecture Cleanup (FIXED - Jan 2025)  
+**Problem:** 11 unused/duplicate files cluttering codebase  
+**Solution:** Removed all unused files, cleaned up imports  
+**Impact:** -1,293 lines of dead code removed  
 
-### Phase 3: Fix Leaderboard Engagement Display
-- [ ] Update leaderboard API to JOIN with linkedin_posts table
-- [ ] Calculate actual engagement totals per user
-- [ ] Update UI to show real engagement breakdown
-- [ ] Add tooltips showing likes/comments/reposts breakdown
-
-### Phase 4: Testing & Verification
-- [ ] Test manual metrics update functionality
-- [ ] Verify leaderboard shows correct data
-- [ ] Test edge cases and error handling
-- [ ] Document changes for future reference
-
-## 🎯 Project Overview
-
-**PostWars** is a gamified LinkedIn engagement platform that transforms LinkedIn posting into a competitive team-based game. Users submit LinkedIn posts, which are scraped for engagement metrics (likes, comments, shares) and converted into points through a sophisticated scoring system.
-
-### Core Features
-- **LinkedIn Post Tracking** - Automated scraping of LinkedIn posts for engagement data
-- **Gamification System** - Points, streaks, achievements, and leaderboards
-- **Team Competition** - Team-based scoring and progress tracking
-- **Real-time Analytics** - Dashboard with user stats and team performance
-- **Role-based Access** - Regular users, team leads, and administrators
-
-## 🏗️ Technical Architecture
-
-### **Framework & Technology Stack**
-- **Frontend:** SvelteKit 2.x with Svelte 5
-- **Styling:** Tailwind CSS 3.4.10 (stable)
-- **Database:** Supabase (PostgreSQL with real-time features)
-- **Authentication:** Supabase Auth with JWT tokens
-- **Deployment:** Netlify with serverless functions
-- **Scraping:** Playwright for LinkedIn post automation
-- **Testing:** Vitest, Playwright Test, Testing Library
-
-### **Key Dependencies**
-```json
-{
-  "runtime": ["@supabase/supabase-js", "@supabase/ssr"],
-  "ui": ["svelte", "@sveltejs/kit", "tailwindcss"],
-  "scraping": ["playwright", "chromium-bidi"],
-  "security": ["bcryptjs", "jsonwebtoken"],
-  "deployment": ["@sveltejs/adapter-netlify"]
-}
-```
-
-## 📁 Project Structure Analysis
-
-### **Core Application Structure**
-```
-src/
-├── routes/                     # SvelteKit file-based routing
-│   ├── +layout.svelte         # Global layout with auth state
-│   ├── +page.svelte           # Home page (authenticated/public views)
-│   ├── admin/                 # Admin dashboard and management
-│   ├── api/                   # API endpoints (serverless functions)
-│   │   ├── auth/              # Authentication endpoints
-│   │   ├── posts/             # Post submission and management
-│   │   ├── dashboard/         # User dashboard data
-│   │   ├── leaderboard/       # Scoring and rankings
-│   │   ├── teams/             # Team management
-│   │   └── admin/             # Admin-only operations
-│   ├── dashboard/             # User dashboard page
-│   ├── leaderboard/           # Leaderboard visualization
-│   ├── login/ & signup/       # Authentication pages
-│   └── submit/                # Post submission interface
-├── lib/                       # Shared utilities and components
-│   ├── components/            # Reusable Svelte components
-│   ├── stores/                # Svelte stores (auth state)
-│   ├── supabase-*.js          # Database client configurations
-│   ├── linkedin-scraper.js    # Playwright-based web scraping
-│   ├── gamification.js        # Scoring and achievement logic
-│   ├── job-queue.js           # Background job processing
-│   └── auth-helpers.js        # Authentication utilities
-└── hooks.server.js            # SvelteKit server-side hooks
-```
-
-### **Database Schema (Supabase)**
-- **users** - User profiles, roles, scores, streaks
-- **teams** - Team information and leadership
-- **linkedin_posts** - Scraped post data and engagement metrics
-- **achievements** - User achievements and badges
-- **goals** - Team and individual goals
-- **jobs** - Background job queue for scraping tasks
-- **RLS Policies** - Row-level security for data access control
-
-## 🔍 Key Technical Patterns & Architecture Decisions
-
-### **1. Authentication Architecture**
-```javascript
-// Multi-layer auth approach
-src/hooks.server.js          // Server-side security headers (minimal processing)
-src/lib/stores/auth.js       // Client-side reactive auth state
-src/lib/auth-helpers.js      // Server-side auth verification
-```
-
-**Pattern:** Hybrid client/server authentication with minimal server-side processing for performance.
-
-### **2. API Design Pattern**
-```javascript
-// Consistent API endpoint structure
-src/routes/api/{domain}/{action}/+server.js
-
-// Example: POST /api/posts/submit
-// - Authentication check via getAuthenticatedUser()
-// - Rate limiting (user + IP based)
-// - Input validation and sanitization
-// - Database operations via Supabase Admin client
-// - Error handling with sanitized responses
-```
-
-### **3. Scraping Architecture**
-```javascript
-// Job queue system for LinkedIn scraping
-src/lib/job-queue.js           // Queue management and job processing
-src/lib/linkedin-scraper.js    // Playwright-based scraping logic
-src/lib/worker.js              // Background worker processes
-```
-
-**Challenge Identified:** Playwright cannot be bundled into Netlify Functions due to binary dependencies. Current implementation may require GitHub Actions or external service for scraping.
-
-### **4. Gamification System**
-```javascript
-// Sophisticated scoring algorithm
-src/lib/gamification.js
-- Base points: 10 per post
-- Engagement multipliers: Likes (1x), Comments (3x), Reposts (5x)
-- Streak bonuses: +10% per consecutive day (max 200%)
-- Freshness decay: 2% decay per day after 24 hours
-```
-
-### **5. Security Implementation**
-```javascript
-// Multi-layered security approach
-- Content Security Policy (CSP) headers
-- Rate limiting (per-user and IP-based)
-- Input sanitization and validation
-- Supabase RLS policies
-- JWT token authentication
-- HTTPS enforcement in production
-```
-
-## 🚀 Deployment Configuration
-
-### **Netlify Setup**
-```toml
-# netlify.toml
-[build]
-  command = "npm run build"
-  publish = "build"
-  functions = ".netlify/functions"
-
-[build.environment]
-  NODE_VERSION = "22"
-  SECRETS_SCAN_ENABLED = "false"
-```
-
-**Custom Build Process:**
-```json
-// package.json
-"build": "vite build && npm run build:fix-netlify",
-"build:fix-netlify": "mkdir -p .netlify/functions && cp .netlify/functions-internal/sveltekit-render.mjs .netlify/functions/ && cp .netlify/functions-internal/sveltekit-render.json .netlify/functions/ && echo '* /.netlify/functions/sveltekit-render 200' > build/_redirects"
-```
-
-**Critical Deployment Files:**
-- `deploy-db.sh` - Database deployment script
-- `supabase-schema.sql` - Complete database schema
-- `netlify.toml` - Netlify configuration
-- Custom build script for SvelteKit Netlify adapter compatibility
-
-## 🔧 Development & Testing
-
-### **Available Scripts**
-```json
-{
-  "dev": "vite dev",                           // Development server
-  "build": "vite build && npm run build:fix-netlify",
-  "test": "npm run test:unit -- --run && npm run test:e2e",
-  "worker": "node src/lib/worker.js",          // Background job processor
-  "cron:update-analytics": "...",              // Analytics updates
-  "deploy:db": "./deploy-db.sh",               // Database deployment
-  "deploy:netlify": "netlify deploy --prod --dir=build"
-}
-```
-
-### **Testing Setup**
-- **Unit Tests:** Vitest with JSdom
-- **E2E Tests:** Playwright
-- **Component Tests:** Testing Library Svelte
-- **API Tests:** Custom test suite for authentication endpoints
-
-## 📊 Core Business Logic
-
-### **Scoring Algorithm**
-```javascript
-function calculatePostScore(postData, userStreak = 0) {
-  let score = 10; // Base points
-  
-  // Engagement scoring
-  score += (reactions * 1) + (comments * 3) + (reposts * 5);
-  
-  // Streak bonus (max 200%)
-  const streakBonus = Math.min(userStreak * 0.1, 2.0);
-  score *= (1 + streakBonus);
-  
-  
-  // Freshness decay
-  const hoursOld = (Date.now() - timestamp) / (1000 * 60 * 60);
-  if (hoursOld > 24) {
-    const decayFactor = Math.pow(0.98, hoursOld - 24);
-    score *= decayFactor;
-  }
-  
-  return Math.round(score);
-}
-```
-
-### **User Progression System**
-- **Streaks:** Consecutive posting days with bonus multipliers
-- **Achievements:** Milestone-based badge system
-- **Leaderboards:** Individual and team-based rankings
-- **Team Goals:** Collaborative objectives and challenges
-
-## ⚠️ Known Issues & Technical Debt
-
-### **1. Playwright Bundling Issue**
-**Problem:** Playwright cannot be bundled into Netlify Functions due to binary dependencies.
-**Current Status:** Build process excludes Playwright from function bundle.
-**Solution:** Requires external scraping service (GitHub Actions recommended).
-
-### **2. Authentication Complexity**
-**Problem:** Server-side auth processing can cause cold start delays.
-**Current Solution:** Minimal server-side processing, client-side auth state management.
-
-### **3. Rate Limiting Implementation**
-**Current:** In-memory rate limiting (resets on function cold starts).
-**Improvement Needed:** Persistent rate limiting with Redis or database storage.
-
-### **4. Job Queue Scalability**
-**Current:** In-memory job queue with single worker process.
-**Scalability Concern:** Cannot handle high-volume concurrent scraping jobs.
-**Recommended:** External job queue service (Bull, AWS SQS, or GitHub Actions).
-
-## 🛡️ Security Analysis
-
-### **Implemented Security Measures**
-✅ **Authentication:** Supabase JWT with secure session management  
-✅ **Authorization:** Role-based access control (REGULAR, TEAM_LEAD, ADMIN)  
-✅ **Input Validation:** Comprehensive input sanitization  
-✅ **Rate Limiting:** User and IP-based limits  
-✅ **Security Headers:** CSP, XSS protection, HTTPS enforcement  
-✅ **Database Security:** Supabase RLS policies  
-
-### **Security Configurations**
-```javascript
-// Content Security Policy
-"default-src 'self'",
-"script-src 'self' 'unsafe-inline'",  // Required for SvelteKit
-"style-src 'self' 'unsafe-inline'",   // Required for component styles
-"connect-src 'self' https://your-supabase-project.supabase.co"
-```
-
-## 🎯 Recommended Improvements
-
-### **Performance Optimizations**
-1. **Implement caching** for leaderboard and dashboard data
-2. **Add database connection pooling** for Supabase queries
-3. **Optimize bundle size** by removing unused dependencies
-4. **Add service worker** for offline capability
-
-### **Scalability Enhancements**
-1. **External scraping service** (GitHub Actions implementation)
-2. **Persistent job queue** with retry logic
-3. **Database query optimization** with indexes
-4. **CDN integration** for static assets
-
-### **Feature Completeness**
-1. **Real-time updates** using Supabase subscriptions
-2. **Mobile responsive improvements**
-3. **Advanced analytics** and reporting
-4. **Team management interface** for team leads
-
-## 📝 Development Guidelines
-
-### **Code Standards**
-- **ESLint + Prettier** for code formatting
-- **TypeScript-style JSDoc** for function documentation  
-- **Consistent error handling** with sanitized responses
-- **Environment-based configuration** (development/production)
-
-### **Database Patterns**
-- **Supabase RLS** for data access security
-- **Enum types** for status fields and roles
-- **UUID primary keys** for all entities
-- **Timestamp tracking** (createdAt, updatedAt)
-
-### **API Conventions**
-- **RESTful endpoint design** (`/api/domain/action`)
-- **Consistent response formats** with error objects
-- **Authentication middleware** for protected routes
-- **Rate limiting** on user-facing endpoints
-
-## 🏆 Production Readiness Assessment
-
-### **✅ Ready for Production**
-- Authentication and authorization system
-- Core gamification logic
-- User interface and experience
-- Database schema and security
-- Basic deployment configuration
-
-### **⚠️ Requires Attention**
-- LinkedIn scraping reliability (Playwright bundling)
-- Scalable job processing system
-- Advanced error monitoring
-- Performance optimization under load
-- Comprehensive logging and monitoring
-
-### **🔄 Future Enhancements**
-- Real-time collaboration features  
-- Advanced team management tools
-- Integration with other social platforms
-- AI-powered content suggestions
-- Advanced analytics and insights
+### ✅ Issue #5: GitHub Actions Compatibility (FIXED - Jan 2025)  
+**Problem:** Import chain issues causing CI/CD failures  
+**Solution:** Fixed all workflows to use correct modules  
 
 ---
 
-## 📚 For Claude Code Users
+# 🏗️ STRICT ARCHITECTURE GUIDELINES
 
-### **Quick Commands**
+## 🚫 MANDATORY RULES - NO EXCEPTIONS
+
+### 1. **Single Source of Truth Principle**
+```
+❌ NEVER create duplicate files with similar functionality
+✅ ONE authoritative file per domain (scoring, auth, scraping, etc.)
+```
+
+### 2. **Import Consistency Rules**
+```typescript
+// CLIENT-SIDE (Svelte components, stores)
+import { supabase } from '$lib/supabase.js';
+
+// SERVER-SIDE (API routes, Node.js scripts, GitHub Actions)  
+import { supabaseAdmin } from '$lib/supabase-node.js';
+
+// GAMIFICATION (everywhere)
+import { calculatePostScore } from '$lib/gamification.js';
+
+// SCRAPING (everywhere)
+import { scrapeSinglePost } from '$lib/linkedin-scraper.js';
+```
+
+### 3. **File Naming Convention**
+```
+✅ ALLOWED file patterns:
+- supabase.js (client-side)
+- supabase-node.js (server-side/Node.js)
+- gamification.js (single scoring system)
+- linkedin-scraper.js (primary scraper)
+
+❌ FORBIDDEN patterns:
+- *-node.js AND non-node version (creates confusion)
+- *-pool.js variants (adds complexity) 
+- *-server.js variants (environment specific)
+- copy/duplicate files of any kind
+```
+
+### 4. **Database Client Usage**
+```typescript
+// API ROUTES
+import { supabaseAdmin } from '$lib/supabase-node.js';  // ADMIN access
+
+// SVELTE COMPONENTS  
+import { supabase } from '$lib/supabase.js';            // CLIENT access
+
+// NO OTHER PATTERNS ALLOWED
+```
+
+### 5. **Scoring System Rules**
+```typescript
+// ONLY ONE scoring configuration allowed
+export const SCORING_CONFIG = {
+  BASE_POST_POINTS: 1,      // Conservative base scoring
+  REACTION_POINTS: 0.1,     // 0.1 points per reaction
+  COMMENT_POINTS: 1,        // 1 point per comment  
+  REPOST_POINTS: 2,         // 2 points per repost
+};
+
+// NO alternative scoring systems permitted
+```
+
+---
+
+# 🧪 TEST-DRIVEN DEVELOPMENT (MANDATORY)
+
+## Test-First Development Process
+
+### 1. **Before ANY Code Change**
 ```bash
-# Development
-npm run dev                    # Start development server
-npm run build                  # Build for production
-npm run test                   # Run all tests
+# STEP 1: Write failing test first
+npm run test:unit -- --reporter verbose
 
-# Database
-npm run deploy:db              # Deploy database schema
-chmod +x deploy-db.sh          # Make deployment script executable
-
-# Deployment
-npm run deploy:netlify         # Deploy to Netlify
+# STEP 2: Write minimal code to pass test
+# STEP 3: Refactor while keeping tests green
+# STEP 4: Commit only when all tests pass
 ```
 
-### **Key Files for Understanding**
-1. **`src/routes/+page.svelte`** - Main application entry point
-2. **`src/lib/supabase.js`** - Database configuration
-3. **`src/lib/gamification.js`** - Core scoring logic
-4. **`src/routes/api/posts/submit/+server.js`** - Post submission API
-5. **`netlify.toml`** - Deployment configuration
+### 2. **Required Test Coverage**
+```typescript
+// API ENDPOINTS - Must have integration tests
+describe('POST /api/posts/submit', () => {
+  it('should calculate correct score with gamification.js', async () => {
+    // Test scoring consistency
+  });
+});
 
-### **Environment Variables Required**
-```env
-PUBLIC_SUPABASE_URL=your_supabase_project_url
-PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_key
+// SCORING FUNCTIONS - Must have unit tests  
+describe('calculatePostScore', () => {
+  it('should return consistent scores with BASE_POST_POINTS: 1', () => {
+    // Test algorithm correctness
+  });
+});
+
+// IMPORT COMPATIBILITY - Must have Node.js tests
+describe('GitHub Actions Compatibility', () => {
+  it('should import all modules in Node.js environment', async () => {
+    // Test import resolution
+  });
+});
 ```
 
+### 3. **Test Organization**
+```
+tests/
+├── unit/           # Pure function testing
+│   ├── gamification.test.js
+│   └── scraping.test.js
+├── integration/    # API endpoint testing  
+│   ├── posts.test.js
+│   └── leaderboard.test.js
+└── compatibility/  # Environment testing
+    └── github-actions.test.js
+```
 
-This documentation provides a comprehensive overview of the PostWars codebase, its architecture, and technical implementation details for effective development and maintenance.
+### 4. **Pre-Commit Requirements**
+```bash
+# ALL must pass before ANY commit
+npm run test:unit        # Unit tests
+npm run test:integration # API tests  
+npm run build           # Build verification
+npm run lint            # Code quality
+```
 
 ---
 
-# 🔍 COMPREHENSIVE AUDIT FINDINGS
+# 📦 SMALL BATCH CHANGE POLICY
 
-## 🚨 CRITICAL ISSUES
+## Batch Size Limits
 
-### Issue #A1: Code Duplication in Gamification Systems
-**Problem:** Two separate gamification files with conflicting scoring configurations
-**Files:** 
-- `/src/lib/gamification.js` (BASE_POST_POINTS: 1, REACTION_POINTS: 0.1)
-- `/src/lib/gamification-node.js` (BASE_POST_POINTS: 10, REACTION_POINTS: 1)
-**Impact:** Inconsistent scoring across different parts of the application
-**Priority:** Critical
-**Solution:** Consolidate into single gamification module with consistent scoring rules
+### 1. **Maximum Change Scope**
+```
+✅ ALLOWED per PR:
+- 1 feature OR 1 bug fix OR 1 refactor
+- Maximum 5 files changed
+- Maximum 200 lines net change
+- Single functional domain (scoring, auth, scraping)
 
-### Issue #A2: Scoring Algorithm Inconsistency
-**Problem:** Two different scoring algorithms with different base points and multipliers
-**Impact:** Inconsistent user scores, unfair competition
-**Priority:** Critical
-**Solution:** Unify scoring algorithm across all usage
+❌ FORBIDDEN per PR:
+- Multiple unrelated changes
+- Architecture + feature changes combined
+- >10 files modified in single PR
+- Breaking changes + new features together
+```
 
-## 🔧 HIGH PRIORITY ISSUES
+### 2. **Change Categories**
+```typescript
+// CATEGORY A: Critical Fixes (immediate merge)
+- Security vulnerabilities
+- Production-breaking bugs  
+- Data corruption issues
 
-### Issue #A3: Excessive Logging in Production Code
-**Problem:** 162 console.log statements and 112 console.error statements throughout codebase
-**Impact:** Performance degradation, security risk (data exposure), verbose logs
-**Priority:** High
-**Files:** Widespread across all API routes and lib files
-**Solution:** Implement proper logging framework with log levels and production filtering
+// CATEGORY B: Feature Changes (staged deployment)
+- New API endpoints
+- UI enhancements
+- Algorithm improvements
 
-### Issue #A4: Missing Error Handling in Admin Metrics Update
-**Problem:** Complex error handling with detailed error responses including stack traces
-**File:** `/src/routes/api/admin/posts/update-metrics/+server.js` (Lines 298-317)
-**Impact:** Information disclosure in production, verbose error responses
-**Priority:** High
-**Solution:** Sanitize error responses, remove stack traces in production
+// CATEGORY C: Architecture Changes (careful review)
+- File restructuring
+- Import pattern changes
+- Database schema updates
+```
 
-### Issue #A5: Server-Side Authentication Logic Removed
-**Problem:** Minimal server-side authentication in hooks.server.js
-**File:** `/src/hooks.server.js` (Lines 4-5: "Remove heavy authentication logic")
-**Impact:** Potential security vulnerabilities, inconsistent auth state
-**Priority:** High
-**Solution:** Implement proper server-side authentication validation
+### 3. **Branch Naming Convention**
+```bash
+# CRITICAL FIXES
+fix/scoring-inconsistency
+fix/security-auth-bypass
 
-### Issue #A6: Leaderboard Performance Concerns
-**Problem:** N+1 query pattern in leaderboard generation
-**File:** `/src/lib/gamification-node.js` getLeaderboardData function (Lines 317-348)
-**Impact:** Poor performance with multiple database queries per user
-**Priority:** High
-**Solution:** Use database stored procedure (RPC function) as shown in API endpoint
+# FEATURES  
+feat/user-achievements
+feat/team-leaderboards
 
-### Issue #A7: Rate Limiting Implementation Issues
-**Problem:** In-memory rate limiting resets on function cold starts
-**File:** Rate limiting implementation doesn't persist across serverless function restarts
-**Impact:** Rate limits ineffective in serverless environment
-**Priority:** High
-**Solution:** Implement database-based or Redis-based rate limiting
+# ARCHITECTURE
+refactor/consolidate-imports
+refactor/remove-unused-files
 
-### Issue #A8: Detailed Error Information Disclosure
-**Problem:** API endpoints return detailed error information including stack traces
-**Files:** Multiple API endpoints in error handlers
-**Impact:** Information disclosure to attackers
-**Priority:** High
-**Solution:** Sanitize all error responses for production
+# NEVER mix categories in single branch
+```
 
-### Issue #A9: Missing Input Validation
-**Problem:** Some endpoints lack comprehensive input validation
-**Impact:** Potential injection attacks, data corruption
-**Priority:** High
-**Solution:** Implement comprehensive input validation and sanitization
+---
 
-### Issue #A10: Achievement System Database Inefficiency
-**Problem:** Achievement checking creates achievements on-the-fly with multiple database calls
-**File:** `/src/lib/gamification-node.js` checkAndAwardAchievements function
-**Impact:** Performance issues, race conditions
-**Priority:** High
-**Solution:** Pre-populate achievements table and optimize queries
+# 🎯 CURRENT SYSTEM STATE
 
-## 🔧 MEDIUM PRIORITY ISSUES
+## ✅ Verified Architecture (as of Jan 2025)
 
-### Issue #A11: Inconsistent Environment Variable Access
-**Problem:** Mixed usage of SvelteKit `$env` and Node.js `process.env`
-**Files:** Multiple API routes import environment variables inconsistently
-**Impact:** Potential runtime errors in different environments
-**Priority:** Medium
-**Solution:** Standardize on appropriate method per execution context
+### **Scoring System**
+- **Active:** `src/lib/gamification.js` 
+- **Configuration:** BASE_POST_POINTS: 1, REACTION_POINTS: 0.1
+- **Used by:** 6 files (all consistent)
+- **Status:** ✅ Clean, no duplicates
 
-### Issue #A12: Mixed Client/Server Database Access Patterns
-**Problem:** Some files import supabase-server.js, others supabase-node.js inconsistently
-**Impact:** Potential runtime errors, confusing import patterns
-**Priority:** Medium
-**Solution:** Establish clear patterns for when to use each client type
+### **Database Clients**  
+- **Client-side:** `src/lib/supabase.js` (RLS, browser)
+- **Server-side:** `src/lib/supabase-node.js` (Admin, Node.js)
+- **Status:** ✅ Clean separation, no conflicts
 
-### Issue #A13: LinkedIn Scraper Architecture Issues
-**Problem:** Playwright cannot be bundled in Netlify Functions, requiring external GitHub Actions
-**File:** LinkedIn scraper implementation relies on external service
-**Impact:** Complex deployment, external dependencies
-**Priority:** Medium
-**Solution:** Document limitations or consider alternative scraping solutions
+### **Scraping System**
+- **Active:** `src/lib/linkedin-scraper.js`
+- **Status:** ✅ Clean import chain, GitHub Actions compatible
 
-### Issue #A14: Missing Audit Log Table Handling
-**Problem:** Audit logging attempts to write to non-existent table
-**File:** `/src/routes/api/admin/posts/update-metrics/+server.js` (Lines 208-217)
-**Impact:** Failed audit logging, potential errors in production
-**Priority:** Medium
-**Solution:** Create audit_logs table or remove audit logging functionality
+### **GitHub Actions**
+- **Status:** ✅ All 6 workflows use correct imports
+- **Compatibility:** ✅ Verified Node.js environment compatibility
 
-### Issue #A15: CSP Headers Allow Unsafe-Inline
-**Problem:** Content Security Policy allows 'unsafe-inline' for scripts and styles
-**File:** `/src/hooks.server.js` (Lines 20-21)
-**Impact:** Reduced XSS protection
-**Priority:** Medium
-**Solution:** Remove unsafe-inline or implement nonce-based CSP
+## 📊 Code Quality Metrics
 
-### Issue #A16: Node.js Version Mismatch
-**Problem:** Playwright configuration shows Node.js 16.20.2 but package.json requires Node.js >=20
-**Impact:** Development environment inconsistencies
-**Priority:** Medium
-**Solution:** Update Node.js version to match requirements
+```
+Total Files: ~200 files
+Dead Code Removed: 1,293 lines  
+Unused Files Deleted: 11 files
+Import Consistency: 100%
+Test Coverage: ⚠️ Needs improvement
+Architecture Violations: 0
+```
 
-### Issue #A17: Missing Environment Variable Documentation
-**Problem:** Environment variables scattered throughout codebase without central documentation
-**Impact:** Difficult deployment, missing configuration
-**Priority:** Medium
-**Solution:** Document all required environment variables
+---
 
-### Issue #A18: Missing Error Boundaries
-**Problem:** Limited error handling in Svelte components
-**Impact:** Poor user experience when errors occur
-**Priority:** Medium
-**Solution:** Implement comprehensive error boundaries and user-friendly error messages
+# ⚡ IMMEDIATE PRIORITIES
 
-## 🔧 LOW PRIORITY ISSUES
+## 🔥 Critical (Must Fix This Sprint)
 
-### Issue #A19: Duplicate README File
-**Problem:** Orphaned duplicate README file
-**File:** `/README copy.md` - Contains default SvelteKit content
-**Impact:** Confusing documentation, potential version control issues
-**Priority:** Low
-**Solution:** Remove duplicate file
+1. **Fix Engagement Metrics Scraping**
+   - Add validation for realistic engagement numbers
+   - Prevent timestamp parsing as engagement counts
+   - Test with real LinkedIn posts
 
-### Issue #A20: No Response Caching Strategy
-**Problem:** API endpoints don't implement appropriate caching headers
-**Exception:** Leaderboard endpoint has 5-minute cache (good practice)
-**Impact:** Unnecessary database queries, slower response times
-**Priority:** Low
-**Solution:** Implement caching strategy for appropriate endpoints
+2. **Fix Leaderboard Display** 
+   - Aggregate actual engagement from linkedin_posts table
+   - Display real likes/comments/reposts breakdown
+   - Test calculation accuracy
 
-### Issue #A21: Large File Sizes
-**Problem:** Some JavaScript files are quite large
-**Files:** 
-- `/src/lib/linkedin-scraper.js` (773 lines)
-- `/src/lib/job-queue.js` (417 lines)
-**Impact:** Increased bundle size, slower loading
-**Priority:** Low
-**Solution:** Consider modularization and code splitting
+## 🚧 High Priority (Next Sprint)
 
-### Issue #A22: Empty Catch Blocks
-**Problem:** Empty catch block allows errors to be silently ignored
-**File:** `/src/routes/api/jobs/process/+server.js`
-**Impact:** Silent failures, difficult debugging
-**Priority:** Low
-**Solution:** Add proper error logging and handling
+1. **Implement Test Coverage**
+   - Add unit tests for gamification.js
+   - Add integration tests for scoring APIs  
+   - Add GitHub Actions compatibility tests
 
-### Issue #A23: No Loading States
-**Problem:** API calls don't show loading indicators
-**Impact:** Poor user experience, unclear feedback
-**Priority:** Low
-**Solution:** Implement loading states for all async operations
+2. **Security Hardening**
+   - Remove console.log statements from production
+   - Sanitize error responses
+   - Add comprehensive input validation
 
-### Issue #A24: GitHub Actions Secret Context Warnings
-**Problem:** GitHub Actions workflow has context access warnings
-**File:** `/.github/workflows/scrape-linkedin-post.yml`
-**Impact:** Potential secret access issues
-**Priority:** Low
-**Solution:** Fix secret access patterns in GitHub Actions
+---
 
-## 📊 SUMMARY BY PRIORITY
+# 🛠️ DEVELOPMENT WORKFLOW
 
-### Critical Issues (2)
-- Code duplication in gamification systems
-- Scoring algorithm inconsistency
+## Before Starting Work
 
-### High Priority Issues (8)
-- Excessive logging in production
-- Missing error handling in admin metrics
-- Server-side authentication logic removed
-- Leaderboard performance concerns
-- Rate limiting implementation issues
-- Detailed error information disclosure
-- Missing input validation
-- Achievement system database inefficiency
+```bash
+# 1. Pull latest changes
+git checkout main && git pull origin main
 
-### Medium Priority Issues (8)
-- Environment variable access inconsistency
-- Mixed client/server database access patterns
-- LinkedIn scraper architecture issues
-- Missing audit log table handling
-- CSP headers allow unsafe-inline
-- Node.js version mismatch
-- Missing environment variable documentation
-- Missing error boundaries
+# 2. Create focused branch  
+git checkout -b fix/specific-issue-name
 
-### Low Priority Issues (6)
-- Duplicate README file
-- No response caching strategy
-- Large file sizes
-- Empty catch blocks
-- No loading states
-- GitHub Actions secret context warnings
+# 3. Write failing test first
+npm run test:unit
 
-## 🔧 RECOMMENDED IMMEDIATE ACTIONS
+# 4. Implement minimal fix
+# 5. Verify tests pass
+# 6. Commit small batch
+```
 
-1. **Consolidate gamification systems** - Critical for data consistency
-2. **Remove excessive console logging** - Critical for production readiness
-3. **Implement proper error sanitization** - Critical for security
-4. **Fix rate limiting for serverless environment** - Critical for functionality
-5. **Unify database access patterns** - Important for maintainability
-6. **Add comprehensive input validation** - Important for security
+## Before Submitting PR
 
-**Total Issues Identified:** 24 distinct issues ranging from critical business logic problems to minor configuration improvements. The codebase shows signs of rapid development with some technical debt that should be addressed before scaling further.
+```bash
+# 1. Run full test suite
+npm test
+
+# 2. Verify build works
+npm run build  
+
+# 3. Check architecture compliance
+npm run lint
+
+# 4. Verify no unused imports
+# 5. Confirm single responsibility principle
+```
+
+## PR Requirements
+
+```markdown
+## Change Summary
+- [ ] Single functional change
+- [ ] Tests added/updated  
+- [ ] Architecture guidelines followed
+- [ ] <200 lines net change
+- [ ] No duplicate functionality created
+
+## Testing
+- [ ] Unit tests pass
+- [ ] Integration tests pass  
+- [ ] Manual testing completed
+
+## Architecture Compliance
+- [ ] Follows import patterns
+- [ ] No duplicate files created
+- [ ] Single source of truth maintained
+```
+
+---
+
+# 🔒 NON-NEGOTIABLES
+
+1. **NO duplicate functionality** - Ever. Delete or consolidate immediately.
+2. **NO architecture violations** - Follow import patterns strictly.  
+3. **NO untested code** - Write tests first, code second.
+4. **NO large batch changes** - Keep PRs small and focused.
+5. **NO production secrets** - Use .gitignore and environment variables.
+
+**Violation of any non-negotiable = immediate PR rejection**
+
+---
+
+**Last Updated:** January 2025  
+**Architecture Status:** ✅ Clean  
+**Critical Issues:** 2 remaining  
+**High Priority Issues:** 3 new (user feedback)  
+**Technical Debt:** Low  

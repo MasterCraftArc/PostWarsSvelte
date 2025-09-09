@@ -69,6 +69,14 @@ async function getFallbackDashboardData(userId) {
 		.order('postedAt', { ascending: false })
 		.limit(10);
 
+	// Get pending jobs for this user
+	const { data: pendingJobs } = await supabaseAdmin
+		.from('jobs')
+		.select('*')
+		.eq('userId', userId)
+		.in('status', ['QUEUED', 'PROCESSING'])
+		.order('createdAt', { ascending: false });
+
 	// Get achievements
 	const { data: userAchievements } = await supabaseAdmin
 		.from('user_achievements')
@@ -101,7 +109,7 @@ async function getFallbackDashboardData(userId) {
 	const userRank = (higherScoreUsers || 0) + 1;
 
 	// Transform posts
-	const recentPosts = (linkedinPosts || []).map((post) => ({
+	const processedPosts = (linkedinPosts || []).map((post) => ({
 		id: post.id,
 		url: post.url,
 		content: post.content.substring(0, 150) + (post.content.length > 150 ? '...' : ''),
@@ -115,6 +123,37 @@ async function getFallbackDashboardData(userId) {
 		lastScrapedAt: post.lastScrapedAt,
 		growth: { reactions: 0, comments: 0, reposts: 0 }
 	}));
+
+	// Transform pending jobs into post-like objects
+	const pendingPosts = (pendingJobs || []).map((job) => {
+		const jobData = JSON.parse(job.data || '{}');
+		const statusText = job.status === 'QUEUED' ? 'pending' : 'processing';
+		const processingText = statusText === 'pending' 
+			? 'Post is being processed...' 
+			: 'Post is currently being scraped...';
+
+		return {
+			id: job.id,
+			url: jobData.linkedinUrl || '',
+			content: processingText,
+			authorName: 'You',
+			reactions: '?',
+			comments: '?', 
+			reposts: '?',
+			totalEngagement: 0,
+			totalScore: 1, // Estimated base score
+			postedAt: job.createdAt,
+			lastScrapedAt: job.createdAt,
+			status: statusText,
+			growth: { reactions: 0, comments: 0, reposts: 0 }
+		};
+	});
+
+	// Combine and sort all posts by date (newest first)
+	const allPosts = [...processedPosts, ...pendingPosts];
+	const recentPosts = allPosts
+		.sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt))
+		.slice(0, 15); // Show up to 15 total posts
 
 	// Transform achievements
 	const recentAchievements = (userAchievements || []).slice(0, 5).map((ua) => ({
