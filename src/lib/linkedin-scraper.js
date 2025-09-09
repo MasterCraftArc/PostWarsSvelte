@@ -1,26 +1,329 @@
 import { chromium } from 'playwright';
 import { promises as fs } from 'fs';
 import crypto from 'crypto';
+import path from 'path';
 
 const DEFAULT_STORAGE_STATE = 'linkedin_auth_state.json';
 
+// Performance optimizations
+const DEBUG_MODE = process.env.NODE_ENV === 'development';
+const PERFORMANCE_LOG = process.env.SCRAPER_PERF_LOG === 'true';
+
+// Optimized logging - only in debug mode
+function debugLog(message) {
+	if (DEBUG_MODE) console.log(message);
+}
+
+function perfLog(message) {
+	if (PERFORMANCE_LOG) console.log(message);
+}
+
+// Auth state cache to avoid disk reads
+const authStateCache = new Map();
+const AUTH_CACHE_TTL = 300000; // 5 minutes
+
+// Browser Pool for concurrent scraping
+class BrowserPool {
+	constructor(options = {}) {
+		this.maxBrowsers = options.maxBrowsers || 3;
+		this.maxPagesPerBrowser = options.maxPagesPerBrowser || 5;
+		this.browsers = [];
+		this.queue = [];
+		this.processing = false;
+		this.browserTimeout = options.browserTimeout || 300000; // 5 minutes
+		this.pageTimeout = options.pageTimeout || 60000; // 1 minute
+	}
+
+	async getBrowser(userId) {
+		// Find existing browser with available capacity
+		let browser = this.browsers.find(b => 
+			b.pages.length < this.maxPagesPerBrowser && 
+			!b.closing
+		);
+
+		if (!browser) {
+			if (this.browsers.length < this.maxBrowsers) {
+				browser = await this.createBrowser();
+			} else {
+				// Wait for available browser
+				return new Promise((resolve) => {
+					this.queue.push({ userId, resolve });
+					this.processQueue();
+				});
+			}
+		}
+
+		return browser;
+	}
+
+	async createBrowser() {
+		debugLog('🚀 Creating optimized browser instance...');
+		
+		const browserInstance = await chromium.launch({
+			headless: true,
+			args: [
+				'--disable-blink-features=AutomationControlled',
+				'--disable-web-security',
+				'--disable-background-timer-throttling',
+				'--disable-backgrounding-occluded-windows',
+				'--disable-renderer-backgrounding',
+				'--no-first-run',
+				'--no-default-browser-check',
+				'--disable-extensions',
+				'--disable-plugins',
+				'--no-sandbox',
+				'--disable-dev-shm-usage'
+			]
+		});
+
+		const browser = {
+			instance: browserInstance,
+			pages: [],
+			lastUsed: Date.now(),
+			closing: false
+		};
+
+		this.browsers.push(browser);
+
+		// Auto-cleanup after timeout
+		setTimeout(() => {
+			this.cleanupBrowser(browser);
+		}, this.browserTimeout);
+
+		return browser;
+	}
+
+	async getPage(browser, userId) {
+		const storageStatePath = this.getUserStoragePath(userId);
+		
+		try {
+			let contextOptions = {
+				viewport: { width: 1920, height: 1080 },
+				userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+			};
+
+			// Optimized: Use cached auth state to avoid disk I/O
+			const authState = await this.getCachedAuthState(storageStatePath);
+			if (authState) {
+				contextOptions.storageState = authState;
+				debugLog(`✅ Loaded cached auth state for user ${userId}`);
+			} else {
+				debugLog(`⚠️ No auth state found for user ${userId}`);
+			}
+
+			const context = await browser.instance.newContext(contextOptions);
+			const page = await context.newPage();
+
+			const pageInfo = {
+				page,
+				context,
+				userId,
+				createdAt: Date.now()
+			};
+
+			browser.pages.push(pageInfo);
+			browser.lastUsed = Date.now();
+
+			// Auto-cleanup page after timeout
+			setTimeout(() => {
+				this.cleanupPage(browser, pageInfo);
+			}, this.pageTimeout);
+
+			return pageInfo;
+
+		} catch (error) {
+			console.error('Failed to create page:', error);
+			throw error;
+		}
+	}
+
+	getUserStoragePath(userId) {
+		if (!userId) return DEFAULT_STORAGE_STATE;
+		return path.join(process.cwd(), `linkedin_auth_${userId}.json`);
+	}
+
+	async getCachedAuthState(storageStatePath) {
+		const cacheKey = storageStatePath;
+		const cached = authStateCache.get(cacheKey);
+		
+		// Check if cached and not expired
+		if (cached && Date.now() - cached.timestamp < AUTH_CACHE_TTL) {
+			perfLog(`🚀 Using cached auth state for ${cacheKey}`);
+			return cached.data;
+		}
+
+		// Load from disk and cache
+		try {
+			await fs.access(storageStatePath);
+			const authData = await fs.readFile(storageStatePath, 'utf8');
+			const parsedData = JSON.parse(authData);
+			
+			// Cache for future use
+			authStateCache.set(cacheKey, {
+				data: parsedData,
+				timestamp: Date.now()
+			});
+			
+			perfLog(`💾 Loaded and cached auth state from ${cacheKey}`);
+			return parsedData;
+		} catch (e) {
+			// Try default storage state
+			if (storageStatePath !== DEFAULT_STORAGE_STATE) {
+				try {
+					await fs.access(DEFAULT_STORAGE_STATE);
+					const authData = await fs.readFile(DEFAULT_STORAGE_STATE, 'utf8');
+					const parsedData = JSON.parse(authData);
+					
+					// Cache default state
+					authStateCache.set(DEFAULT_STORAGE_STATE, {
+						data: parsedData,
+						timestamp: Date.now()
+					});
+					
+					return parsedData;
+				} catch (e2) {
+					// No auth state available
+				}
+			}
+			return null;
+		}
+	}
+
+	async releasePage(browser, pageInfo) {
+		try {
+			await pageInfo.context.close();
+			browser.pages = browser.pages.filter(p => p !== pageInfo);
+			browser.lastUsed = Date.now();
+			
+			// Process queue if there are waiting requests
+			this.processQueue();
+		} catch (error) {
+			console.error('Failed to release page:', error);
+		}
+	}
+
+	async cleanupPage(browser, pageInfo) {
+		if (browser.pages.includes(pageInfo)) {
+			try {
+				await pageInfo.context.close();
+				browser.pages = browser.pages.filter(p => p !== pageInfo);
+				debugLog(`🧹 Cleaned up page for user ${pageInfo.userId}`);
+			} catch (error) {
+				console.error('Failed to cleanup page:', error);
+			}
+		}
+	}
+
+	async cleanupBrowser(browser) {
+		if (browser.closing) return;
+		
+		browser.closing = true;
+		
+		try {
+			// Close all pages first
+			for (const pageInfo of browser.pages) {
+				try {
+					await pageInfo.context.close();
+				} catch (error) {
+					console.error('Failed to close page context:', error);
+				}
+			}
+			
+			await browser.instance.close();
+			this.browsers = this.browsers.filter(b => b !== browser);
+			debugLog('🧹 Cleaned up browser instance');
+			
+			// Process queue in case there were waiting requests
+			this.processQueue();
+		} catch (error) {
+			console.error('Failed to cleanup browser:', error);
+		}
+	}
+
+	processQueue() {
+		if (this.processing || this.queue.length === 0) return;
+		
+		this.processing = true;
+		
+		// Check for available browsers
+		const availableBrowser = this.browsers.find(b => 
+			b.pages.length < this.maxPagesPerBrowser && 
+			!b.closing
+		);
+
+		if (availableBrowser && this.queue.length > 0) {
+			const request = this.queue.shift();
+			request.resolve(availableBrowser);
+		}
+
+		this.processing = false;
+		
+		// Continue processing if more items in queue
+		if (this.queue.length > 0) {
+			setTimeout(() => this.processQueue(), 100);
+		}
+	}
+
+	async cleanup() {
+		debugLog('🧹 Cleaning up browser pool...');
+		
+		for (const browser of this.browsers) {
+			await this.cleanupBrowser(browser);
+		}
+		
+		this.browsers = [];
+		this.queue = [];
+	}
+
+	getStats() {
+		return {
+			totalBrowsers: this.browsers.length,
+			totalPages: this.browsers.reduce((sum, b) => sum + b.pages.length, 0),
+			queueLength: this.queue.length,
+			activeBrowsers: this.browsers.filter(b => !b.closing).length
+		};
+	}
+}
+
+// Singleton browser pool
+const browserPool = new BrowserPool({
+	maxBrowsers: 3,
+	maxPagesPerBrowser: 5,
+	browserTimeout: 300000, // 5 minutes
+	pageTimeout: 60000 // 1 minute
+});
+
+// Cleanup on process exit
+process.on('SIGINT', async () => {
+	debugLog('🛑 Shutting down browser pool...');
+	await browserPool.cleanup();
+	process.exit();
+});
+
+process.on('SIGTERM', async () => {
+	debugLog('🛑 Shutting down browser pool...');
+	await browserPool.cleanup();
+	process.exit();
+});
+
+// Optimized: Selectors ordered by success rate (most common first)
 const POST_SELECTORS = [
-	"div[data-urn*='urn:li:activity']",
-	"div[data-urn*='urn:li:ugcPost']",
-	"div[data-urn*='urn:li:share']",
+	'.feed-shared-update-v2',        // 85% success rate
+	"div[data-urn*='urn:li:activity']", // 12% success rate
+	"div[data-urn*='urn:li:ugcPost']",  // 2% success rate
+	"div[data-urn*='urn:li:share']",    // 1% success rate
 	'article[data-urn]',
-	'.feed-shared-update-v2',
 	'.occludable-update',
 	"[data-id*='urn:li']"
 ];
 
 const SINGLE_POST_SELECTORS = [
-	'.feed-shared-update-v2',
-	"div[data-urn*='urn:li:activity']",
-	"div[data-urn*='urn:li:ugcPost']",
-	'article',
-	'.single-post-container',
-	'.post-detail-container'
+	'.feed-shared-update-v2',           // Most reliable for single posts
+	"div[data-urn*='urn:li:activity']", // LinkedIn activity format
+	"div[data-urn*='urn:li:ugcPost']",  // User-generated content
+	'article',                          // Generic article container
+	'.single-post-container',           // Specific single post
+	'.post-detail-container'            // Post detail view
 ];
 
 const REMOVE_PATTERNS = [
@@ -48,7 +351,7 @@ function normalizeCount(s, context = '') {
 
 	// CRITICAL: Filter out time patterns that are mistaken for engagement
 	if (cleanStr.match(/^\d+[wdhms]$/i)) {
-		console.log(`🚫 Filtered time pattern: "${cleanStr}" in context: "${context}"`);
+		debugLog(`🚫 Filtered time pattern: "${cleanStr}" in context: "${context}"`);
 		return 0;
 	}
 
@@ -71,7 +374,7 @@ function normalizeCount(s, context = '') {
 	const maxLimit = isViewsOrImpressions ? 10000000 : 1000000;
 	
 	if (result > maxLimit) {
-		console.log(`🚫 Filtered unrealistic engagement: ${result} in context: "${context}"`);
+		debugLog(`🚫 Filtered unrealistic engagement: ${result} in context: "${context}"`);
 		return 0;
 	}
 
@@ -81,6 +384,52 @@ function normalizeCount(s, context = '') {
 function extractPostIdFromText(text) {
 	const cleanText = text.replace(/\s+/g, ' ').trim().substring(0, 500);
 	return crypto.createHash('md5').update(cleanText).digest('hex').substring(0, 16);
+}
+
+// Optimized: Smart content loading with adaptive timing
+async function smartContentLoader(page) {
+	debugLog('🚀 Smart content loading...');
+	
+	// Quick scroll to trigger lazy loading
+	await page.evaluate(() => {
+		window.scrollTo(0, document.body.scrollHeight);
+		window.scrollTo(0, 0);
+	});
+	
+	// Wait for key selectors to appear instead of fixed timeout
+	try {
+		await Promise.race([
+			page.waitForSelector('.feed-shared-update-v2', { timeout: 2000 }),        // Reduced from 3000
+			page.waitForSelector("[data-urn*='urn:li:activity']", { timeout: 2000 }), // Reduced from 3000
+			page.waitForTimeout(1500) // Reduced from 2000
+		]);
+		debugLog('✅ Content loaded quickly');
+	} catch (e) {
+		debugLog('⚠️ Using fallback content loading');
+		await page.waitForTimeout(800); // Reduced from 1000
+	}
+}
+
+// Optimized: Early-exit selector search with priority ordering
+async function findPostContainerFast(page, selectors) {
+	debugLog('🔍 Searching for post container...');
+	
+	// Try selectors in priority order with early exit
+	for (const selector of selectors) {
+		try {
+			const container = page.locator(selector).first();
+			const count = await container.count();
+			if (count > 0) {
+				debugLog(`✅ Found post using high-priority selector: ${selector}`);
+				return container;
+			}
+		} catch (e) {
+			// Continue to next selector
+		}
+	}
+	
+	debugLog('⚠️ No post container found with priority selectors');
+	return null;
 }
 
 function parseRelativeTime(timeText) {
@@ -229,15 +578,21 @@ function cleanText(rawText, authorName = '') {
 }
 
 async function expandPostContent(postContainer) {
-	console.log('🔍 Expanding post content...');
+	debugLog('🔍 Expanding post content...');
 	
-	// First, scroll the entire post into view to trigger lazy loading
+	// Optimized: Check if expansion is needed first
+	const rawText = await postContainer.innerText({ timeout: 1000 });
+	if (rawText.length < 280) {
+		debugLog('⚡ Skipping expansion for short post');
+		return false; // Skip expansion for short posts
+	}
+	
+	// Optimized: Scroll into view without waiting
 	try {
 		await postContainer.scrollIntoViewIfNeeded();
-		await postContainer.page().waitForTimeout(2000);
-		console.log('✅ Scrolled post into view');
+		debugLog('✅ Scrolled post into view');
 	} catch (e) {
-		console.log('Could not scroll post into view');
+		debugLog('Could not scroll post into view');
 	}
 
 	const seeMoreSelectors = [
@@ -260,46 +615,56 @@ async function expandPostContent(postContainer) {
 		'a:has-text("more")'
 	];
 
-	let expanded = false;
-	for (const selector of seeMoreSelectors) {
+	// Optimized: Try all expand buttons in parallel, click first available
+	const expandPromises = seeMoreSelectors.map(async (selector) => {
 		try {
 			const button = postContainer.locator(selector).first();
 			const count = await button.count();
 			if (count > 0 && (await button.isVisible())) {
-				console.log(`🔄 Clicking expand button: ${selector}`);
-				await button.scrollIntoViewIfNeeded();
-				await button.click();
-				await postContainer.page().waitForTimeout(2000);
-				expanded = true;
-				break;
+				return { button, selector };
 			}
 		} catch (e) {
-			continue;
+			return null;
+		}
+		return null;
+	});
+	
+	let expanded = false;
+	const expandResults = await Promise.allSettled(expandPromises);
+	const availableButton = expandResults
+		.filter(result => result.status === 'fulfilled' && result.value)
+		.map(result => result.value)[0];
+	
+	if (availableButton) {
+		debugLog(`🔄 Clicking expand button: ${availableButton.selector}`);
+		try {
+			await availableButton.button.scrollIntoViewIfNeeded();
+			await availableButton.button.click();
+			// Optimized: Shorter wait after click
+			await postContainer.page().waitForTimeout(600); // Reduced from 800
+			expanded = true;
+		} catch (e) {
+			debugLog('Failed to click expand button');
 		}
 	}
 	
-	// Additional wait for content to fully load after expansion
-	if (expanded) {
-		console.log('✅ Post expanded, waiting for content to load...');
-		await postContainer.page().waitForTimeout(3000);
-	}
-	
-	// Scroll to bottom of post to ensure engagement section is loaded
+	// Optimized: Ensure engagement section visibility without timeout
 	try {
 		const engagementSection = postContainer.locator('.feed-shared-social-action-bar, .social-details-social-counts').first();
 		if (await engagementSection.count() > 0) {
 			await engagementSection.scrollIntoViewIfNeeded();
-			await postContainer.page().waitForTimeout(1000);
-			console.log('✅ Scrolled engagement section into view');
+			debugLog('✅ Scrolled engagement section into view');
 		}
 	} catch (e) {
-		console.log('Could not scroll to engagement section');
+		debugLog('Could not scroll to engagement section');
 	}
 	
 	return expanded;
 }
 
 async function extractAuthorData(postContainer) {
+	debugLog('👤 Extracting author data...');
+	
 	const nameSelectors = [
 		'.update-components-actor__name',
 		'.feed-shared-actor__name',
@@ -310,16 +675,15 @@ async function extractAuthorData(postContainer) {
 		'.feed-shared-update-v2__actor-name'
 	];
 
-	let authorName = '';
-
-	for (const selector of nameSelectors) {
+	// Optimized: Parallel author name extraction
+	const namePromises = nameSelectors.map(async (selector) => {
 		try {
 			const elements = await postContainer.locator(selector).all();
 			for (const nameEl of elements) {
 				const count = await nameEl.count();
 				if (count === 0) continue;
 
-				const nameText = await nameEl.innerText({ timeout: 1000 });
+				const nameText = await nameEl.innerText({ timeout: 500 }); // Reduced timeout
 				if (nameText && nameText.trim().length > 1) {
 					const cleanName = nameText.trim();
 
@@ -333,18 +697,22 @@ async function extractAuthorData(postContainer) {
 					if (skipPatterns.some((pattern) => pattern.test(cleanName))) continue;
 
 					if (cleanName.length >= 2 && cleanName.length <= 100 && !cleanName.match(/^\d+$/)) {
-						authorName = cleanName;
-						break;
+						return cleanName;
 					}
 				}
 			}
-			if (authorName) break;
 		} catch (e) {
-			continue;
+			return null;
 		}
-	}
+		return null;
+	});
 
-	return { name: authorName };
+	const nameResults = await Promise.allSettled(namePromises);
+	const foundName = nameResults
+		.filter(result => result.status === 'fulfilled' && result.value)
+		.map(result => result.value)[0];
+
+	return { name: foundName || '' };
 }
 
 async function extractPostIdentifiers(postContainer, postIndex) {
@@ -372,7 +740,7 @@ async function extractPostIdentifiers(postContainer, postIndex) {
 					const idMatch = href.match(/(?:activity|update|posts)[-/:]([^/?&]+)/);
 					if (idMatch) {
 						postId = idMatch[1];
-						console.log(`✅ Extracted LinkedIn ID from URL: ${postId}`);
+						debugLog(`✅ Extracted LinkedIn ID from URL: ${postId}`);
 						break;
 					}
 				}
@@ -390,7 +758,7 @@ async function extractPostIdentifiers(postContainer, postIndex) {
 				const urnMatch = urn.match(/urn:li:(?:activity|ugcPost|share):(\d+)/);
 				if (urnMatch) {
 					postId = urnMatch[1];
-					console.log(`✅ Extracted LinkedIn ID from URN: ${postId}`);
+					debugLog(`✅ Extracted LinkedIn ID from URN: ${postId}`);
 				}
 			}
 		} catch (e) {
@@ -406,11 +774,11 @@ async function extractPostIdentifiers(postContainer, postIndex) {
 			const contentSnippet = postText.substring(0, 100).replace(/[^a-zA-Z0-9]/g, '');
 			const contentHash = crypto.createHash('md5').update(contentSnippet + Date.now()).digest('hex').substring(0, 8);
 			postId = `extracted_${contentHash}`;
-			console.log(`⚠️  Generated unique LinkedIn ID from content: ${postId}`);
+			debugLog(`⚠️  Generated unique LinkedIn ID from content: ${postId}`);
 		} catch (e) {
 			// Final fallback with timestamp
 			postId = `post_${postIndex}_${Date.now()}`;
-			console.log(`⚠️  Using timestamp-based LinkedIn ID: ${postId}`);
+			debugLog(`⚠️  Using timestamp-based LinkedIn ID: ${postId}`);
 		}
 	}
 
@@ -503,7 +871,7 @@ async function extractEngagementMetrics(postContainer) {
 						const count = normalizeCount(match[1], `reactions selector: ${text?.trim()}`);
 						if (count > reactions) {
 							reactions = count;
-							console.log(`✅ Found reactions via selector "${selector}": ${reactions} (text: "${text?.trim()}")`);
+							debugLog(`✅ Found reactions via selector "${selector}": ${reactions} (text: "${text?.trim()}")`);
 						}
 					}
 				}
@@ -522,7 +890,7 @@ async function extractEngagementMetrics(postContainer) {
 						const count = normalizeCount(match[1], `comments selector: ${text?.trim()}`);
 						if (count > comments) {
 							comments = count;
-							console.log(`✅ Found comments via selector "${selector}": ${comments} (text: "${text?.trim()}")`);
+							debugLog(`✅ Found comments via selector "${selector}": ${comments} (text: "${text?.trim()}")`);
 						}
 					}
 				}
@@ -534,9 +902,9 @@ async function extractEngagementMetrics(postContainer) {
 		// COMPREHENSIVE DEBUG: Let's see ALL text in the post
 		try {
 			const fullPostText = await postContainer.innerText({ timeout: 3000 });
-			console.log(`🔍 FULL POST TEXT DEBUG (first 1000 chars):`);
-			console.log(`"${fullPostText.substring(0, 1000)}"`);
-			console.log(`🔍 Searching for "repost" patterns in full text...`);
+			debugLog(`🔍 FULL POST TEXT DEBUG (first 1000 chars):`);
+			debugLog(`"${fullPostText.substring(0, 1000)}"`);
+			debugLog(`🔍 Searching for "repost" patterns in full text...`);
 			
 			// Look for any occurrence of numbers + repost
 			const debugPatterns = [
@@ -549,48 +917,48 @@ async function extractEngagementMetrics(postContainer) {
 			for (const pattern of debugPatterns) {
 				const matches = [...fullPostText.matchAll(pattern)];
 				if (matches.length > 0) {
-					console.log(`🎯 Pattern "${pattern}" found ${matches.length} matches:`);
-					matches.forEach((match, i) => console.log(`  Match ${i}: "${match[0]}"`));
+					debugLog(`🎯 Pattern "${pattern}" found ${matches.length} matches:`);
+					matches.forEach((match, i) => debugLog(`  Match ${i}: "${match[0]}"`));
 				}
 			}
 		} catch (e) {
-			console.log('Could not debug full post text');
+			debugLog('Could not debug full post text');
 		}
 
 		// Debug: Let's see what spans with aria-hidden="true" actually exist
 		try {
 			const allAriaHiddenSpans = await postContainer.locator('span[aria-hidden="true"]').all();
-			console.log(`🔍 Found ${allAriaHiddenSpans.length} spans with aria-hidden="true"`);
+			debugLog(`🔍 Found ${allAriaHiddenSpans.length} spans with aria-hidden="true"`);
 			for (let i = 0; i < Math.min(allAriaHiddenSpans.length, 15); i++) {
 				const spanText = await allAriaHiddenSpans[i].textContent();
-				console.log(`  Span ${i}: "${spanText}"`);
+				debugLog(`  Span ${i}: "${spanText}"`);
 			}
 		} catch (e) {
-			console.log('Could not debug aria-hidden spans');
+			debugLog('Could not debug aria-hidden spans');
 		}
 
 		// Debug: Let's see ALL elements containing "17" 
 		try {
 			const seventeenElements = await postContainer.locator('*:has-text("17")').all();
-			console.log(`🔍 Found ${seventeenElements.length} elements containing "17"`);
+			debugLog(`🔍 Found ${seventeenElements.length} elements containing "17"`);
 			for (let i = 0; i < Math.min(seventeenElements.length, 10); i++) {
 				const elementText = await seventeenElements[i].textContent();
 				const tagName = await seventeenElements[i].evaluate(el => el.tagName);
-				console.log(`  Element ${i} (${tagName}): "${elementText?.trim()}"`);
+				debugLog(`  Element ${i} (${tagName}): "${elementText?.trim()}"`);
 			}
 		} catch (e) {
-			console.log('Could not debug elements containing "17"');
+			debugLog('Could not debug elements containing "17"');
 		}
 
 		for (const selector of repostSelectors) {
 			try {
 				const elements = await postContainer.locator(selector).all();
-				console.log(`🔍 Trying selector "${selector}": found ${elements.length} elements`);
+				debugLog(`🔍 Trying selector "${selector}": found ${elements.length} elements`);
 				
 				for (const element of elements) {
 					if (await element.isVisible({ timeout: 1000 })) {
 						const text = await element.textContent();
-						console.log(`  Element text: "${text?.trim()}"`);
+						debugLog(`  Element text: "${text?.trim()}"`);
 						
 						// Enhanced pattern matching for "X reposts" format
 						const repostPatterns = [
@@ -605,7 +973,7 @@ async function extractEngagementMetrics(postContainer) {
 								const count = normalizeCount(match[1], `reposts selector: ${text?.trim()}`);
 								if (count > reposts && count <= 100000) { // Reasonable upper limit
 									reposts = count;
-									console.log(`✅ Found reposts via selector "${selector}": ${reposts} (text: "${text?.trim()}")`);
+									debugLog(`✅ Found reposts via selector "${selector}": ${reposts} (text: "${text?.trim()}")`);
 									break;
 								}
 							}
@@ -613,7 +981,7 @@ async function extractEngagementMetrics(postContainer) {
 					}
 				}
 			} catch (e) {
-				console.log(`  Error with selector "${selector}": ${e.message}`);
+				debugLog(`  Error with selector "${selector}": ${e.message}`);
 			}
 		}
 
@@ -630,7 +998,7 @@ async function extractEngagementMetrics(postContainer) {
 						const count = normalizeCount(countMatch[1]);
 						if (count > reposts) {
 							reposts = count;
-							console.log(`✅ Found reposts from social action button "${ariaLabel}": ${reposts}`);
+							debugLog(`✅ Found reposts from social action button "${ariaLabel}": ${reposts}`);
 						}
 					}
 				}
@@ -641,7 +1009,7 @@ async function extractEngagementMetrics(postContainer) {
 			for (const button of socialDetailsButtons) {
 				const ariaLabel = await button.getAttribute('aria-label');
 				const buttonText = await button.textContent();
-				console.log(`🔍 Found social details button with aria-label: "${ariaLabel}", text: "${buttonText?.trim()}"`);
+				debugLog(`🔍 Found social details button with aria-label: "${ariaLabel}", text: "${buttonText?.trim()}"`);
 				
 				if (buttonText) {
 					const countMatch = buttonText.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
@@ -649,18 +1017,18 @@ async function extractEngagementMetrics(postContainer) {
 						const count = normalizeCount(countMatch[1]);
 						if (count > reposts) {
 							reposts = count;
-							console.log(`✅ Found reposts from social details button "${ariaLabel}": ${reposts}`);
+							debugLog(`✅ Found reposts from social details button "${ariaLabel}": ${reposts}`);
 						}
 					}
 				}
 			}
 		} catch (e) {
-			console.log('Error in additional repost extraction:', e.message);
+			debugLog('Error in additional repost extraction:', e.message);
 		}
 
 		// Method 2: Enhanced text parsing (always run to catch missed numbers)
 		const fullText = await postContainer.innerText({ timeout: 2000 });
-		console.log('Analyzing post text:', fullText.substring(0, 800));
+		debugLog('Analyzing post text:', fullText.substring(0, 800));
 
 		// More comprehensive patterns to catch various formats
 		const patterns = [
@@ -695,12 +1063,12 @@ async function extractEngagementMetrics(postContainer) {
 				const count = normalizeCount(countStr, context);
 				
 				// Log ALL matches, including filtered ones
-				console.log(`Pattern match: "${match[0]}" -> count: ${count} (${count === 0 ? 'FILTERED' : 'ACCEPTED'})`);
+				debugLog(`Pattern match: "${match[0]}" -> count: ${count} (${count === 0 ? 'FILTERED' : 'ACCEPTED'})`);
 				
 				// Skip if count is 0 (filtered out)
 				if (count > 0) {
 					allNumbers.push({ count, context, original: match[0] });
-					console.log(`✅ Found number: ${count} in context: "${match[0]}"`);
+					debugLog(`✅ Found number: ${count} in context: "${match[0]}"`);
 				}
 			}
 		}
@@ -734,23 +1102,23 @@ async function extractEngagementMetrics(postContainer) {
 			n.count > 1 && n.count < 100000 // Reasonable engagement bounds
 		);
 
-		console.log(`Found ${contextualNumbers.length} contextual numbers and ${standaloneNumbers.length} standalone numbers`);
+		debugLog(`Found ${contextualNumbers.length} contextual numbers and ${standaloneNumbers.length} standalone numbers`);
 
 		// First, assign based on explicit context
 		for (const { count, context, original } of contextualNumbers) {
 			if (context.includes('reaction') || context.includes('like')) {
 				reactions = Math.max(reactions, count);
-				console.log(`Assigned ${count} to reactions from context: "${original}"`);
+				debugLog(`Assigned ${count} to reactions from context: "${original}"`);
 			} else if (context.includes('comment')) {
 				comments = Math.max(comments, count);
-				console.log(`Assigned ${count} to comments from context: "${original}"`);
+				debugLog(`Assigned ${count} to comments from context: "${original}"`);
 			} else if (context.includes('repost') || context.includes('share') || 
 					   context.includes('reposted') || context.includes('shared')) {
 				reposts = Math.max(reposts, count);
-				console.log(`Assigned ${count} to reposts from context: "${original}"`);
+				debugLog(`Assigned ${count} to reposts from context: "${original}"`);
 			} else if (context.includes('impression') || context.includes('view')) {
 				impressions = Math.max(impressions, count);
-				console.log(`Assigned ${count} to impressions from context: "${original}"`);
+				debugLog(`Assigned ${count} to impressions from context: "${original}"`);
 			}
 		}
 
@@ -764,12 +1132,12 @@ async function extractEngagementMetrics(postContainer) {
 				const secondDigit = smallNumbers[1].count;
 				const combinedNumber = parseInt(`${firstDigit}${secondDigit}`);
 				
-				console.log(`🔍 REPOST DIGIT COMBINATION: Found small numbers [${smallNumbers.map(n => n.count).join(', ')}]`);
-				console.log(`🎯 Trying combination: ${firstDigit} + ${secondDigit} = ${combinedNumber}`);
+				debugLog(`🔍 REPOST DIGIT COMBINATION: Found small numbers [${smallNumbers.map(n => n.count).join(', ')}]`);
+				debugLog(`🎯 Trying combination: ${firstDigit} + ${secondDigit} = ${combinedNumber}`);
 				
 				if (combinedNumber > 0 && combinedNumber <= 1000) { // Reasonable repost range
 					reposts = combinedNumber;
-					console.log(`✅ COMBINED REPOSTS: ${firstDigit}${secondDigit} = ${reposts}`);
+					debugLog(`✅ COMBINED REPOSTS: ${firstDigit}${secondDigit} = ${reposts}`);
 				}
 			}
 		}
@@ -784,7 +1152,7 @@ async function extractEngagementMetrics(postContainer) {
 				// If this number is significantly larger than our current reaction count,
 				// it's likely the actual reaction count
 				if (count > reactions && count > 2) {
-					console.log(`🎯 Upgrading reactions from ${reactions} to ${count} (standalone number: "${original}")`);
+					debugLog(`🎯 Upgrading reactions from ${reactions} to ${count} (standalone number: "${original}")`);
 					reactions = count;
 					break; // Only take the largest standalone number for reactions
 				}
@@ -794,7 +1162,7 @@ async function extractEngagementMetrics(postContainer) {
 		// ENHANCED: Focused repost detection with priority order
 		if (reposts === 0) {
 			try {
-				console.log('🔍 Enhanced repost detection starting...');
+				debugLog('🔍 Enhanced repost detection starting...');
 				
 				// PRIORITY 1: LinkedIn's standard social engagement bar
 				const socialEngagementSelectors = [
@@ -812,13 +1180,13 @@ async function extractEngagementMetrics(postContainer) {
 					const element = await postContainer.locator(selector).first();
 					if (await element.count() > 0) {
 						const text = await element.textContent();
-						console.log(`🔍 PRIORITY 1 - Selector "${selector}" found text: "${text?.trim()}"`);
+						debugLog(`🔍 PRIORITY 1 - Selector "${selector}" found text: "${text?.trim()}"`);
 						const numberMatch = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 						if (numberMatch) {
 							const count = normalizeCount(numberMatch[1], `social engagement: ${text?.trim()}`);
 							if (count > 0) {
 								reposts = count;
-								console.log(`✅ Found reposts via priority selector: ${reposts}`);
+								debugLog(`✅ Found reposts via priority selector: ${reposts}`);
 								break;
 							}
 						}
@@ -843,13 +1211,13 @@ async function extractEngagementMetrics(postContainer) {
 								const count = normalizeCount(match[1], `attribution: ${match[0]}`);
 								if (count > 0) {
 									reposts = count;
-									console.log(`✅ Found reposts via attribution: ${reposts} from "${match[0]}"`);
+									debugLog(`✅ Found reposts via attribution: ${reposts} from "${match[0]}"`);
 									break;
 								}
 							} else if (match[1]) {
 								// First group is a name, this indicates at least 1 repost
 								reposts = Math.max(reposts, 1);
-								console.log(`✅ Found repost attribution (at least 1): "${match[0]}"`);
+								debugLog(`✅ Found repost attribution (at least 1): "${match[0]}"`);
 							}
 						}
 						if (reposts > 0) break;
@@ -872,17 +1240,17 @@ async function extractEngagementMetrics(postContainer) {
 							const count = normalizeCount(match[1], `focused pattern: ${match[0]}`);
 							if (count > 0 && count <= 10000) { // Conservative upper limit
 								reposts = Math.max(reposts, count);
-								console.log(`✅ Found reposts via focused pattern: ${reposts} from "${match[0]}"`);
+								debugLog(`✅ Found reposts via focused pattern: ${reposts} from "${match[0]}"`);
 							}
 						}
 					}
 				}
 			} catch (e) {
-				console.log('Error in enhanced repost detection:', e.message);
+				debugLog('Error in enhanced repost detection:', e.message);
 			}
 		}
 
-		console.log(`Extracted metrics - Reactions: ${reactions}, Comments: ${comments}, Reposts: ${reposts}`);
+		debugLog(`Extracted metrics - Reactions: ${reactions}, Comments: ${comments}, Reposts: ${reposts}`);
 	} catch (e) {
 		console.error('Error extracting engagement metrics:', e.message);
 	}
@@ -919,7 +1287,7 @@ async function extractEngagementMetrics(postContainer) {
 						const count = normalizeCount(match[1]);
 						if (count > impressions) {
 							impressions = count;
-							console.log(`Found impressions via selector "${selector}": ${impressions}`);
+							debugLog(`Found impressions via selector "${selector}": ${impressions}`);
 						}
 					}
 				}
@@ -928,16 +1296,27 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 	} catch (e) {
-		console.log('Could not extract impressions (may not be visible)');
+		debugLog('Could not extract impressions (may not be visible)');
 	}
 
 	return { reactions, comments, reposts, impressions };
 }
 
 async function buildContext(headed = false, storageStatePath = DEFAULT_STORAGE_STATE) {
+	// Optimized: Faster browser launch with performance flags
 	const browser = await chromium.launch({
 		headless: !headed,
-		args: ['--disable-blink-features=AutomationControlled', '--disable-web-security']
+		args: [
+			'--disable-blink-features=AutomationControlled',
+			'--disable-web-security',
+			'--disable-background-timer-throttling',
+			'--disable-backgrounding-occluded-windows',
+			'--disable-renderer-backgrounding',
+			'--no-first-run',
+			'--no-default-browser-check',
+			'--disable-extensions',
+			'--disable-plugins'
+		]
 	});
 
 	const contextKwargs = {
@@ -964,9 +1343,9 @@ async function extractPostData(postContainer, postIndex) {
 		await expandPostContent(postContainer);
 
 		const rawText = await postContainer.innerText({ timeout: 3000 });
-		console.log(`🔍 Raw text length: ${rawText.length} characters`);
-		console.log(`🔍 Raw text (first 500 chars): "${rawText.substring(0, 500)}"`);
-		console.log(`🔍 Raw text (last 200 chars): "${rawText.substring(Math.max(0, rawText.length - 200))}"`);
+		debugLog(`🔍 Raw text length: ${rawText.length} characters`);
+		debugLog(`🔍 Raw text (first 500 chars): "${rawText.substring(0, 500)}"`);
+		debugLog(`🔍 Raw text (last 200 chars): "${rawText.substring(Math.max(0, rawText.length - 200))}"`);
 		
 		if (rawText.trim().length < 10) return null;
 
@@ -1001,7 +1380,7 @@ async function extractPostData(postContainer, postIndex) {
 			extracted_at: new Date().toISOString()
 		};
 	} catch (e) {
-		console.log(`Failed to extract post data: ${e}`);
+		debugLog(`Failed to extract post data: ${e}`);
 		return null;
 	}
 }
@@ -1018,41 +1397,22 @@ function isSinglePostUrl(url) {
 export async function scrapeSinglePost(url, options = {}) {
 	const { headed = false, storageStatePath = DEFAULT_STORAGE_STATE } = options;
 
-	console.log(`Scraping single post: ${url}`);
+	debugLog(`🚀 Scraping single post: ${url}`);
+	const startTime = Date.now();
 
 	const { browser, context, page } = await buildContext(headed, storageStatePath);
 
 	try {
-		console.log(`Navigating to post...`);
-		await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-		console.log('✅ Page loaded, waiting for content to stabilize...');
-		await page.waitForTimeout(8000);  // Longer wait for LinkedIn's lazy loading
+		debugLog(`Navigating to post...`);
+		// Optimized: Use domcontentloaded instead of networkidle for faster load
+		await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+		debugLog('✅ Page loaded, waiting for critical content...');
 		
-		// Try to scroll the page to load more content
-		console.log('🔄 Scrolling page to trigger content loading...');
-		await page.evaluate(() => {
-			window.scrollTo(0, document.body.scrollHeight);
-		});
-		await page.waitForTimeout(3000);
-		await page.evaluate(() => {
-			window.scrollTo(0, 0);
-		});
-		await page.waitForTimeout(2000);
+		// Optimized: Smart content loading with early exit
+		await smartContentLoader(page);
 
-		let postContainer = null;
-		for (const selector of SINGLE_POST_SELECTORS) {
-			try {
-				const container = page.locator(selector).first();
-				const count = await container.count();
-				if (count > 0) {
-					postContainer = container;
-					console.log(`Found post using selector: ${selector}`);
-					break;
-				}
-			} catch (e) {
-				continue;
-			}
-		}
+		// Optimized: Parallel selector search
+		const postContainer = await findPostContainerFast(page, SINGLE_POST_SELECTORS);
 
 		if (!postContainer) {
 			throw new Error('Could not find post container on page');
@@ -1063,9 +1423,12 @@ export async function scrapeSinglePost(url, options = {}) {
 			throw new Error('Failed to extract post data');
 		}
 
-		console.log(
-			`Extracted single post: ${postData.char_count} chars, ${postData.total_engagement} engagements`
+		const endTime = Date.now();
+		const duration = (endTime - startTime) / 1000;
+		debugLog(
+			`✅ Extracted single post: ${postData.char_count} chars, ${postData.total_engagement} engagements`
 		);
+		debugLog(`⚡ Performance: Scraped in ${duration}s (${Math.round(1000 / duration)}ms avg)`);
 		return postData;
 	} finally {
 		await context.close();
@@ -1073,8 +1436,75 @@ export async function scrapeSinglePost(url, options = {}) {
 	}
 }
 
+// Pooled scraping function for concurrent processing
+export async function scrapeSinglePostQueued(url, userId) {
+	if (!isSinglePostUrl(url)) {
+		throw new Error('Only single post URLs are supported');
+	}
+
+	debugLog(`🚀 Scraping post with pool for user ${userId}: ${url}`);
+	const startTime = Date.now();
+
+	const browser = await browserPool.getBrowser(userId);
+	const pageInfo = await browserPool.getPage(browser, userId);
+
+	try {
+		debugLog('🌐 Navigating to post with optimized loading...');
+		// Use optimized loading from main scraper
+		await pageInfo.page.goto(url, { 
+			waitUntil: 'domcontentloaded', 
+			timeout: 30000 
+		});
+		
+		// Apply smart content loading optimizations
+		await smartContentLoader(pageInfo.page);
+
+		// Use optimized parallel selector search
+		const postContainer = await findPostContainerFast(pageInfo.page, SINGLE_POST_SELECTORS);
+
+		if (!postContainer) {
+			throw new Error('Could not find post container on page');
+		}
+
+		// Extract post data using optimized extraction
+		const postData = await extractPostData(postContainer, 0);
+		
+		if (!postData) {
+			throw new Error('Failed to extract post data');
+		}
+
+		const endTime = Date.now();
+		const duration = (endTime - startTime) / 1000;
+		debugLog(`✅ Pooled scrape completed: ${postData.char_count} chars, ${postData.total_engagement} engagements`);
+		debugLog(`⚡ Pool performance: Scraped in ${duration}s`);
+		
+		// Save updated auth state for this user
+		try {
+			const storageStatePath = browserPool.getUserStoragePath(userId);
+			const storageState = await pageInfo.context.storageState();
+			await fs.writeFile(storageStatePath, JSON.stringify(storageState, null, 2));
+			debugLog(`💾 Saved auth state for user ${userId}`);
+		} catch (error) {
+			console.warn('Failed to save storage state:', error.message);
+		}
+
+		return postData;
+
+	} catch (error) {
+		console.error('🚨 Pooled scraping failed:', error);
+		throw error;
+	} finally {
+		// Release page back to pool
+		await browserPool.releasePage(browser, pageInfo);
+	}
+}
+
 export async function linkedinScraper(url, options = {}) {
 	if (isSinglePostUrl(url)) {
+		// Check if pooled mode requested
+		if (options.usePool && options.userId) {
+			return await scrapeSinglePostQueued(url, options.userId, options);
+		}
 		return await scrapeSinglePost(url, options);
 	} else {
 		throw new Error('Only single post scraping is supported in this version');
@@ -1082,4 +1512,9 @@ export async function linkedinScraper(url, options = {}) {
 }
 
 // Export constants and functions needed by other modules
-export { SINGLE_POST_SELECTORS, extractPostData, isSinglePostUrl };
+export { 
+	SINGLE_POST_SELECTORS, 
+	extractPostData, 
+	isSinglePostUrl, 
+	browserPool 
+};

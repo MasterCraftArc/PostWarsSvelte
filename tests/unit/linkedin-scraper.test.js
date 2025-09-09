@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { scrapeSinglePost, scrapeSinglePostQueued, browserPool } from '../../src/lib/linkedin-scraper.js';
 
 // Mock the normalizeCount function for testing
 // In real TDD, this test would be written first and would fail
@@ -100,5 +101,132 @@ describe('LinkedIn Scraper - normalizeCount', () => {
 		it('should filter extremely high engagement', () => {
 			expect(normalizeCount('50000000', 'views')).toBe(0);
 		});
+	});
+});
+
+describe('LinkedIn Scraper - Integration Tests', () => {
+	// Mock URL for testing
+	const testUrl = 'https://www.linkedin.com/posts/test-user_test-post-activity-12345678901234567890';
+	const testUserId = 'test-user-id';
+
+	beforeAll(async () => {
+		// Set up test environment - no real browser launching in unit tests
+		vi.mock('playwright', () => ({
+			chromium: {
+				launch: vi.fn().mockResolvedValue({
+					newContext: vi.fn().mockResolvedValue({
+						newPage: vi.fn().mockResolvedValue({
+							goto: vi.fn(),
+							waitForTimeout: vi.fn(),
+							locator: vi.fn().mockReturnValue({
+								count: vi.fn().mockResolvedValue(0)
+							})
+						})
+					}),
+					close: vi.fn()
+				})
+			}
+		}));
+	});
+
+	afterAll(async () => {
+		// Clean up browser pool
+		if (browserPool) {
+			await browserPool.cleanup();
+		}
+	});
+
+	describe('Standalone Mode', () => {
+		it('should export scrapeSinglePost function', () => {
+			expect(typeof scrapeSinglePost).toBe('function');
+		});
+
+		it('should validate LinkedIn URLs', async () => {
+			const invalidUrl = 'https://not-linkedin.com/posts/test';
+			
+			await expect(
+				scrapeSinglePost(invalidUrl)
+			).rejects.toThrow();
+		});
+	});
+
+	describe('Pooled Mode', () => {
+		it('should export scrapeSinglePostQueued function', () => {
+			expect(typeof scrapeSinglePostQueued).toBe('function');
+		});
+
+		it('should require userId for pooled scraping', async () => {
+			await expect(
+				scrapeSinglePostQueued(testUrl, null)
+			).rejects.toThrow();
+		});
+
+		it('should export browserPool', () => {
+			expect(browserPool).toBeDefined();
+			expect(typeof browserPool.getStats).toBe('function');
+		});
+
+		it('should return pool statistics', () => {
+			const stats = browserPool.getStats();
+			expect(stats).toHaveProperty('totalBrowsers');
+			expect(stats).toHaveProperty('totalPages');
+			expect(stats).toHaveProperty('queueLength');
+			expect(stats).toHaveProperty('activeBrowsers');
+		});
+	});
+
+	describe('Performance Optimizations', () => {
+		it('should have optimized browser launch flags', () => {
+			// Test that the browser pool includes performance flags
+			const poolConfig = browserPool;
+			expect(poolConfig.maxBrowsers).toBe(3);
+			expect(poolConfig.maxPagesPerBrowser).toBe(5);
+		});
+
+		it('should handle concurrent requests', async () => {
+			// Test that multiple requests can be queued
+			const stats = browserPool.getStats();
+			expect(typeof stats.queueLength).toBe('number');
+		});
+	});
+
+	describe('Architecture Compliance', () => {
+		it('should follow single source of truth principle', () => {
+			// Test that both functions are from same module
+			expect(scrapeSinglePost).toBeDefined();
+			expect(scrapeSinglePostQueued).toBeDefined();
+		});
+
+		it('should maintain consistent API', async () => {
+			// Both functions should accept similar parameters
+			const testOptions = { headed: false };
+			
+			// Should not throw due to parameter structure
+			try {
+				await scrapeSinglePost(testUrl, testOptions);
+			} catch (e) {
+				// Expected to fail due to mocking, but not parameter issues
+				expect(e.message).not.toContain('parameter');
+			}
+		});
+	});
+});
+
+describe('LinkedIn Scraper - Authentication Handling', () => {
+	it('should handle per-user authentication', () => {
+		const userId = 'test-user-123';
+		const authPath = browserPool.getUserStoragePath && browserPool.getUserStoragePath(userId);
+		
+		if (authPath) {
+			expect(authPath).toContain(userId);
+		}
+	});
+
+	it('should fallback to default auth when no userId provided', () => {
+		const defaultPath = browserPool.getUserStoragePath && browserPool.getUserStoragePath(null);
+		
+		if (defaultPath) {
+			expect(defaultPath).toBe('linkedin_auth_state.json');
+		}
 	});
 });

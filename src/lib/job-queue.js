@@ -234,9 +234,8 @@ class JobQueue extends EventEmitter {
 		// Use try-catch to handle environment where scraper is not available
 		let scrapeSinglePostQueued;
 		try {
-			// Dynamic import using variable to avoid static analysis
-			const scraperPath = './linkedin-scraper-pool.js';
-			const scraperModule = await import(scraperPath);
+			// Import from unified scraper
+			const scraperModule = await import('./linkedin-scraper.js');
 			scrapeSinglePostQueued = scraperModule.scrapeSinglePostQueued;
 		} catch (error) {
 			throw new Error('Scraping functionality is not available in this environment. Please use a dedicated worker process.');

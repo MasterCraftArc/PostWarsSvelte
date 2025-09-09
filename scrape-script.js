@@ -34,7 +34,7 @@
     console.log('Environment check - URL present:', !!url, 'KEY present:', !!key);
     
     // Import required modules
-    const { scrapeSinglePost } = await import('./src/lib/linkedin-scraper.js');
+    const { scrapeSinglePostQueued } = await import('./src/lib/linkedin-scraper.js');
     const { 
       calculatePostScore, 
       updateUserStats, 
@@ -43,12 +43,9 @@
     const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
     const { randomUUID } = await import('crypto');
     
-    // Scrape the LinkedIn post
+    // Scrape the LinkedIn post using optimized pooled scraper
     console.log('📡 Scraping LinkedIn post:', linkedinUrl);
-    const scrapedData = await scrapeSinglePost(linkedinUrl, {
-      headed: false,
-      storageStatePath: `linkedin_auth_${userId}.json`
-    });
+    const scrapedData = await scrapeSinglePostQueued(linkedinUrl, userId);
     
     if (!scrapedData) {
       throw new Error('No data could be extracted from the post');

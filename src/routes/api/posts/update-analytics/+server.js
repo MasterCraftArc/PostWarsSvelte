@@ -36,10 +36,10 @@ export async function POST(event) {
 			new Date(b.recordedAt) - new Date(a.recordedAt)
 		);
 
-		// Use the job queue system for scraping with proper error handling
+		// Use the unified scraper for updated data
 		let currentData;
 		try {
-			const { scrapeSinglePostQueued } = await import('$lib/linkedin-scraper-pool.js');
+			const { scrapeSinglePostQueued } = await import('$lib/linkedin-scraper.js');
 			currentData = await scrapeSinglePostQueued(post.url, user.id);
 		} catch (scrapeError) {
 			return json(
