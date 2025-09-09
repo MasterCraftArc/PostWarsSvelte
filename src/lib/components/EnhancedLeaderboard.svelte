@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
+	import { getPostEngagement } from '$lib/engagement.js';
 	import CompanyGoals from './CompanyGoals.svelte';
 
 	let leaderboardData = null;
@@ -12,9 +13,32 @@
 	async function loadLeaderboard() {
 		loading = true;
 		try {
-			// Always load company leaderboard with all time data
-			const data = await authenticatedRequest(`/api/leaderboard?timeframe=all&scope=company`);
-			leaderboardData = data;
+			// Load leaderboard and posts data
+			const [leaderboard, postsData] = await Promise.all([
+				authenticatedRequest(`/api/leaderboard?timeframe=all&scope=company`),
+				authenticatedRequest('/api/admin/posts')
+			]);
+			
+			// Calculate correct engagement from posts data
+			const userEngagement = {};
+			if (postsData?.posts) {
+				postsData.posts.forEach(post => {
+					const userId = post.userId;
+					if (!userEngagement[userId]) {
+						userEngagement[userId] = 0;
+					}
+					userEngagement[userId] += getPostEngagement(post);
+				});
+			}
+			
+			// Update leaderboard with correct engagement
+			if (leaderboard?.leaderboard) {
+				leaderboard.leaderboard.forEach(player => {
+					player.engagementInTimeframe = userEngagement[player.id] || 0;
+				});
+			}
+			
+			leaderboardData = leaderboard;
 			error = '';
 		} catch (err) {
 			error = err.message || 'Failed to load leaderboard';
