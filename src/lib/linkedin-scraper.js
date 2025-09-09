@@ -229,27 +229,62 @@ function cleanText(rawText, authorName = '') {
 }
 
 async function expandPostContent(postContainer) {
+	console.log('🔍 Expanding post content...');
+	
+	// First, scroll the entire post into view to trigger lazy loading
+	try {
+		await postContainer.scrollIntoViewIfNeeded();
+		await postContainer.page().waitForTimeout(2000);
+		console.log('✅ Scrolled post into view');
+	} catch (e) {
+		console.log('Could not scroll post into view');
+	}
+
 	const seeMoreSelectors = [
 		"button:text-matches('see more', 'i')",
 		"button:text-matches('show more', 'i')",
-		'.feed-shared-inline-show-more-text__button'
+		'.feed-shared-inline-show-more-text__button',
+		'.feed-shared-text__see-more-link',
+		'button[aria-expanded="false"]'
 	];
 
+	let expanded = false;
 	for (const selector of seeMoreSelectors) {
 		try {
 			const button = postContainer.locator(selector).first();
 			const count = await button.count();
 			if (count > 0 && (await button.isVisible())) {
+				console.log(`🔄 Clicking expand button: ${selector}`);
 				await button.scrollIntoViewIfNeeded();
 				await button.click();
-				await postContainer.page().waitForTimeout(1500);
-				return true;
+				await postContainer.page().waitForTimeout(2000);
+				expanded = true;
+				break;
 			}
 		} catch (e) {
 			continue;
 		}
 	}
-	return false;
+	
+	// Additional wait for content to fully load after expansion
+	if (expanded) {
+		console.log('✅ Post expanded, waiting for content to load...');
+		await postContainer.page().waitForTimeout(3000);
+	}
+	
+	// Scroll to bottom of post to ensure engagement section is loaded
+	try {
+		const engagementSection = postContainer.locator('.feed-shared-social-action-bar, .social-details-social-counts').first();
+		if (await engagementSection.count() > 0) {
+			await engagementSection.scrollIntoViewIfNeeded();
+			await postContainer.page().waitForTimeout(1000);
+			console.log('✅ Scrolled engagement section into view');
+		}
+	} catch (e) {
+		console.log('Could not scroll to engagement section');
+	}
+	
+	return expanded;
 }
 
 async function extractAuthorData(postContainer) {
@@ -949,8 +984,9 @@ export async function scrapeSinglePost(url, options = {}) {
 
 	try {
 		console.log(`Navigating to post...`);
-		await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-		await page.waitForTimeout(5000);
+		await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+		console.log('✅ Page loaded, waiting for content to stabilize...');
+		await page.waitForTimeout(8000);  // Longer wait for LinkedIn's lazy loading
 
 		let postContainer = null;
 		for (const selector of SINGLE_POST_SELECTORS) {
