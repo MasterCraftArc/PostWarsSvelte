@@ -484,16 +484,55 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 
+		// COMPREHENSIVE DEBUG: Let's see ALL text in the post
+		try {
+			const fullPostText = await postContainer.innerText({ timeout: 3000 });
+			console.log(`🔍 FULL POST TEXT DEBUG (first 1000 chars):`);
+			console.log(`"${fullPostText.substring(0, 1000)}"`);
+			console.log(`🔍 Searching for "repost" patterns in full text...`);
+			
+			// Look for any occurrence of numbers + repost
+			const debugPatterns = [
+				/\d+.*?repost/gi,
+				/repost.*?\d+/gi,
+				/\d+\s+repost/gi,
+				/17/gi  // Specifically look for "17"
+			];
+			
+			for (const pattern of debugPatterns) {
+				const matches = [...fullPostText.matchAll(pattern)];
+				if (matches.length > 0) {
+					console.log(`🎯 Pattern "${pattern}" found ${matches.length} matches:`);
+					matches.forEach((match, i) => console.log(`  Match ${i}: "${match[0]}"`));
+				}
+			}
+		} catch (e) {
+			console.log('Could not debug full post text');
+		}
+
 		// Debug: Let's see what spans with aria-hidden="true" actually exist
 		try {
 			const allAriaHiddenSpans = await postContainer.locator('span[aria-hidden="true"]').all();
 			console.log(`🔍 Found ${allAriaHiddenSpans.length} spans with aria-hidden="true"`);
-			for (let i = 0; i < Math.min(allAriaHiddenSpans.length, 10); i++) {
+			for (let i = 0; i < Math.min(allAriaHiddenSpans.length, 15); i++) {
 				const spanText = await allAriaHiddenSpans[i].textContent();
 				console.log(`  Span ${i}: "${spanText}"`);
 			}
 		} catch (e) {
 			console.log('Could not debug aria-hidden spans');
+		}
+
+		// Debug: Let's see ALL elements containing "17" 
+		try {
+			const seventeenElements = await postContainer.locator('*:has-text("17")').all();
+			console.log(`🔍 Found ${seventeenElements.length} elements containing "17"`);
+			for (let i = 0; i < Math.min(seventeenElements.length, 10); i++) {
+				const elementText = await seventeenElements[i].textContent();
+				const tagName = await seventeenElements[i].evaluate(el => el.tagName);
+				console.log(`  Element ${i} (${tagName}): "${elementText?.trim()}"`);
+			}
+		} catch (e) {
+			console.log('Could not debug elements containing "17"');
 		}
 
 		for (const selector of repostSelectors) {
