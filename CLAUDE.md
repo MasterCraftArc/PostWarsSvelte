@@ -7,37 +7,8 @@
 **Impact:** Inflated scores and incorrect leaderboard rankings  
 **Status:** 🔥 **CRITICAL** - Must be fixed before production use  
 
-### Issue #2: Leaderboard Engagement Display  
-**Problem:** Leaderboard not showing actual post engagement from database  
-**Impact:** Users cannot see real engagement metrics  
-**Status:** 🔥 **CRITICAL** - Affects user experience  
+  
 
-### Issue #6: Post Submission Confirmation  
-**Problem:** Users receive no confirmation when they submit a post  
-**Impact:** Users don't know if their submission was received (scraping happens 1-2x daily)  
-**Status:** 🟡 **HIGH** - Poor user experience  
-**Requirements:**
-- Show immediate confirmation after post submission
-- Display all submitted posts in "Recent Posts" section
-- Include points breakdown per post for transparency
-
-### Issue #7: Missing Engagement Rules Documentation  
-**Problem:** Users don't understand the scoring system or engagement rules  
-**Impact:** Users can't optimize their posts or understand point calculations  
-**Status:** 🟡 **HIGH** - User confusion  
-**Requirements:**
-- Add scoring rules explanation to submit post page
-- Provide tl;dr + link to full documentation
-- Show current scoring config (BASE_POST_POINTS: 1, REACTION_POINTS: 0.1, etc.)
-
-### Issue #8: Team System Clarity  
-**Problem:** Users don't understand team mechanics (Active Goals, team joining/switching)  
-**Impact:** Users confused about team features and how to participate  
-**Status:** 🟡 **HIGH** - Feature adoption blocker  
-**Requirements:**
-- Explain what "Active Goals" and "Questions" sections mean
-- Clarify team assignment process
-- Add team joining/switching functionality or explanation
 
 ## ✅ RESOLVED ISSUES
 
@@ -54,6 +25,22 @@
 ### ✅ Issue #5: GitHub Actions Compatibility (FIXED - Jan 2025)  
 **Problem:** Import chain issues causing CI/CD failures  
 **Solution:** Fixed all workflows to use correct modules  
+
+### ✅ Issue #6: Post Submission Confirmation (FIXED - Jan 2025)
+**Problem:** Users receive no confirmation when they submit a post  
+**Solution:** Added immediate confirmation and "Recent Posts" section with points breakdown
+
+### ✅ Issue #7: Missing Engagement Rules Documentation (FIXED - Jan 2025)
+**Problem:** Users don't understand the scoring system or engagement rules  
+**Solution:** Added scoring rules explanation to submit post page with current config
+
+### ✅ Issue #8: Team System Clarity (FIXED - Jan 2025)
+**Problem:** Users don't understand team mechanics (Active Goals, team joining/switching)  
+**Solution:** Added explanations for Active Goals, Questions sections, and team mechanics
+
+### ✅ Issue #2: Leaderboard Engagement Display (FIXED - Jan 2025)
+**Problem:** Leaderboard not showing actual post engagement from database  
+**Solution:** Created shared engagement utility in $lib/engagement.js, updated leaderboard to calculate engagement from individual fields (reactions + comments + reposts)
 
 ---
 
@@ -377,6 +364,5 @@ npm run lint
 
 **Last Updated:** January 2025  
 **Architecture Status:** ✅ Clean  
-**Critical Issues:** 2 remaining  
-**High Priority Issues:** 3 new (user feedback)  
-**Technical Debt:** Low  
+**Critical Issues:** 1 remaining (LinkedIn scraper engagement parsing)  
+**Technical Debt:** Low
