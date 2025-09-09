@@ -1,8 +1,13 @@
 <script>
-	import { user } from '$lib/stores/auth.js';
-	import { onMount } from 'svelte';
+	import { user, loading } from '$lib/stores/auth.js';
+	import { goto } from '$app/navigation';
 
-
+	// Svelte 5 effect to handle authenticated users - redirect to dashboard
+	$effect(() => {
+		if ($user && !$loading) {
+			goto('/dashboard');
+		}
+	});
 </script>
 
 <!-- Home page uses the same background as other pages (from layout) -->

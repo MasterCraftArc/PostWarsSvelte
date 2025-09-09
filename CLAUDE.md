@@ -22,6 +22,27 @@
 
 **Next Steps:** Choose authentication method and create `linkedin_auth_state.json`
 
+### Issue #2: SSO Login Friction  
+**Problem:** Users who created accounts still face login friction when returning to the app  
+**Symptoms:** Page recognizes returning users but still requires manual login process  
+**User Impact:** Reduces user retention and creates unnecessary authentication friction  
+**Status:** 🚧 **HIGH PRIORITY** - UX improvement needed  
+
+**Current Behavior:**
+- Users see recognition of previous session
+- Still required to manually authenticate via SSO
+- No seamless automatic login for returning users
+
+**Desired Solution:** 
+- Integrate with SSO providers for seamless login
+- Remember user preferences and session state
+- Reduce authentication steps for returning users
+
+**Technical Requirements:**
+- SSO integration (Auth0, Firebase Auth, or similar)
+- Session persistence and validation
+- Automatic login flow for recognized users
+
 
 ## ✅ RESOLVED ISSUES
 
@@ -51,9 +72,13 @@
 **Problem:** Users don't understand team mechanics (Active Goals, team joining/switching)  
 **Solution:** Added explanations for Active Goals, Questions sections, and team mechanics
 
-### ✅ Issue #2: Leaderboard Engagement Display (FIXED - Jan 2025)
+### ✅ Issue #9: Leaderboard Engagement Display (FIXED - Jan 2025)
 **Problem:** Leaderboard not showing actual post engagement from database  
 **Solution:** Created shared engagement utility in $lib/engagement.js, updated leaderboard to calculate engagement from individual fields (reactions + comments + reposts)
+
+### ✅ Issue #10: User Achievements Display (FIXED - Jan 2025)
+**Problem:** Leaderboard lacked recent achievement information for users  
+**Solution:** Added achievements store system and API endpoint, integrated recent achievements display in leaderboard with proper Svelte 5 syntax
 
 ---
 
@@ -452,5 +477,7 @@ npm run lint
 
 **Last Updated:** January 2025  
 **Architecture Status:** ✅ Clean  
-**Critical Issues:** 1 remaining (LinkedIn scraper engagement parsing)  
+**Critical Issues:** 1 remaining (LinkedIn scraper authentication)  
+**High Priority Issues:** 1 (SSO login friction)
 **Technical Debt:** Low
+- claude.md
