@@ -2,21 +2,12 @@
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
+	import CompanyGoals from './CompanyGoals.svelte';
 
 	let leaderboardData = null;
-	let companyGoals = null;
 	let loading = true;
 	let error = '';
 
-	async function loadCompanyGoals() {
-		try {
-			const data = await authenticatedRequest('/api/goals/company');
-			companyGoals = data;
-		} catch (err) {
-			console.error('Failed to load company goals:', err);
-			companyGoals = null;
-		}
-	}
 
 	async function loadLeaderboard() {
 		loading = true;
@@ -25,9 +16,6 @@
 			const data = await authenticatedRequest(`/api/leaderboard?timeframe=all&scope=company`);
 			leaderboardData = data;
 			error = '';
-			
-			// Load company goals
-			await loadCompanyGoals();
 		} catch (err) {
 			error = err.message || 'Failed to load leaderboard';
 		}
@@ -47,35 +35,6 @@
 		}
 	}
 
-	function getGoalTypeLabel(type) {
-		switch (type) {
-			case 'POSTS_COUNT':
-				return 'Posts';
-			case 'TOTAL_ENGAGEMENT':
-				return 'Total Engagement';
-			case 'AVERAGE_ENGAGEMENT':
-				return 'Average Engagement';
-			case 'TEAM_SCORE':
-				return 'Total Score';
-			default:
-				return type;
-		}
-	}
-
-	function getGoalIcon(type) {
-		switch (type) {
-			case 'POSTS_COUNT':
-				return '📝';
-			case 'TOTAL_ENGAGEMENT':
-				return '💬';
-			case 'AVERAGE_ENGAGEMENT':
-				return '⭐';
-			case 'TEAM_SCORE':
-				return '🎯';
-			default:
-				return '🎯';
-		}
-	}
 
 	// Reactive statement to load leaderboard when user becomes available
 	$: {
@@ -120,68 +79,7 @@
 	<div class="space-y-6">
 
 		<!-- Company Goals Progress -->
-		{#if companyGoals?.goals && companyGoals.goals.length > 0}
-			<div
-				class="rounded-xl p-6 shadow-lg backdrop-blur-md"
-				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
-			>
-				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-xl font-bold" style="color:#fdfdfd;">
-						Company Goals Progress
-					</h3>
-					<div class="text-sm" style="color:#cbd5e1;">
-						{companyGoals.completedGoals} of {companyGoals.totalGoals} completed
-					</div>
-				</div>
-
-				<div class="space-y-4">
-					{#each companyGoals.goals as goal}
-						<div
-							class="rounded-lg p-4 backdrop-blur-md"
-							style="background-color:rgba(16,35,73,0.28); border:1px solid {goal.isCompleted ? '#22c55e' : '#24b0ff'};"
-						>
-							<div class="flex items-center justify-between mb-3">
-								<div>
-									<h4 class="font-semibold" style="color:#fdfdfd;">
-										{goal.title}
-									</h4>
-									<p class="text-sm" style="color:#94a3b8;">
-										{getGoalTypeLabel(goal.type)}
-										{#if goal.daysLeft > 0}
-											• {goal.daysLeft} days left
-										{:else}
-											• Deadline reached
-										{/if}
-									</p>
-								</div>
-								<div class="text-right">
-									<div class="text-lg font-bold" style="color:{goal.isCompleted ? '#22c55e' : '#fdfdfd'};">
-										{goal.currentValue.toLocaleString()} / {goal.targetValue.toLocaleString()}
-									</div>
-									<div class="text-sm" style="color:{goal.isCompleted ? '#22c55e' : '#24b0ff'};">
-										{goal.progressPercent}%
-									</div>
-								</div>
-							</div>
-
-							<!-- Progress Bar -->
-							<div class="w-full rounded-full h-2" style="background-color:rgba(16,35,73,0.5);">
-								<div
-									class="h-2 rounded-full transition-all duration-300"
-									style="width: {goal.progressPercent}%; background-color: {goal.isCompleted ? '#22c55e' : '#24b0ff'};"
-								></div>
-							</div>
-
-							{#if goal.description}
-								<p class="text-xs mt-2" style="color:#94a3b8;">
-									{goal.description}
-								</p>
-							{/if}
-						</div>
-					{/each}
-				</div>
-			</div>
-		{/if}
+		<CompanyGoals />
 
 		<!-- Scrollable Leaderboard -->
 		{#if loading}

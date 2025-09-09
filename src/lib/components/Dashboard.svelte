@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
-	import TeamProgress from './TeamProgress.svelte';
+	import CompanyGoals from './CompanyGoals.svelte';
 	let dashboardData = null;
 	let loading = true;
 	let error = '';
@@ -164,8 +164,8 @@
 				</div>
 			{/if}
 
-			<!-- Team Progress -->
-			<TeamProgress />
+			<!-- Company Goals -->
+			<CompanyGoals />
 
 			<!-- Recent Posts (GLASS) -->
 			<div
