@@ -10,8 +10,9 @@ async function testScraperSpeed() {
     // Test URL (using a fake URL since we don't have auth setup in test environment)
     const testUrl = 'https://www.linkedin.com/posts/test-post-123';
     
+    const startTime = Date.now();
+    
     try {
-        const startTime = Date.now();
         console.log('⏱️  Starting scraper test...');
         
         // This will fail due to auth, but we can measure the setup time
