@@ -754,6 +754,26 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 
+		// SPECIAL CASE: Check for split repost numbers (e.g., "2" and "1" should be "21")
+		if (reposts === 0) {
+			// Look for adjacent small numbers in standalone list that might be split repost count
+			const smallNumbers = standaloneNumbers.filter(n => n.count >= 1 && n.count <= 9).sort((a, b) => a.count - b.count);
+			if (smallNumbers.length >= 2) {
+				// Try combining first two small numbers as digits
+				const firstDigit = smallNumbers[0].count;
+				const secondDigit = smallNumbers[1].count;
+				const combinedNumber = parseInt(`${firstDigit}${secondDigit}`);
+				
+				console.log(`🔍 REPOST DIGIT COMBINATION: Found small numbers [${smallNumbers.map(n => n.count).join(', ')}]`);
+				console.log(`🎯 Trying combination: ${firstDigit} + ${secondDigit} = ${combinedNumber}`);
+				
+				if (combinedNumber > 0 && combinedNumber <= 1000) { // Reasonable repost range
+					reposts = combinedNumber;
+					console.log(`✅ COMBINED REPOSTS: ${firstDigit}${secondDigit} = ${reposts}`);
+				}
+			}
+		}
+
 		// Then, if we have standalone numbers that are larger than our contextual finds,
 		// assign the largest ones to reactions (most common engagement metric)
 		if (standaloneNumbers.length > 0) {
@@ -792,6 +812,7 @@ async function extractEngagementMetrics(postContainer) {
 					const element = await postContainer.locator(selector).first();
 					if (await element.count() > 0) {
 						const text = await element.textContent();
+						console.log(`🔍 PRIORITY 1 - Selector "${selector}" found text: "${text?.trim()}"`);
 						const numberMatch = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 						if (numberMatch) {
 							const count = normalizeCount(numberMatch[1], `social engagement: ${text?.trim()}`);
