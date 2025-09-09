@@ -83,6 +83,62 @@ function extractPostIdFromText(text) {
 	return crypto.createHash('md5').update(cleanText).digest('hex').substring(0, 16);
 }
 
+// Optimized: Smart content loading with adaptive timing
+async function smartContentLoader(page) {
+	console.log('🚀 Smart content loading...');
+	
+	// Quick scroll to trigger lazy loading
+	await page.evaluate(() => {
+		window.scrollTo(0, document.body.scrollHeight);
+		window.scrollTo(0, 0);
+	});
+	
+	// Wait for key selectors to appear instead of fixed timeout
+	try {
+		await Promise.race([
+			page.waitForSelector('.feed-shared-update-v2', { timeout: 3000 }),
+			page.waitForSelector("[data-urn*='urn:li:activity']", { timeout: 3000 }),
+			page.waitForTimeout(2000) // Fallback timeout
+		]);
+		console.log('✅ Content loaded quickly');
+	} catch (e) {
+		console.log('⚠️ Using fallback content loading');
+		await page.waitForTimeout(1000);
+	}
+}
+
+// Optimized: Parallel selector search
+async function findPostContainerFast(page, selectors) {
+	console.log('🔍 Searching for post container...');
+	
+	// Try all selectors in parallel
+	const promises = selectors.map(async (selector, index) => {
+		try {
+			const container = page.locator(selector).first();
+			const count = await container.count();
+			if (count > 0) {
+				return { container, selector, index };
+			}
+			return null;
+		} catch (e) {
+			return null;
+		}
+	});
+	
+	const results = await Promise.allSettled(promises);
+	const found = results
+		.filter(result => result.status === 'fulfilled' && result.value)
+		.map(result => result.value)
+		.sort((a, b) => a.index - b.index); // Maintain selector priority order
+	
+	if (found.length > 0) {
+		console.log(`✅ Found post using selector: ${found[0].selector}`);
+		return found[0].container;
+	}
+	
+	return null;
+}
+
 function parseRelativeTime(timeText) {
 	if (!timeText) {
 		return new Date().toISOString().split('T')[0];
@@ -231,10 +287,9 @@ function cleanText(rawText, authorName = '') {
 async function expandPostContent(postContainer) {
 	console.log('🔍 Expanding post content...');
 	
-	// First, scroll the entire post into view to trigger lazy loading
+	// Optimized: Scroll into view without waiting
 	try {
 		await postContainer.scrollIntoViewIfNeeded();
-		await postContainer.page().waitForTimeout(2000);
 		console.log('✅ Scrolled post into view');
 	} catch (e) {
 		console.log('Could not scroll post into view');
@@ -260,36 +315,44 @@ async function expandPostContent(postContainer) {
 		'a:has-text("more")'
 	];
 
-	let expanded = false;
-	for (const selector of seeMoreSelectors) {
+	// Optimized: Try all expand buttons in parallel, click first available
+	const expandPromises = seeMoreSelectors.map(async (selector) => {
 		try {
 			const button = postContainer.locator(selector).first();
 			const count = await button.count();
 			if (count > 0 && (await button.isVisible())) {
-				console.log(`🔄 Clicking expand button: ${selector}`);
-				await button.scrollIntoViewIfNeeded();
-				await button.click();
-				await postContainer.page().waitForTimeout(2000);
-				expanded = true;
-				break;
+				return { button, selector };
 			}
 		} catch (e) {
-			continue;
+			return null;
+		}
+		return null;
+	});
+	
+	let expanded = false;
+	const expandResults = await Promise.allSettled(expandPromises);
+	const availableButton = expandResults
+		.filter(result => result.status === 'fulfilled' && result.value)
+		.map(result => result.value)[0];
+	
+	if (availableButton) {
+		console.log(`🔄 Clicking expand button: ${availableButton.selector}`);
+		try {
+			await availableButton.button.scrollIntoViewIfNeeded();
+			await availableButton.button.click();
+			// Optimized: Shorter wait after click
+			await postContainer.page().waitForTimeout(800);
+			expanded = true;
+		} catch (e) {
+			console.log('Failed to click expand button');
 		}
 	}
 	
-	// Additional wait for content to fully load after expansion
-	if (expanded) {
-		console.log('✅ Post expanded, waiting for content to load...');
-		await postContainer.page().waitForTimeout(3000);
-	}
-	
-	// Scroll to bottom of post to ensure engagement section is loaded
+	// Optimized: Ensure engagement section visibility without timeout
 	try {
 		const engagementSection = postContainer.locator('.feed-shared-social-action-bar, .social-details-social-counts').first();
 		if (await engagementSection.count() > 0) {
 			await engagementSection.scrollIntoViewIfNeeded();
-			await postContainer.page().waitForTimeout(1000);
 			console.log('✅ Scrolled engagement section into view');
 		}
 	} catch (e) {
@@ -300,6 +363,8 @@ async function expandPostContent(postContainer) {
 }
 
 async function extractAuthorData(postContainer) {
+	console.log('👤 Extracting author data...');
+	
 	const nameSelectors = [
 		'.update-components-actor__name',
 		'.feed-shared-actor__name',
@@ -310,16 +375,15 @@ async function extractAuthorData(postContainer) {
 		'.feed-shared-update-v2__actor-name'
 	];
 
-	let authorName = '';
-
-	for (const selector of nameSelectors) {
+	// Optimized: Parallel author name extraction
+	const namePromises = nameSelectors.map(async (selector) => {
 		try {
 			const elements = await postContainer.locator(selector).all();
 			for (const nameEl of elements) {
 				const count = await nameEl.count();
 				if (count === 0) continue;
 
-				const nameText = await nameEl.innerText({ timeout: 1000 });
+				const nameText = await nameEl.innerText({ timeout: 500 }); // Reduced timeout
 				if (nameText && nameText.trim().length > 1) {
 					const cleanName = nameText.trim();
 
@@ -333,18 +397,22 @@ async function extractAuthorData(postContainer) {
 					if (skipPatterns.some((pattern) => pattern.test(cleanName))) continue;
 
 					if (cleanName.length >= 2 && cleanName.length <= 100 && !cleanName.match(/^\d+$/)) {
-						authorName = cleanName;
-						break;
+						return cleanName;
 					}
 				}
 			}
-			if (authorName) break;
 		} catch (e) {
-			continue;
+			return null;
 		}
-	}
+		return null;
+	});
 
-	return { name: authorName };
+	const nameResults = await Promise.allSettled(namePromises);
+	const foundName = nameResults
+		.filter(result => result.status === 'fulfilled' && result.value)
+		.map(result => result.value)[0];
+
+	return { name: foundName || '' };
 }
 
 async function extractPostIdentifiers(postContainer, postIndex) {
@@ -935,9 +1003,20 @@ async function extractEngagementMetrics(postContainer) {
 }
 
 async function buildContext(headed = false, storageStatePath = DEFAULT_STORAGE_STATE) {
+	// Optimized: Faster browser launch with performance flags
 	const browser = await chromium.launch({
 		headless: !headed,
-		args: ['--disable-blink-features=AutomationControlled', '--disable-web-security']
+		args: [
+			'--disable-blink-features=AutomationControlled',
+			'--disable-web-security',
+			'--disable-background-timer-throttling',
+			'--disable-backgrounding-occluded-windows',
+			'--disable-renderer-backgrounding',
+			'--no-first-run',
+			'--no-default-browser-check',
+			'--disable-extensions',
+			'--disable-plugins'
+		]
 	});
 
 	const contextKwargs = {
@@ -1018,41 +1097,22 @@ function isSinglePostUrl(url) {
 export async function scrapeSinglePost(url, options = {}) {
 	const { headed = false, storageStatePath = DEFAULT_STORAGE_STATE } = options;
 
-	console.log(`Scraping single post: ${url}`);
+	console.log(`🚀 Scraping single post: ${url}`);
+	const startTime = Date.now();
 
 	const { browser, context, page } = await buildContext(headed, storageStatePath);
 
 	try {
 		console.log(`Navigating to post...`);
-		await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-		console.log('✅ Page loaded, waiting for content to stabilize...');
-		await page.waitForTimeout(8000);  // Longer wait for LinkedIn's lazy loading
+		// Optimized: Use domcontentloaded instead of networkidle for faster load
+		await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+		console.log('✅ Page loaded, waiting for critical content...');
 		
-		// Try to scroll the page to load more content
-		console.log('🔄 Scrolling page to trigger content loading...');
-		await page.evaluate(() => {
-			window.scrollTo(0, document.body.scrollHeight);
-		});
-		await page.waitForTimeout(3000);
-		await page.evaluate(() => {
-			window.scrollTo(0, 0);
-		});
-		await page.waitForTimeout(2000);
+		// Optimized: Smart content loading with early exit
+		await smartContentLoader(page);
 
-		let postContainer = null;
-		for (const selector of SINGLE_POST_SELECTORS) {
-			try {
-				const container = page.locator(selector).first();
-				const count = await container.count();
-				if (count > 0) {
-					postContainer = container;
-					console.log(`Found post using selector: ${selector}`);
-					break;
-				}
-			} catch (e) {
-				continue;
-			}
-		}
+		// Optimized: Parallel selector search
+		const postContainer = await findPostContainerFast(page, SINGLE_POST_SELECTORS);
 
 		if (!postContainer) {
 			throw new Error('Could not find post container on page');
@@ -1063,9 +1123,12 @@ export async function scrapeSinglePost(url, options = {}) {
 			throw new Error('Failed to extract post data');
 		}
 
+		const endTime = Date.now();
+		const duration = (endTime - startTime) / 1000;
 		console.log(
-			`Extracted single post: ${postData.char_count} chars, ${postData.total_engagement} engagements`
+			`✅ Extracted single post: ${postData.char_count} chars, ${postData.total_engagement} engagements`
 		);
+		console.log(`⚡ Performance: Scraped in ${duration}s (${Math.round(1000 / duration)}ms avg)`);
 		return postData;
 	} finally {
 		await context.close();
