@@ -67,12 +67,12 @@ jobs:
             console.log(\`📋 Found \${jobs.length} jobs to process\`);
             
             // Import required modules
-            const { scrapeSinglePostQueued } = await import('./src/lib/linkedin-scraper-pool.js');
+            const { scrapeSinglePost } = await import('./src/lib/linkedin-scraper.js');
             const { 
               calculatePostScore, 
               updateUserStats, 
               checkAndAwardAchievements 
-            } = await import('./src/lib/gamification-node.js');
+            } = await import('./src/lib/gamification.js');
             const { randomUUID } = await import('crypto');
             
             // Process each job
@@ -94,7 +94,7 @@ jobs:
                 
                 // Scrape the LinkedIn post
                 console.log('📡 Scraping LinkedIn post:', linkedinUrl);
-                const scrapedData = await scrapeSinglePostQueued(linkedinUrl, userId);
+                const scrapedData = await scrapeSinglePost(linkedinUrl, { userId });
                 
                 if (!scrapedData) {
                   throw new Error('No data could be extracted from the post');
