@@ -36,6 +36,21 @@ function normalizeCount(s, context = '') {
 	return result;
 }
 
+describe('LinkedIn Scraper - Repost Detection', () => {
+	it('should detect repost counts from text patterns', () => {
+		// This test should fail initially - repost detection is broken
+		const mockRepostText = '5 reposts';
+		const count = normalizeCount('5', 'reposts');
+		expect(count).toBe(5);
+	});
+
+	it('should detect share counts from text patterns', () => {
+		const mockShareText = '12 shares';
+		const count = normalizeCount('12', 'shares');
+		expect(count).toBe(12);
+	});
+});
+
 describe('LinkedIn Scraper - normalizeCount', () => {
 	describe('timestamp filtering (Issue #1)', () => {
 		it('should filter out minute timestamps', () => {

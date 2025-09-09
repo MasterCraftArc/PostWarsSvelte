@@ -435,6 +435,11 @@ async function extractEngagementMetrics(postContainer) {
 		];
 
 		const repostSelectors = [
+			// WORKING PATTERNS: From successful Python scraper
+			'.social-details-social-counts__reposts',
+			'[aria-label*="repost"]',
+			'[aria-label*="share"]', 
+			'.feed-shared-social-count-reposts',
 			// PRIORITY: Exact DOM pattern from LinkedIn (2024 structure)
 			'.social-details-social-counts__btn[aria-label*="reposts"] span[aria-hidden="true"]',
 			'.social-details-social-counts__btn[aria-label*="shares"] span[aria-hidden="true"]',
