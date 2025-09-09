@@ -7,6 +7,7 @@ import { supabase } from '$lib/supabase.js';
 export const user = writable(null);
 export const session = writable(null);
 export const loading = writable(true);
+export const sessionChecked = writable(false); // Track if initial session check is complete
 
 // Store reference to avoid conflicts
 const sessionStore = session;
@@ -19,10 +20,14 @@ if (browser) {
 		sessionStore.set(initialSession);
 		if (initialSession) {
 			syncUserData(initialSession);
+		} else {
+			// No session found, but check is complete
+			sessionChecked.set(true);
 		}
 		loading.set(false);
 	}).catch(error => {
 		loading.set(false);
+		sessionChecked.set(true);
 	});
 
 	// Listen for auth changes
@@ -34,6 +39,7 @@ if (browser) {
 			user.set(null);
 		}
 		loading.set(false);
+		sessionChecked.set(true);
 	});
 }
 
@@ -67,6 +73,9 @@ async function syncUserData(sessionData) {
 			name: sessionData.user.user_metadata?.name || sessionData.user.user_metadata?.full_name || null,
 			role: 'REGULAR' // Default role
 		});
+	} finally {
+		// Mark session check as complete
+		sessionChecked.set(true);
 	}
 }
 
