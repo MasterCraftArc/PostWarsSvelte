@@ -1,4 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { config } from 'dotenv';
+
+// Load environment variables for Node.js compatibility
+config();
 
 // Node.js-compatible Supabase client using process.env
 const PUBLIC_SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL;
@@ -26,7 +30,7 @@ function getSupabaseAdmin() {
 
 // Export the admin client as a getter
 export const supabaseAdmin = new Proxy({}, {
-	get(target, prop) {
+	get(_target, prop) {
 		const admin = getSupabaseAdmin();
 		if (!admin) {
 			throw new Error('Supabase admin client not initialized. Check environment variables.');
