@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase-node.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
-import { checkAndAwardAchievements } from '$lib/gamification-node.js';
+import { checkAndAwardAchievements } from '$lib/gamification.js';
 
 export async function POST(event) {
 	try {

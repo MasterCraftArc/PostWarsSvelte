@@ -39,7 +39,7 @@
       calculatePostScore, 
       updateUserStats, 
       checkAndAwardAchievements 
-    } = await import('./src/lib/gamification-node.js');
+    } = await import('./src/lib/gamification.js');
     const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
     const { randomUUID } = await import('crypto');
     
