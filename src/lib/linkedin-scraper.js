@@ -42,9 +42,15 @@ const REMOVE_PATTERNS = [
 	/^React\s+Comment\s+(?:Repost|Share)\s+Send$/
 ];
 
-function normalizeCount(s) {
+function normalizeCount(s, context = '') {
 	const cleanStr = s.toString().trim().replace(/,/g, '').replace(/\s/g, '');
 	if (!cleanStr) return 0;
+
+	// CRITICAL: Filter out time patterns that are mistaken for engagement
+	if (cleanStr.match(/^\d+[wdhms]$/i)) {
+		console.log(`🚫 Filtered time pattern: "${cleanStr}" in context: "${context}"`);
+		return 0;
+	}
 
 	const match = cleanStr.match(/(\d+(?:\.\d+)?)\s*([KkMm])?/);
 	if (!match) return 0;
@@ -58,7 +64,18 @@ function normalizeCount(s) {
 		value *= 1000000;
 	}
 
-	return Math.floor(value);
+	const result = Math.floor(value);
+
+	// Additional validation: engagement numbers should be reasonable (allow higher for views/impressions)
+	const isViewsOrImpressions = context.includes('view') || context.includes('impression');
+	const maxLimit = isViewsOrImpressions ? 10000000 : 1000000;
+	
+	if (result > maxLimit) {
+		console.log(`🚫 Filtered unrealistic engagement: ${result} in context: "${context}"`);
+		return 0;
+	}
+
+	return result;
 }
 
 function extractPostIdFromText(text) {
@@ -212,27 +229,74 @@ function cleanText(rawText, authorName = '') {
 }
 
 async function expandPostContent(postContainer) {
+	console.log('🔍 Expanding post content...');
+	
+	// First, scroll the entire post into view to trigger lazy loading
+	try {
+		await postContainer.scrollIntoViewIfNeeded();
+		await postContainer.page().waitForTimeout(2000);
+		console.log('✅ Scrolled post into view');
+	} catch (e) {
+		console.log('Could not scroll post into view');
+	}
+
 	const seeMoreSelectors = [
+		// Text-based selectors (most reliable)
 		"button:text-matches('see more', 'i')",
-		"button:text-matches('show more', 'i')",
-		'.feed-shared-inline-show-more-text__button'
+		"button:text-matches('show more', 'i')", 
+		"*:text-matches('see more', 'i')",
+		"*:text-matches('show more', 'i')",
+		"*:text-matches('more', 'i')",
+		// LinkedIn specific classes
+		'.feed-shared-inline-show-more-text__button',
+		'.feed-shared-text__see-more-link',
+		'.feed-shared-text-view__see-more-link',
+		// Aria attributes
+		'button[aria-expanded="false"]',
+		'[role="button"][aria-expanded="false"]',
+		// Generic patterns
+		'button:has-text("more")',
+		'span:has-text("more")',
+		'a:has-text("more")'
 	];
 
+	let expanded = false;
 	for (const selector of seeMoreSelectors) {
 		try {
 			const button = postContainer.locator(selector).first();
 			const count = await button.count();
 			if (count > 0 && (await button.isVisible())) {
+				console.log(`🔄 Clicking expand button: ${selector}`);
 				await button.scrollIntoViewIfNeeded();
 				await button.click();
-				await postContainer.page().waitForTimeout(1500);
-				return true;
+				await postContainer.page().waitForTimeout(2000);
+				expanded = true;
+				break;
 			}
 		} catch (e) {
 			continue;
 		}
 	}
-	return false;
+	
+	// Additional wait for content to fully load after expansion
+	if (expanded) {
+		console.log('✅ Post expanded, waiting for content to load...');
+		await postContainer.page().waitForTimeout(3000);
+	}
+	
+	// Scroll to bottom of post to ensure engagement section is loaded
+	try {
+		const engagementSection = postContainer.locator('.feed-shared-social-action-bar, .social-details-social-counts').first();
+		if (await engagementSection.count() > 0) {
+			await engagementSection.scrollIntoViewIfNeeded();
+			await postContainer.page().waitForTimeout(1000);
+			console.log('✅ Scrolled engagement section into view');
+		}
+	} catch (e) {
+		console.log('Could not scroll to engagement section');
+	}
+	
+	return expanded;
 }
 
 async function extractAuthorData(postContainer) {
@@ -418,46 +482,14 @@ async function extractEngagementMetrics(postContainer) {
 		];
 
 		const repostSelectors = [
-			// PRIORITY: Exact DOM pattern from LinkedIn (2024 structure)
-			'.social-details-social-counts__btn[aria-label*="reposts"] span[aria-hidden="true"]',
-			'.social-details-social-counts__btn[aria-label*="shares"] span[aria-hidden="true"]',
-			'.social-details-social-counts__count-value-hover[aria-label*="reposts"] span[aria-hidden="true"]',
-			'.social-details-social-counts__count-value-hover[aria-label*="shares"] span[aria-hidden="true"]',
-			'button[aria-label*="reposts"] span[aria-hidden="true"]',
-			'button[aria-label*="shares"] span[aria-hidden="true"]',
-			// Alternative: Direct match for the exact pattern you found
-			'span[aria-hidden="true"]:has-text("reposts")',
-			'span[aria-hidden="true"]:has-text("shares")',
-			'span[aria-hidden="true"]:text-matches("\\d+\\s+reposts?")',
-			'span[aria-hidden="true"]:text-matches("\\d+\\s+shares?")',
-			// Primary: LinkedIn's specific social counts classes
-			'.social-details-social-counts__shares-count',
-			'.social-details-social-counts__reposts-count',
-			'span.social-details-social-counts__shares-count',
-			'span.social-details-social-counts__reposts-count',
-			// Updated LinkedIn selectors (2024)
-			'.feed-shared-social-action-bar__action-button .social-details-social-counts__count-value',
-			'.feed-shared-social-action-bar [aria-label*="repost"] .social-details-social-counts__count-value',
-			'.feed-shared-social-action-bar [aria-label*="share"] .social-details-social-counts__count-value',
-			'.feed-shared-social-action-bar button[aria-label*="repost"] span[aria-hidden="true"]',
-			'.feed-shared-social-action-bar button[aria-label*="share"] span[aria-hidden="true"]',
-			// Alternative formats
-			'.social-counts-shares__count',
-			'.reposts-count', 
-			'.shares-count',
-			'.social-counts__shares',
-			'.social-counts__reposts',
-			// Button-based selectors
-			'button[data-control-name="share"] span[aria-hidden="true"]',
-			'button[data-control-name="repost"] span[aria-hidden="true"]',
-			'button[aria-label*="repost"] span:not([aria-label])',
-			'button[aria-label*="share"] span:not([aria-label])',
-			// Fallback selectors
-			'button[aria-label*="repost"]:has([aria-hidden="true"])',
-			'button[aria-label*="share"]:has([aria-hidden="true"])',
-			// Generic social action selectors
-			'.social-actions-button[aria-label*="repost"] span',
-			'.social-actions-button[aria-label*="share"] span'
+			// PRIORITY: Simple text-based selectors (most reliable for "10 reposts")
+			'*:has-text("reposts")',
+			'*:has-text(" reposts")', // With space prefix
+			'span:has-text("reposts")',
+			'button:has-text("reposts")',
+			// LinkedIn specific DOM selectors
+			'button.social-details-social-counts__count-value-hover span[aria-hidden="true"]',
+			'.social-details-social-counts__btn span[aria-hidden="true"]'
 		];
 
 		// Try to extract from engagement bar
@@ -468,7 +500,7 @@ async function extractEngagementMetrics(postContainer) {
 					const text = await element.textContent();
 					const match = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 					if (match) {
-						const count = normalizeCount(match[1]);
+						const count = normalizeCount(match[1], `reactions selector: ${text?.trim()}`);
 						if (count > reactions) {
 							reactions = count;
 							console.log(`✅ Found reactions via selector "${selector}": ${reactions} (text: "${text?.trim()}")`);
@@ -487,7 +519,7 @@ async function extractEngagementMetrics(postContainer) {
 					const text = await element.textContent();
 					const match = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 					if (match) {
-						const count = normalizeCount(match[1]);
+						const count = normalizeCount(match[1], `comments selector: ${text?.trim()}`);
 						if (count > comments) {
 							comments = count;
 							console.log(`✅ Found comments via selector "${selector}": ${comments} (text: "${text?.trim()}")`);
@@ -499,11 +531,37 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 
+		// COMPREHENSIVE DEBUG: Let's see ALL text in the post
+		try {
+			const fullPostText = await postContainer.innerText({ timeout: 3000 });
+			console.log(`🔍 FULL POST TEXT DEBUG (first 1000 chars):`);
+			console.log(`"${fullPostText.substring(0, 1000)}"`);
+			console.log(`🔍 Searching for "repost" patterns in full text...`);
+			
+			// Look for any occurrence of numbers + repost
+			const debugPatterns = [
+				/\d+.*?repost/gi,
+				/repost.*?\d+/gi,
+				/\d+\s+repost/gi,
+				/17/gi  // Specifically look for "17"
+			];
+			
+			for (const pattern of debugPatterns) {
+				const matches = [...fullPostText.matchAll(pattern)];
+				if (matches.length > 0) {
+					console.log(`🎯 Pattern "${pattern}" found ${matches.length} matches:`);
+					matches.forEach((match, i) => console.log(`  Match ${i}: "${match[0]}"`));
+				}
+			}
+		} catch (e) {
+			console.log('Could not debug full post text');
+		}
+
 		// Debug: Let's see what spans with aria-hidden="true" actually exist
 		try {
 			const allAriaHiddenSpans = await postContainer.locator('span[aria-hidden="true"]').all();
 			console.log(`🔍 Found ${allAriaHiddenSpans.length} spans with aria-hidden="true"`);
-			for (let i = 0; i < Math.min(allAriaHiddenSpans.length, 10); i++) {
+			for (let i = 0; i < Math.min(allAriaHiddenSpans.length, 15); i++) {
 				const spanText = await allAriaHiddenSpans[i].textContent();
 				console.log(`  Span ${i}: "${spanText}"`);
 			}
@@ -511,21 +569,46 @@ async function extractEngagementMetrics(postContainer) {
 			console.log('Could not debug aria-hidden spans');
 		}
 
+		// Debug: Let's see ALL elements containing "17" 
+		try {
+			const seventeenElements = await postContainer.locator('*:has-text("17")').all();
+			console.log(`🔍 Found ${seventeenElements.length} elements containing "17"`);
+			for (let i = 0; i < Math.min(seventeenElements.length, 10); i++) {
+				const elementText = await seventeenElements[i].textContent();
+				const tagName = await seventeenElements[i].evaluate(el => el.tagName);
+				console.log(`  Element ${i} (${tagName}): "${elementText?.trim()}"`);
+			}
+		} catch (e) {
+			console.log('Could not debug elements containing "17"');
+		}
+
 		for (const selector of repostSelectors) {
 			try {
-				const element = await postContainer.locator(selector).first();
-				const elementCount = await element.count();
-				console.log(`🔍 Trying selector "${selector}": found ${elementCount} elements`);
+				const elements = await postContainer.locator(selector).all();
+				console.log(`🔍 Trying selector "${selector}": found ${elements.length} elements`);
 				
-				if (elementCount > 0 && await element.isVisible({ timeout: 1000 })) {
-					const text = await element.textContent();
-					console.log(`  Element text: "${text?.trim()}"`);
-					const match = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
-					if (match) {
-						const count = normalizeCount(match[1]);
-						if (count > reposts) {
-							reposts = count;
-							console.log(`✅ Found reposts via selector "${selector}": ${reposts} (text: "${text?.trim()}")`);
+				for (const element of elements) {
+					if (await element.isVisible({ timeout: 1000 })) {
+						const text = await element.textContent();
+						console.log(`  Element text: "${text?.trim()}"`);
+						
+						// Enhanced pattern matching for "X reposts" format
+						const repostPatterns = [
+							/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)\s+reposts?/gi,  // "10 reposts"
+							/reposts?\s*:?\s*(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/gi, // "reposts: 10" or "reposts 10"
+							/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/  // Any number in repost-containing element
+						];
+						
+						for (const pattern of repostPatterns) {
+							const match = text?.match(pattern);
+							if (match) {
+								const count = normalizeCount(match[1], `reposts selector: ${text?.trim()}`);
+								if (count > reposts && count <= 100000) { // Reasonable upper limit
+									reposts = count;
+									console.log(`✅ Found reposts via selector "${selector}": ${reposts} (text: "${text?.trim()}")`);
+									break;
+								}
+							}
 						}
 					}
 				}
@@ -609,10 +692,16 @@ async function extractEngagementMetrics(postContainer) {
 			for (const match of matches) {
 				const countStr = match[1];
 				const context = match[0].toLowerCase();
-				const count = normalizeCount(countStr);
+				const count = normalizeCount(countStr, context);
 				
-				allNumbers.push({ count, context, original: match[0] });
-				console.log(`Found number: ${count} in context: "${match[0]}"`);
+				// Log ALL matches, including filtered ones
+				console.log(`Pattern match: "${match[0]}" -> count: ${count} (${count === 0 ? 'FILTERED' : 'ACCEPTED'})`);
+				
+				// Skip if count is 0 (filtered out)
+				if (count > 0) {
+					allNumbers.push({ count, context, original: match[0] });
+					console.log(`✅ Found number: ${count} in context: "${match[0]}"`);
+				}
 			}
 		}
 
@@ -627,19 +716,22 @@ async function extractEngagementMetrics(postContainer) {
 			n.context.includes('view')
 		);
 		
-		// Filter out time-based numbers (like "51m", "2h", "3d", etc.) and other metadata
+		// ENHANCED: Filter out time-based numbers and metadata (prevents timestamp confusion)
 		const standaloneNumbers = allNumbers.filter(n => 
 			!n.context.includes('reaction') && !n.context.includes('like') && 
 			!n.context.includes('comment') && !n.context.includes('repost') && 
 			!n.context.includes('share') && !n.context.includes('impression') && 
 			!n.context.includes('view') && !n.context.includes('reposted') && 
 			!n.context.includes('shared') &&
-			!n.original.match(/\d+[wdhm]\s*$/i) && // Filter out time patterns like "51m", "2h", "3d"
+			// CRITICAL: Enhanced time pattern filtering 
+			!n.original.match(/\d+[wdhms]\s*$/i) && // Filter "51m", "2h", "3d", "30s"
+			!n.original.match(/\d+\s*(second|minute|hour|day|week|month|year)s?\s*(ago)?/i) &&
 			!n.context.includes('ago') && 
 			!n.context.includes('week') && !n.context.includes('day') && 
 			!n.context.includes('hour') && !n.context.includes('minute') &&
 			!n.context.includes('month') && !n.context.includes('year') &&
-			n.count > 1
+			!n.context.includes('edited') && !n.context.includes('premium') &&
+			n.count > 1 && n.count < 100000 // Reasonable engagement bounds
 		);
 
 		console.log(`Found ${contextualNumbers.length} contextual numbers and ${standaloneNumbers.length} standalone numbers`);
@@ -662,6 +754,26 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 
+		// SPECIAL CASE: Check for split repost numbers (e.g., "2" and "1" should be "21")
+		if (reposts === 0) {
+			// Look for adjacent small numbers in standalone list that might be split repost count
+			const smallNumbers = standaloneNumbers.filter(n => n.count >= 1 && n.count <= 9).sort((a, b) => a.count - b.count);
+			if (smallNumbers.length >= 2) {
+				// Try combining first two small numbers as digits
+				const firstDigit = smallNumbers[0].count;
+				const secondDigit = smallNumbers[1].count;
+				const combinedNumber = parseInt(`${firstDigit}${secondDigit}`);
+				
+				console.log(`🔍 REPOST DIGIT COMBINATION: Found small numbers [${smallNumbers.map(n => n.count).join(', ')}]`);
+				console.log(`🎯 Trying combination: ${firstDigit} + ${secondDigit} = ${combinedNumber}`);
+				
+				if (combinedNumber > 0 && combinedNumber <= 1000) { // Reasonable repost range
+					reposts = combinedNumber;
+					console.log(`✅ COMBINED REPOSTS: ${firstDigit}${secondDigit} = ${reposts}`);
+				}
+			}
+		}
+
 		// Then, if we have standalone numbers that are larger than our contextual finds,
 		// assign the largest ones to reactions (most common engagement metric)
 		if (standaloneNumbers.length > 0) {
@@ -679,141 +791,94 @@ async function extractEngagementMetrics(postContainer) {
 			}
 		}
 
-		// Final repost detection attempt using more aggressive approaches
+		// ENHANCED: Focused repost detection with priority order
 		if (reposts === 0) {
 			try {
-				console.log('🔍 No reposts found via selectors, trying direct text search...');
+				console.log('🔍 Enhanced repost detection starting...');
 				
-				// Method 1: Find all elements containing "repost" or "share" text
-				const repostElements = await postContainer.locator('*:has-text("repost"), *:has-text("reposts"), *:has-text("share"), *:has-text("shares")').all();
-				console.log(`Found ${repostElements.length} elements containing repost/share text`);
-				
-				for (const element of repostElements) {
-					try {
-						const elementText = await element.textContent();
-						console.log(`  Checking element: "${elementText?.trim()}"`);
-						
-						// Look for number + repost/share patterns - be more aggressive
-						const patterns = [
-							/(\d+(?:,\d{3})*)\s*repost/gi,
-							/(\d+(?:,\d{3})*)\s*share/gi,
-							/repost\s*(\d+(?:,\d{3})*)/gi,
-							/share\s*(\d+(?:,\d{3})*)/gi,
-							// Additional patterns for LinkedIn variations
-							/(\d+(?:,\d{3})*)\s*people.*repost/gi,
-							/(\d+(?:,\d{3})*)\s*people.*shar/gi,
-							/(\d+(?:,\d{3})*)\s*others.*repost/gi,
-							/(\d+(?:,\d{3})*)\s*others.*shar/gi
-						];
-						
-						for (const pattern of patterns) {
-							const match = elementText?.match(pattern);
-							if (match) {
-								const count = normalizeCount(match[1]);
-								if (count > 0 && count < 1000000) {
-									reposts = Math.max(reposts, count);
-									console.log(`🎯 Found reposts in element text: ${count} from "${match[0]}"`);
-									break;
-								}
-							}
-						}
-					} catch (e) {
-						continue;
-					}
-				}
-				
-				// Method 1.5: Look specifically at the page header/top for repost indicators
-				try {
-					const pageHeader = await postContainer.page().locator('header, .feed-shared-header, .update-components-header').first();
-					if (await pageHeader.count() > 0) {
-						const headerText = await pageHeader.textContent();
-						console.log(`🔍 Checking page header for repost info: "${headerText?.substring(0, 200)}"`);
-						
-						const headerPatterns = [
-							/(\d+(?:,\d{3})*)\s*people.*repost/gi,
-							/(\d+(?:,\d{3})*)\s*people.*shar/gi,
-							/(\d+(?:,\d{3})*)\s*others.*repost/gi,
-							/(\d+(?:,\d{3})*)\s*others.*shar/gi,
-							/repost.*(\d+(?:,\d{3})*)/gi,
-							/shar.*(\d+(?:,\d{3})*)/gi
-						];
-						
-						for (const pattern of headerPatterns) {
-							const match = headerText?.match(pattern);
-							if (match) {
-								const count = normalizeCount(match[1]);
-								if (count > 0 && count < 1000000) {
-									reposts = Math.max(reposts, count);
-									console.log(`🎯 Found reposts in page header: ${count} from "${match[0]}"`);
-									break;
-								}
+				// PRIORITY 1: LinkedIn's standard social engagement bar
+				const socialEngagementSelectors = [
+					// Most reliable: LinkedIn's social counts
+					'.social-details-social-counts__item-count:has-text("reposts")',
+					'.social-details-social-counts__item-count:has-text("Reposts")', 
+					'button[aria-label*="reposts"] span[aria-hidden="true"]',
+					'button[aria-label*="Reposts"] span[aria-hidden="true"]',
+					// Alternative engagement patterns
+					'.feed-shared-social-counts .repost-count',
+					'.feed-shared-social-counts [data-test-id*="repost"]'
+				];
+
+				for (const selector of socialEngagementSelectors) {
+					const element = await postContainer.locator(selector).first();
+					if (await element.count() > 0) {
+						const text = await element.textContent();
+						console.log(`🔍 PRIORITY 1 - Selector "${selector}" found text: "${text?.trim()}"`);
+						const numberMatch = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
+						if (numberMatch) {
+							const count = normalizeCount(numberMatch[1], `social engagement: ${text?.trim()}`);
+							if (count > 0) {
+								reposts = count;
+								console.log(`✅ Found reposts via priority selector: ${reposts}`);
+								break;
 							}
 						}
 					}
-				} catch (e) {
-					console.log('Could not check page header for reposts');
 				}
-				
-				// Method 2: Check the entire page (not just post container) for repost indicators
+
+				// PRIORITY 2: Repost attribution (e.g., "John Doe reposted this")
 				if (reposts === 0) {
-					try {
-						const entirePageText = await postContainer.page().textContent();
-						console.log('🔍 Searching entire page for repost indicators...');
-						console.log(`Page text sample: "${entirePageText.substring(0, 500)}"`);
-						
-						// Look for patterns that indicate reposts at page level
-						const pageRepostPatterns = [
-							/(\d+(?:,\d{3})*)\s*people.*repost/gi,
-							/(\d+(?:,\d{3})*)\s*people.*shar/gi,
-							/(\d+(?:,\d{3})*)\s*others.*repost/gi, 
-							/(\d+(?:,\d{3})*)\s*others.*shar/gi,
-							/repost.*by.*(\d+(?:,\d{3})*)/gi,
-							/shared.*by.*(\d+(?:,\d{3})*)/gi,
-							/(\d+(?:,\d{3})*)\s*reposts?/gi,
-							/(\d+(?:,\d{3})*)\s*shares?/gi
-						];
-						
-						for (const pattern of pageRepostPatterns) {
-							const matches = [...entirePageText.matchAll(pattern)];
-							for (const match of matches) {
-								const count = normalizeCount(match[1]);
-								if (count > 0 && count < 1000000) {
-									reposts = Math.max(reposts, count);
-									console.log(`🎯 Found reposts from entire page: ${count} from pattern: "${match[0]}"`);
-								}
-							}
-						}
-					} catch (e) {
-						console.log('Could not search entire page text');
-					}
-				}
-				
-				// Method 3: Full text search as backup
-				if (reposts === 0) {
-					const allPostText = await postContainer.innerText({ timeout: 2000 });
-					console.log('🔍 Trying full text search for repost patterns...');
-					
-					const repostIndicators = [
-						/(\d+(?:,\d{3})*)\s*reposts?/gi,
-						/(\d+(?:,\d{3})*)\s*shares?/gi,
-						/reposts?\s*(\d+(?:,\d{3})*)/gi,
-						/shares?\s*(\d+(?:,\d{3})*)/gi,
-						/(\d+(?:,\d{3})*)\s*(?:people\s+)?(?:reposted|shared)/gi
+					const repostAttributionText = await postContainer.innerText({ timeout: 1000 });
+					const attributionPatterns = [
+						/(\w+\s+\w+|\w+)\s+reposted\s+this/gi,  // "John Doe reposted this"
+						/reposted\s+by\s+(\w+\s+\w+|\w+)/gi,    // "Reposted by John Doe"  
+						/(\d+(?:,\d{3})*)\s+(?:people\s+)?reposted\s+this/gi, // "5 people reposted this"
+						/(\d+(?:,\d{3})*)\s+others?\s+reposted/gi  // "5 others reposted"
 					];
-					
-					for (const pattern of repostIndicators) {
-						const matches = [...allPostText.matchAll(pattern)];
+
+					for (const pattern of attributionPatterns) {
+						const matches = [...repostAttributionText.matchAll(pattern)];
 						for (const match of matches) {
-							const count = normalizeCount(match[1]);
-							if (count > 0 && count < 1000000) { // Reasonable upper limit
+							if (match[1] && /^\d/.test(match[1])) {
+								// First group is a number
+								const count = normalizeCount(match[1], `attribution: ${match[0]}`);
+								if (count > 0) {
+									reposts = count;
+									console.log(`✅ Found reposts via attribution: ${reposts} from "${match[0]}"`);
+									break;
+								}
+							} else if (match[1]) {
+								// First group is a name, this indicates at least 1 repost
+								reposts = Math.max(reposts, 1);
+								console.log(`✅ Found repost attribution (at least 1): "${match[0]}"`);
+							}
+						}
+						if (reposts > 0) break;
+					}
+				}
+
+				// PRIORITY 3: Focused text patterns (only if previous methods failed)
+				if (reposts === 0) {
+					const postText = await postContainer.innerText({ timeout: 1000 });
+					const focusedPatterns = [
+						/(\d+(?:,\d{3})*)\s+reposts?\s*$/gmi,      // "5 reposts" at line end
+						/^(\d+(?:,\d{3})*)\s+reposts?/gmi,        // "5 reposts" at line start
+						/reposts?\s*:\s*(\d+(?:,\d{3})*)/gi,      // "Reposts: 5"
+						/(\d+(?:,\d{3})*)\s+(?:people\s+)?(?:have\s+)?reposted/gi // "5 people reposted"
+					];
+
+					for (const pattern of focusedPatterns) {
+						const matches = [...postText.matchAll(pattern)];
+						for (const match of matches) {
+							const count = normalizeCount(match[1], `focused pattern: ${match[0]}`);
+							if (count > 0 && count <= 10000) { // Conservative upper limit
 								reposts = Math.max(reposts, count);
-								console.log(`🎯 Final repost detection found: ${count} from pattern: "${match[0]}"`);
+								console.log(`✅ Found reposts via focused pattern: ${reposts} from "${match[0]}"`);
 							}
 						}
 					}
 				}
 			} catch (e) {
-				console.log('Error in final repost detection:', e.message);
+				console.log('Error in enhanced repost detection:', e.message);
 			}
 		}
 
@@ -899,6 +964,10 @@ async function extractPostData(postContainer, postIndex) {
 		await expandPostContent(postContainer);
 
 		const rawText = await postContainer.innerText({ timeout: 3000 });
+		console.log(`🔍 Raw text length: ${rawText.length} characters`);
+		console.log(`🔍 Raw text (first 500 chars): "${rawText.substring(0, 500)}"`);
+		console.log(`🔍 Raw text (last 200 chars): "${rawText.substring(Math.max(0, rawText.length - 200))}"`);
+		
 		if (rawText.trim().length < 10) return null;
 
 		const authorInfo = await extractAuthorData(postContainer);
@@ -955,8 +1024,20 @@ export async function scrapeSinglePost(url, options = {}) {
 
 	try {
 		console.log(`Navigating to post...`);
-		await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-		await page.waitForTimeout(5000);
+		await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+		console.log('✅ Page loaded, waiting for content to stabilize...');
+		await page.waitForTimeout(8000);  // Longer wait for LinkedIn's lazy loading
+		
+		// Try to scroll the page to load more content
+		console.log('🔄 Scrolling page to trigger content loading...');
+		await page.evaluate(() => {
+			window.scrollTo(0, document.body.scrollHeight);
+		});
+		await page.waitForTimeout(3000);
+		await page.evaluate(() => {
+			window.scrollTo(0, 0);
+		});
+		await page.waitForTimeout(2000);
 
 		let postContainer = null;
 		for (const selector of SINGLE_POST_SELECTORS) {
