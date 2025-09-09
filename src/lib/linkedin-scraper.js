@@ -42,9 +42,15 @@ const REMOVE_PATTERNS = [
 	/^React\s+Comment\s+(?:Repost|Share)\s+Send$/
 ];
 
-function normalizeCount(s) {
+function normalizeCount(s, context = '') {
 	const cleanStr = s.toString().trim().replace(/,/g, '').replace(/\s/g, '');
 	if (!cleanStr) return 0;
+
+	// CRITICAL: Filter out time patterns that are mistaken for engagement
+	if (cleanStr.match(/^\d+[wdhms]$/i)) {
+		console.log(`🚫 Filtered time pattern: "${cleanStr}" in context: "${context}"`);
+		return 0;
+	}
 
 	const match = cleanStr.match(/(\d+(?:\.\d+)?)\s*([KkMm])?/);
 	if (!match) return 0;
@@ -58,7 +64,18 @@ function normalizeCount(s) {
 		value *= 1000000;
 	}
 
-	return Math.floor(value);
+	const result = Math.floor(value);
+
+	// Additional validation: engagement numbers should be reasonable (allow higher for views/impressions)
+	const isViewsOrImpressions = context.includes('view') || context.includes('impression');
+	const maxLimit = isViewsOrImpressions ? 10000000 : 1000000;
+	
+	if (result > maxLimit) {
+		console.log(`🚫 Filtered unrealistic engagement: ${result} in context: "${context}"`);
+		return 0;
+	}
+
+	return result;
 }
 
 function extractPostIdFromText(text) {
@@ -468,7 +485,7 @@ async function extractEngagementMetrics(postContainer) {
 					const text = await element.textContent();
 					const match = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 					if (match) {
-						const count = normalizeCount(match[1]);
+						const count = normalizeCount(match[1], `reactions selector: ${text?.trim()}`);
 						if (count > reactions) {
 							reactions = count;
 							console.log(`✅ Found reactions via selector "${selector}": ${reactions} (text: "${text?.trim()}")`);
@@ -487,7 +504,7 @@ async function extractEngagementMetrics(postContainer) {
 					const text = await element.textContent();
 					const match = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 					if (match) {
-						const count = normalizeCount(match[1]);
+						const count = normalizeCount(match[1], `comments selector: ${text?.trim()}`);
 						if (count > comments) {
 							comments = count;
 							console.log(`✅ Found comments via selector "${selector}": ${comments} (text: "${text?.trim()}")`);
@@ -522,7 +539,7 @@ async function extractEngagementMetrics(postContainer) {
 					console.log(`  Element text: "${text?.trim()}"`);
 					const match = text?.match(/(\d+(?:,\d{3})*|\d+(?:\.\d+)?[KkMm]?)/);
 					if (match) {
-						const count = normalizeCount(match[1]);
+						const count = normalizeCount(match[1], `reposts selector: ${text?.trim()}`);
 						if (count > reposts) {
 							reposts = count;
 							console.log(`✅ Found reposts via selector "${selector}": ${reposts} (text: "${text?.trim()}")`);
@@ -609,10 +626,13 @@ async function extractEngagementMetrics(postContainer) {
 			for (const match of matches) {
 				const countStr = match[1];
 				const context = match[0].toLowerCase();
-				const count = normalizeCount(countStr);
+				const count = normalizeCount(countStr, context);
 				
-				allNumbers.push({ count, context, original: match[0] });
-				console.log(`Found number: ${count} in context: "${match[0]}"`);
+				// Skip if count is 0 (filtered out)
+				if (count > 0) {
+					allNumbers.push({ count, context, original: match[0] });
+					console.log(`Found number: ${count} in context: "${match[0]}"`);
+				}
 			}
 		}
 
@@ -627,19 +647,22 @@ async function extractEngagementMetrics(postContainer) {
 			n.context.includes('view')
 		);
 		
-		// Filter out time-based numbers (like "51m", "2h", "3d", etc.) and other metadata
+		// ENHANCED: Filter out time-based numbers and metadata (prevents timestamp confusion)
 		const standaloneNumbers = allNumbers.filter(n => 
 			!n.context.includes('reaction') && !n.context.includes('like') && 
 			!n.context.includes('comment') && !n.context.includes('repost') && 
 			!n.context.includes('share') && !n.context.includes('impression') && 
 			!n.context.includes('view') && !n.context.includes('reposted') && 
 			!n.context.includes('shared') &&
-			!n.original.match(/\d+[wdhm]\s*$/i) && // Filter out time patterns like "51m", "2h", "3d"
+			// CRITICAL: Enhanced time pattern filtering 
+			!n.original.match(/\d+[wdhms]\s*$/i) && // Filter "51m", "2h", "3d", "30s"
+			!n.original.match(/\d+\s*(second|minute|hour|day|week|month|year)s?\s*(ago)?/i) &&
 			!n.context.includes('ago') && 
 			!n.context.includes('week') && !n.context.includes('day') && 
 			!n.context.includes('hour') && !n.context.includes('minute') &&
 			!n.context.includes('month') && !n.context.includes('year') &&
-			n.count > 1
+			!n.context.includes('edited') && !n.context.includes('premium') &&
+			n.count > 1 && n.count < 100000 // Reasonable engagement bounds
 		);
 
 		console.log(`Found ${contextualNumbers.length} contextual numbers and ${standaloneNumbers.length} standalone numbers`);
