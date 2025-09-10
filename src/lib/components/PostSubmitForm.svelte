@@ -1,6 +1,7 @@
 <script>
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
+	import { parseLinkedInPostUrl, validateLinkedInOwnership } from '$lib/linkedin-url-parser.js';
 
 	let linkedinUrl = '';
 	let loading = false;
@@ -15,6 +16,18 @@
 
 		if (!linkedinUrl.includes('linkedin.com')) {
 			error = 'Please enter a valid LinkedIn URL';
+			return;
+		}
+
+		// Frontend validation for immediate feedback
+		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
+		if (!urlParseResult.isValid || !urlParseResult.username) {
+			error = 'Invalid LinkedIn post URL format. Please use a direct link to your LinkedIn post.';
+			return;
+		}
+
+		if ($user?.email && !validateLinkedInOwnership(urlParseResult.username, $user.email)) {
+			error = `Post ownership validation failed. The LinkedIn username "${urlParseResult.username}" doesn't match your account email "${$user.email}". You can only submit your own LinkedIn posts.`;
 			return;
 		}
 
@@ -53,9 +66,7 @@
 		class="mx-auto max-w-2xl space-y-4 rounded-xl p-6 shadow-lg backdrop-blur-md"
 		style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
 	>
-		<h2 class="mb-6 text-center text-2xl font-bold" style="color:#fdfdfd;">
-			Submit LinkedIn Post
-		</h2>
+		<h2 class="mb-6 text-center text-2xl font-bold" style="color:#fdfdfd;">Submit LinkedIn Post</h2>
 
 		{#if error}
 			<div
@@ -89,14 +100,15 @@
 				style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; focus:ring-color:#24b0ff;"
 			/>
 			<p class="mt-1 text-sm" style="color:#94a3b8;">
-				Paste the URL of your LinkedIn post to start tracking engagement and earning points!
+				Paste the URL of <strong>your own</strong> LinkedIn post to start tracking engagement and earning
+				points! Posts are validated to ensure you can only submit content you authored.
 			</p>
 		</div>
 
 		<button
 			type="submit"
 			disabled={loading}
-			class="w-full rounded-md hover:cursor-pointer px-4 py-2 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+			class="w-full rounded-md px-4 py-2 font-medium transition-colors hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 			style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.6);"
 		>
 			{loading ? 'Processing...' : 'Submit Post'}
@@ -129,12 +141,16 @@
 				</ul>
 			</div>
 		</div>
-		
-		<div class="mt-6 rounded-lg p-4 backdrop-blur-md" 
-			style="background-color:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3);">
-			<h4 class="font-medium mb-2" style="color:#22c55e;">Update Schedule</h4>
+
+		<div
+			class="mt-6 rounded-lg p-4 backdrop-blur-md"
+			style="background-color:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3);"
+		>
+			<h4 class="mb-2 font-medium" style="color:#22c55e;">Update Schedule</h4>
 			<p class="text-sm" style="color:#cbd5e1;">
-				Posts are scraped and updated <strong style="color:#22c55e;">twice daily at 6 AM and 6 PM UTC</strong> to track your latest engagement and update your scores automatically.
+				Posts are scraped and updated <strong style="color:#22c55e;"
+					>twice daily at 6 AM and 6 PM UTC</strong
+				> to track your latest engagement and update your scores automatically.
 			</p>
 		</div>
 	</div>
