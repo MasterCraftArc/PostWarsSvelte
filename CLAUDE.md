@@ -43,6 +43,32 @@
 - Session persistence and validation
 - Automatic login flow for recognized users
 
+### Issue #3: Post Ownership Validation Missing
+**Problem:** Users can submit other people's LinkedIn posts without validation  
+**Root Cause:** No verification that the current active user matches the LinkedIn URL namespace/author  
+**Security Risk:** Users can game the system by submitting popular posts from other LinkedIn users  
+**Impact:** Unfair advantage, leaderboard manipulation, system integrity compromise  
+**Status:** 🔥 **CRITICAL** - Security vulnerability
+
+**Current Behavior:**
+- Users can paste any LinkedIn post URL
+- No validation against user's LinkedIn profile/identity
+- System awards points for other people's content and engagement
+
+**Required Solution:**
+- Extract LinkedIn username/ID from submitted post URL
+- Compare against current authenticated user's LinkedIn profile
+- Reject submissions that don't match the authenticated user
+- Display clear error message for ownership mismatches
+
+**Technical Implementation:**
+1. URL parsing to extract LinkedIn username from post URL pattern
+2. User profile validation against LinkedIn namespace
+3. Database constraint to prevent cross-user post submissions
+4. Frontend validation with immediate feedback
+
+**Priority:** Must implement before production launch to prevent system abuse
+
 
 ## ✅ RESOLVED ISSUES
 

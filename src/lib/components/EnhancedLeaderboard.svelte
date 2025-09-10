@@ -91,25 +91,25 @@
 		{#if loading}
 			<div class="flex items-center justify-center py-12">
 				<div
-					class="h-12 w-12 animate-spin rounded-full border-b-2"
+					class="w-12 h-12 border-b-2 rounded-full animate-spin"
 					style="border-color:#24b0ff;"
 				></div>
 			</div>
 		{:else if error}
 			<div
-				class="rounded px-4 py-3"
+				class="px-4 py-3 rounded"
 				style="border:1px solid #ff5456; background-color:rgba(255,84,86,0.12); color:#ff5456;"
 			>
 				{error}
 			</div>
 		{:else if leaderboardData}
 			<div
-				class="custom-scrollbar max-h-96 overflow-y-auto rounded-xl shadow-lg backdrop-blur-md"
+				class="overflow-y-auto shadow-lg custom-scrollbar max-h-96 rounded-xl backdrop-blur-md"
 				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
 			>
 				<div class="p-6">
 					<h3
-						class="sticky top-0 z-10 mb-4 rounded-lg p-2 text-xl font-bold"
+						class="top-0 z-10 p-2 mb-4 text-xl font-bold rounded-lg "
 						style="color:#fdfdfd; background-color:rgba(255,255,255,0.05);"
 					>
 						Company Leaderboard
@@ -144,7 +144,7 @@
 									>
 										{player.name}
 										{#if player.isCurrentUser}
-											<span class="animate-pulse text-sm font-normal" style="color:#24b0ff;"
+											<span class="text-sm font-normal animate-pulse" style="color:#24b0ff;"
 												>YOU</span
 											>
 										{/if}
