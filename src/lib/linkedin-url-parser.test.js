@@ -64,14 +64,93 @@ describe('LinkedIn URL Parser', () => {
 			expect(validateLinkedInOwnership('david-brown', 'dave.brown@company.com')).toBe(true);
 		});
 
+		it('should validate real Defense Unicorns team member emails', () => {
+			// Josh Thompson
+			expect(validateLinkedInOwnership('josh-thompson', 'josh.thompson@defenseunicorns.com')).toBe(
+				true
+			);
+			expect(
+				validateLinkedInOwnership('josh-thompson-123456', 'josh.thompson@defenseunicorns.com')
+			).toBe(true);
+
+			// Michael with different email variations
+			expect(
+				validateLinkedInOwnership('michael-slaughter-579222245', 'mikeslaughter79@gmail.com')
+			).toBe(true);
+			expect(validateLinkedInOwnership('mike-slaughter', 'mikeslaughter79@gmail.com')).toBe(true);
+			expect(validateLinkedInOwnership('michael', 'mikeslaughter@defenseunicorns.com')).toBe(false); // Only first name shouldn't match
+
+			// Rob Slaughter
+			expect(validateLinkedInOwnership('rob-slaughter', 'rob@defenseunicorns.com')).toBe(true);
+			expect(validateLinkedInOwnership('robert-slaughter-999', 'rob@defenseunicorns.com')).toBe(
+				true
+			);
+
+			// Barron Stone
+			expect(validateLinkedInOwnership('barron-stone', 'barron@defenseunicorns.com')).toBe(true);
+			expect(validateLinkedInOwnership('barron-stone-456789', 'barron@defenseunicorns.com')).toBe(
+				true
+			);
+
+			// Maciej Szulik
+			expect(validateLinkedInOwnership('maciej-szulik', 'maciej@defenseunicorns.com')).toBe(true);
+			expect(validateLinkedInOwnership('maciej-szulik-123', 'maciej@defenseunicorns.com')).toBe(
+				true
+			);
+
+			// Bryan Finster
+			expect(validateLinkedInOwnership('bryan-finster', 'bryan.finster@defenseunicorns.com')).toBe(
+				true
+			);
+			expect(
+				validateLinkedInOwnership('bryan-d-finster', 'bryan.finster@defenseunicorns.com')
+			).toBe(true);
+			expect(
+				validateLinkedInOwnership('bryan-finster-789', 'bryan.finster@defenseunicorns.com')
+			).toBe(true);
+
+			// Brandt Keller
+			expect(validateLinkedInOwnership('brandt-keller', 'brandt.keller@defenseunicorns.com')).toBe(
+				true
+			);
+			expect(
+				validateLinkedInOwnership('brandt-keller-555', 'brandt.keller@defenseunicorns.com')
+			).toBe(true);
+		});
+
+		it('should reject cross-user submissions (security test)', () => {
+			// Josh cannot submit Michael's posts
+			expect(
+				validateLinkedInOwnership(
+					'michael-slaughter-579222245',
+					'josh.thompson@defenseunicorns.com'
+				)
+			).toBe(false);
+
+			// Michael cannot submit Rob's posts
+			expect(validateLinkedInOwnership('rob-slaughter', 'mikeslaughter@defenseunicorns.com')).toBe(
+				false
+			);
+
+			// Bryan cannot submit Brandt's posts
+			expect(
+				validateLinkedInOwnership('brandt-keller-123', 'bryan.finster@defenseunicorns.com')
+			).toBe(false);
+
+			// Barron cannot submit Maciej's posts
+			expect(validateLinkedInOwnership('maciej-szulik-456', 'barron@defenseunicorns.com')).toBe(
+				false
+			);
+		});
+
 		it('should validate partial matches (minimum 4 chars)', () => {
 			expect(validateLinkedInOwnership('johnsmith', 'john@company.com')).toBe(true);
 			expect(validateLinkedInOwnership('john', 'johnsmith123@company.com')).toBe(true);
 		});
 
 		it('should reject partial matches under 4 characters', () => {
-			expect(validateLinkedInOwnership('joe', 'joseph@company.com')).toBe(false);
 			expect(validateLinkedInOwnership('jo', 'john@company.com')).toBe(false);
+			expect(validateLinkedInOwnership('ba', 'barron@company.com')).toBe(false);
 		});
 
 		it('should reject non-matching names', () => {

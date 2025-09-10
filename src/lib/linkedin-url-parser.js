@@ -84,8 +84,26 @@ export function validateLinkedInOwnership(linkedinUsername, userEmail) {
 	}
 
 	// Check if email (without numbers) is contained in username (without numbers)
-	if (usernameWithoutNumbers.includes(emailWithoutNumbers) && emailWithoutNumbers.length >= 4) {
-		return true;
+	if (usernameWithoutNumbers.includes(emailWithoutNumbers) && emailWithoutNumbers.length >= 3) {
+		// For 3-character names, check if they are common abbreviations
+		if (emailWithoutNumbers.length === 3) {
+			const commonThreeLetterNames = [
+				'rob',
+				'jim',
+				'tom',
+				'joe',
+				'bob',
+				'dan',
+				'sam',
+				'ben',
+				'tim'
+			];
+			if (commonThreeLetterNames.includes(emailWithoutNumbers)) {
+				return true;
+			}
+		} else {
+			return true;
+		}
 	}
 
 	// Check if username (without numbers) is contained in email (without numbers)
@@ -94,8 +112,11 @@ export function validateLinkedInOwnership(linkedinUsername, userEmail) {
 	}
 
 	// Handle common name abbreviations and variations
-	if (emailWithoutNumbers.length >= 4 && usernameWithoutNumbers.length >= 4) {
-		// Check common name patterns: mike/michael, mike/mikael, etc.
+	if (
+		(emailWithoutNumbers.length >= 3 && usernameWithoutNumbers.length >= 4) ||
+		(emailWithoutNumbers.length >= 4 && usernameWithoutNumbers.length >= 3)
+	) {
+		// Check common name patterns: mike/michael, rob/robert, etc.
 		const commonAbbreviations = new Map([
 			['mike', 'michael'],
 			['michael', 'mike'],
@@ -108,7 +129,16 @@ export function validateLinkedInOwnership(linkedinUsername, userEmail) {
 			['bill', 'william'],
 			['william', 'bill'],
 			['dave', 'david'],
-			['david', 'dave']
+			['david', 'dave'],
+			['tom', 'thomas'],
+			['thomas', 'tom'],
+			['joe', 'joseph'],
+			['joseph', 'joe'],
+			['bob', 'robert'],
+			['dan', 'daniel'],
+			['daniel', 'dan'],
+			['sam', 'samuel'],
+			['samuel', 'sam']
 		]);
 
 		// Check if the names are known abbreviations of each other
@@ -120,7 +150,7 @@ export function validateLinkedInOwnership(linkedinUsername, userEmail) {
 		}
 
 		// Handle compound names like "michael-slaughter" vs "mike-slaughter"
-		// by checking common abbreviation patterns
+		// and middle initials like "bryan-d-finster" vs "bryan-finster"
 		for (const [abbrev, full] of commonAbbreviations.entries()) {
 			// Check if username starts with full name and email starts with abbreviation
 			if (usernameWithoutNumbers.startsWith(full) && emailWithoutNumbers.startsWith(abbrev)) {
@@ -136,6 +166,27 @@ export function validateLinkedInOwnership(linkedinUsername, userEmail) {
 				const emailSuffix = emailWithoutNumbers.substring(full.length);
 				const usernameSuffix = usernameWithoutNumbers.substring(abbrev.length);
 				if (emailSuffix === usernameSuffix) {
+					return true;
+				}
+			}
+		}
+
+		// Handle middle initials: "bryandfinster" should match "bryanfinster"
+		// by removing single letters that appear between longer segments
+		if (Math.abs(usernameWithoutNumbers.length - emailWithoutNumbers.length) === 1) {
+			const longer =
+				usernameWithoutNumbers.length > emailWithoutNumbers.length
+					? usernameWithoutNumbers
+					: emailWithoutNumbers;
+			const shorter =
+				usernameWithoutNumbers.length > emailWithoutNumbers.length
+					? emailWithoutNumbers
+					: usernameWithoutNumbers;
+
+			// Try removing each single character and see if it matches
+			for (let i = 0; i < longer.length; i++) {
+				const withoutChar = longer.slice(0, i) + longer.slice(i + 1);
+				if (withoutChar === shorter && shorter.length >= 4) {
 					return true;
 				}
 			}
