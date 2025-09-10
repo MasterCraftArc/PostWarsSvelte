@@ -46,6 +46,24 @@ describe('LinkedIn URL Parser', () => {
 			expect(validateLinkedInOwnership('michaelsmith', 'michael-smith@company.com')).toBe(true);
 		});
 
+		it('should validate matches with numeric suffixes', () => {
+			expect(
+				validateLinkedInOwnership(
+					'michael-slaughter-579222245',
+					'mikeslaughter@defenseunicorns.com'
+				)
+			).toBe(true);
+			expect(validateLinkedInOwnership('john-doe-123456', 'johndoe@company.com')).toBe(true);
+			expect(validateLinkedInOwnership('jane-smith-999', 'jane.smith@company.com')).toBe(true);
+		});
+
+		it('should validate common name abbreviations', () => {
+			expect(validateLinkedInOwnership('robert-johnson', 'rob.johnson@company.com')).toBe(true);
+			expect(validateLinkedInOwnership('james-wilson', 'jim.wilson@company.com')).toBe(true);
+			expect(validateLinkedInOwnership('william-davis', 'bill.davis@company.com')).toBe(true);
+			expect(validateLinkedInOwnership('david-brown', 'dave.brown@company.com')).toBe(true);
+		});
+
 		it('should validate partial matches (minimum 4 chars)', () => {
 			expect(validateLinkedInOwnership('johnsmith', 'john@company.com')).toBe(true);
 			expect(validateLinkedInOwnership('john', 'johnsmith123@company.com')).toBe(true);

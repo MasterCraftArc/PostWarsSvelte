@@ -50,13 +50,27 @@ export function validateLinkedInOwnership(linkedinUsername, userEmail) {
 		return true;
 	}
 
-	// Normalize strings by removing separators
+	// Normalize strings by removing separators and numbers
 	const normalize = (str) => str.replace(/[-_.]/g, '');
+	const removeNumbers = (str) => str.replace(/\d+/g, '');
+
 	const normalizedUsername = normalize(username);
 	const normalizedEmail = normalize(emailUsername);
 
+	// Remove numbers from LinkedIn username (common pattern: michael-slaughter-579222245)
+	const usernameWithoutNumbers = removeNumbers(normalizedUsername);
+	const emailWithoutNumbers = removeNumbers(normalizedEmail);
+
+	// Debug logging (remove in production)
+	// console.log('Debug validation:', { username, emailUsername, normalizedUsername, normalizedEmail, usernameWithoutNumbers, emailWithoutNumbers });
+
 	// Match after removing separators
 	if (normalizedUsername === normalizedEmail) {
+		return true;
+	}
+
+	// Match after removing separators and numbers
+	if (usernameWithoutNumbers === emailWithoutNumbers && usernameWithoutNumbers.length >= 4) {
 		return true;
 	}
 
@@ -67,6 +81,65 @@ export function validateLinkedInOwnership(linkedinUsername, userEmail) {
 
 	if (normalizedUsername.startsWith(normalizedEmail) && normalizedEmail.length >= 4) {
 		return true;
+	}
+
+	// Check if email (without numbers) is contained in username (without numbers)
+	if (usernameWithoutNumbers.includes(emailWithoutNumbers) && emailWithoutNumbers.length >= 4) {
+		return true;
+	}
+
+	// Check if username (without numbers) is contained in email (without numbers)
+	if (emailWithoutNumbers.includes(usernameWithoutNumbers) && usernameWithoutNumbers.length >= 4) {
+		return true;
+	}
+
+	// Handle common name abbreviations and variations
+	if (emailWithoutNumbers.length >= 4 && usernameWithoutNumbers.length >= 4) {
+		// Check common name patterns: mike/michael, mike/mikael, etc.
+		const commonAbbreviations = new Map([
+			['mike', 'michael'],
+			['michael', 'mike'],
+			['mike', 'mikael'],
+			['mikael', 'mike'],
+			['rob', 'robert'],
+			['robert', 'rob'],
+			['jim', 'james'],
+			['james', 'jim'],
+			['bill', 'william'],
+			['william', 'bill'],
+			['dave', 'david'],
+			['david', 'dave']
+		]);
+
+		// Check if the names are known abbreviations of each other
+		if (
+			commonAbbreviations.get(emailWithoutNumbers) === usernameWithoutNumbers ||
+			commonAbbreviations.get(usernameWithoutNumbers) === emailWithoutNumbers
+		) {
+			return true;
+		}
+
+		// Handle compound names like "michael-slaughter" vs "mike-slaughter"
+		// by checking common abbreviation patterns
+		for (const [abbrev, full] of commonAbbreviations.entries()) {
+			// Check if username starts with full name and email starts with abbreviation
+			if (usernameWithoutNumbers.startsWith(full) && emailWithoutNumbers.startsWith(abbrev)) {
+				const usernameSuffix = usernameWithoutNumbers.substring(full.length);
+				const emailSuffix = emailWithoutNumbers.substring(abbrev.length);
+				if (usernameSuffix === emailSuffix) {
+					return true;
+				}
+			}
+
+			// Check reverse case: email starts with full name and username starts with abbreviation
+			if (emailWithoutNumbers.startsWith(full) && usernameWithoutNumbers.startsWith(abbrev)) {
+				const emailSuffix = emailWithoutNumbers.substring(full.length);
+				const usernameSuffix = usernameWithoutNumbers.substring(abbrev.length);
+				if (emailSuffix === usernameSuffix) {
+					return true;
+				}
+			}
+		}
 	}
 
 	return false;
