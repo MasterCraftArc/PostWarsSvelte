@@ -4,11 +4,12 @@ import { jobQueue } from '$lib/job-queue.js';
 import { postSubmissionLimiter, ipBasedLimiter } from '$lib/rate-limiter.js';
 import { handleRateLimitError, sanitizeError } from '$lib/error-handler.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
+import { parseLinkedInPostUrl, validateLinkedInOwnership } from '$lib/linkedin-url-parser.js';
 
 export async function POST(event) {
 	try {
 		const user = await getAuthenticatedUser(event);
-		
+
 		if (!user) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
@@ -17,6 +18,28 @@ export async function POST(event) {
 
 		if (!linkedinUrl || !linkedinUrl.includes('linkedin.com')) {
 			return json({ error: 'Valid LinkedIn URL required' }, { status: 400 });
+		}
+
+		// Parse and validate LinkedIn URL
+		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
+		if (!urlParseResult.isValid || !urlParseResult.username) {
+			return json(
+				{
+					error: 'Invalid LinkedIn post URL format. Please use a direct link to your LinkedIn post.'
+				},
+				{ status: 400 }
+			);
+		}
+
+		// Validate post ownership
+		const isOwner = validateLinkedInOwnership(urlParseResult.username, user.email);
+		if (!isOwner) {
+			return json(
+				{
+					error: `Post ownership validation failed. The LinkedIn username "${urlParseResult.username}" doesn't match your account email "${user.email}". You can only submit your own LinkedIn posts.`
+				},
+				{ status: 403 }
+			);
 		}
 
 		// Check rate limits
@@ -55,35 +78,42 @@ export async function POST(event) {
 		console.log(`Creating scraping job for user ${userId}: ${linkedinUrl}`);
 
 		try {
-			const job = await jobQueue.addJob('scrape-post', {
-				linkedinUrl,
+			const job = await jobQueue.addJob(
+				'scrape-post',
+				{
+					linkedinUrl,
+					userId
+				},
 				userId
-			}, userId);
+			);
 
 			const githubToken = process.env.GITHUB_TOKEN;
 			const githubRepo = process.env.GITHUB_REPOSITORY || 'your-username/PostWarsV2';
-			
+
 			// Try GitHub Action first, fall back to local processing if not configured
 			if (githubToken && githubRepo !== 'your-username/PostWarsV2') {
 				try {
 					console.log('🚀 Triggering GitHub Action for scraping job:', job.id);
-					
-					const response = await fetch(`https://api.github.com/repos/${githubRepo}/actions/workflows/scrape-linkedin-post.yml/dispatches`, {
-						method: 'POST',
-						headers: {
-							'Authorization': `Bearer ${githubToken}`,
-							'Accept': 'application/vnd.github.v3+json',
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({
-							ref: 'main',
-							inputs: {
-								job_id: job.id,
-								linkedin_url: linkedinUrl,
-								user_id: userId
-							}
-						})
-					});
+
+					const response = await fetch(
+						`https://api.github.com/repos/${githubRepo}/actions/workflows/scrape-linkedin-post.yml/dispatches`,
+						{
+							method: 'POST',
+							headers: {
+								Authorization: `Bearer ${githubToken}`,
+								Accept: 'application/vnd.github.v3+json',
+								'Content-Type': 'application/json'
+							},
+							body: JSON.stringify({
+								ref: 'main',
+								inputs: {
+									job_id: job.id,
+									linkedin_url: linkedinUrl,
+									user_id: userId
+								}
+							})
+						}
+					);
 
 					if (!response.ok) {
 						const errorText = await response.text();
@@ -92,16 +122,21 @@ export async function POST(event) {
 
 					console.log('✅ GitHub Action triggered successfully');
 
-					return json({
-						message: 'Post submitted for processing',
-						jobId: job.id,
-						status: 'queued',
-						estimatedWaitTime: '30-90 seconds',
-						note: 'Processing via GitHub Action'
-					}, { status: 202 });
-
+					return json(
+						{
+							message: 'Post submitted for processing',
+							jobId: job.id,
+							status: 'queued',
+							estimatedWaitTime: '30-90 seconds',
+							note: 'Processing via GitHub Action'
+						},
+						{ status: 202 }
+					);
 				} catch (githubError) {
-					console.warn('GitHub Action failed, falling back to local processing:', githubError.message);
+					console.warn(
+						'GitHub Action failed, falling back to local processing:',
+						githubError.message
+					);
 					// Fall through to local processing
 				}
 			} else {
@@ -112,27 +147,28 @@ export async function POST(event) {
 			try {
 				console.log('🔄 Processing job locally:', job.id);
 				await jobQueue.processJob(job.id);
-				
-				return json({
-					message: 'Post submitted and processed successfully',
-					jobId: job.id,
-					status: 'processing',
-					estimatedWaitTime: '10-30 seconds',
-					note: 'Processing locally'
-				}, { status: 202 });
-				
+
+				return json(
+					{
+						message: 'Post submitted and processed successfully',
+						jobId: job.id,
+						status: 'processing',
+						estimatedWaitTime: '10-30 seconds',
+						note: 'Processing locally'
+					},
+					{ status: 202 }
+				);
 			} catch (localError) {
 				console.error('Local processing failed:', localError.message);
 				throw new Error('Both GitHub Action and local processing failed');
 			}
-
 		} catch (queueError) {
 			// Record rate limit failure
 			if (queueError.message.includes('Rate limit')) {
 				postSubmissionLimiter.recordFailure(userId);
 				ipBasedLimiter.recordFailure(clientIP);
 			}
-			
+
 			const sanitized = sanitizeError(queueError, 'Failed to process request');
 			return json(sanitized, { status: 400 });
 		}
