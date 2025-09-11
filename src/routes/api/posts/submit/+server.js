@@ -114,7 +114,7 @@ export async function POST(event) {
 							message: 'Post submitted for processing',
 							jobId: job.id,
 							status: 'queued',
-							estimatedWaitTime: '30-90 seconds',
+							estimatedWaitTime: '2-5 minutes',
 							note: 'Processing via GitHub Action'
 						},
 						{ status: 202 }
@@ -140,7 +140,7 @@ export async function POST(event) {
 						message: 'Post submitted and processed successfully',
 						jobId: job.id,
 						status: 'processing',
-						estimatedWaitTime: '10-30 seconds',
+						estimatedWaitTime: '2-5 minutes',
 						note: 'Processing locally'
 					},
 					{ status: 202 }
