@@ -20,7 +20,7 @@
 			// Load leaderboard and posts data
 			const [leaderboard, postsData] = await Promise.all([
 				authenticatedRequest(`/api/leaderboard?timeframe=all&scope=company`),
-				authenticatedRequest('/api/admin/posts')
+				authenticatedRequest('/api/posts')
 			]);
 
 			// Calculate correct engagement from posts data
