@@ -188,58 +188,30 @@ export const ACHIEVEMENTS = [
 ];
 
 export async function checkAndAwardAchievements(userId) {
-	console.log(`🔍 Starting achievement check for user: ${userId}`);
-	
 	const { data: user, error: userError } = await supabaseAdmin
 		.from('users')
 		.select('id, currentStreak')
 		.eq('id', userId)
 		.single();
 
-	if (userError) {
-		console.log(`❌ User query error for ${userId}:`, userError);
-		return [];
-	}
-	if (!user) {
-		console.log(`❌ User ${userId} not found`);
-		return [];
-	}
-	console.log(`✅ Found user ${userId} with streak:`, user.currentStreak);
+	if (userError || !user) return [];
 
-	const { data: linkedinPosts, error: postsError } = await supabaseAdmin
+	const { data: linkedinPosts } = await supabaseAdmin
 		.from('linkedin_posts')
 		.select('totalEngagement, reactions')
 		.eq('userId', userId);
 
-	if (postsError) {
-		console.log(`❌ Posts query error for ${userId}:`, postsError);
-		return [];
-	}
-	console.log(`📊 Found ${linkedinPosts?.length || 0} posts for user ${userId}:`, linkedinPosts);
-
-	const { data: userAchievements, error: achievementsError } = await supabaseAdmin
+	const { data: userAchievements } = await supabaseAdmin
 		.from('user_achievements')
 		.select('achievementId')
 		.eq('userId', userId);
 
-	if (achievementsError) {
-		console.log(`❌ Achievements query error for ${userId}:`, achievementsError);
-	}
-	console.log(`🏆 User ${userId} has ${userAchievements?.length || 0} existing achievements:`, userAchievements);
-
-	if (!linkedinPosts) {
-		console.log(`❌ linkedinPosts is null/undefined for user ${userId}`);
-		return [];
-	}
+	if (!linkedinPosts) return [];
 
 	const earnedAchievementIds = new Set((userAchievements || []).map((ua) => ua.achievementId));
 	const newAchievements = [];
-	
-	console.log(`📋 Checking ${ACHIEVEMENTS.length} achievement types for user ${userId}`);
 
 	for (const achievementData of ACHIEVEMENTS) {
-		console.log(`🎯 Checking achievement: "${achievementData.name}" (${achievementData.requirementType}: ${achievementData.requirementValue})`);
-		
 		// Check if achievement exists, create if not
 		let { data: existingAchievement, error: achievementError } = await supabaseAdmin
 			.from('achievements')
@@ -248,37 +220,21 @@ export async function checkAndAwardAchievements(userId) {
 			.single();
 
 		if (achievementError) {
-			console.log(`⚠️ Achievement "${achievementData.name}" not found, creating...`);
-			const { data: createdAchievement, error: createError } = await supabaseAdmin
+			const { data: createdAchievement } = await supabaseAdmin
 				.from('achievements')
 				.insert(achievementData)
 				.select('id, name, description, icon, points')
 				.single();
-			
-			if (createError) {
-				console.log(`❌ Failed to create achievement "${achievementData.name}":`, createError);
-				continue;
-			}
 			existingAchievement = createdAchievement;
-			console.log(`✅ Created achievement "${achievementData.name}" with ID:`, existingAchievement?.id);
 		}
 
-		if (!existingAchievement) {
-			console.log(`❌ No achievement data for "${achievementData.name}"`);
-			continue;
-		}
-
-		if (earnedAchievementIds.has(existingAchievement.id)) {
-			console.log(`⏭️ User already has achievement "${achievementData.name}"`);
-			continue;
-		}
+		if (!existingAchievement || earnedAchievementIds.has(existingAchievement.id)) continue;
 
 		let isEarned = false;
 
 		switch (achievementData.requirementType) {
 			case 'posts_count':
 				isEarned = linkedinPosts.length >= achievementData.requirementValue;
-				console.log(`📝 Posts check: ${linkedinPosts.length} >= ${achievementData.requirementValue} = ${isEarned}`);
 				break;
 
 			case 'engagement_total':
@@ -287,23 +243,19 @@ export async function checkAndAwardAchievements(userId) {
 					0
 				);
 				isEarned = totalEngagement >= achievementData.requirementValue;
-				console.log(`💬 Engagement check: ${totalEngagement} >= ${achievementData.requirementValue} = ${isEarned}`);
 				break;
 
 			case 'streak_days':
 				isEarned = user.currentStreak >= achievementData.requirementValue;
-				console.log(`🔥 Streak check: ${user.currentStreak} >= ${achievementData.requirementValue} = ${isEarned}`);
 				break;
 
 			case 'single_post_reactions':
 				const maxReactions = Math.max(...linkedinPosts.map((post) => post.reactions || 0), 0);
 				isEarned = maxReactions >= achievementData.requirementValue;
-				console.log(`🚀 Max reactions check: ${maxReactions} >= ${achievementData.requirementValue} = ${isEarned}`);
 				break;
 		}
 
 		if (isEarned) {
-			console.log(`🎉 User ${userId} earned "${achievementData.name}"! Inserting into database...`);
 			const { error: insertError } = await supabaseAdmin
 				.from('user_achievements')
 				.insert({
@@ -312,14 +264,9 @@ export async function checkAndAwardAchievements(userId) {
 					achievementId: existingAchievement.id
 				});
 
-			if (insertError) {
-				console.log(`❌ Failed to insert achievement "${achievementData.name}" for user ${userId}:`, insertError);
-			} else {
-				console.log(`✅ Successfully awarded "${achievementData.name}" to user ${userId}`);
+			if (!insertError) {
 				newAchievements.push(existingAchievement);
 			}
-		} else {
-			console.log(`❌ User ${userId} did not earn "${achievementData.name}"`);
 		}
 	}
 

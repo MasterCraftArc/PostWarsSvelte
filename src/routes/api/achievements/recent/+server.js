@@ -10,7 +10,6 @@ export async function POST(event) {
 		}
 
 		const { userIds } = await event.request.json();
-		console.log('Achievements API received userIds:', userIds);
 
 		if (!Array.isArray(userIds) || userIds.length === 0) {
 			return json({ error: 'userIds array is required' }, { status: 400 });
@@ -39,11 +38,8 @@ export async function POST(event) {
 			.order('earnedAt', { ascending: false });
 
 		if (error) {
-			console.error('Database error fetching achievements:', error);
 			return json({ error: 'Database error' }, { status: 500 });
 		}
-
-		console.log('Raw achievements data from database:', data);
 
 		// Group by userId and get most recent for each
 		const userAchievements = {};
@@ -62,8 +58,6 @@ export async function POST(event) {
 				}
 			});
 		}
-
-		console.log('Processed userAchievements:', userAchievements);
 
 		return json({
 			success: true,

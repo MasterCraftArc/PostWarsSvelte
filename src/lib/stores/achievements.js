@@ -15,7 +15,6 @@ export async function fetchUserRecentAchievements(userIds) {
 	}
 
 	try {
-		console.log('Making achievements API request with userIds:', userIds);
 		const response = await authenticatedRequest('/api/achievements/recent', {
 			method: 'POST',
 			headers: {
@@ -23,8 +22,6 @@ export async function fetchUserRecentAchievements(userIds) {
 			},
 			body: JSON.stringify({ userIds })
 		});
-
-		console.log('Achievements API response:', response);
 
 		if (response.success) {
 			// Update the store with fetched data
@@ -36,10 +33,8 @@ export async function fetchUserRecentAchievements(userIds) {
 			return response.achievements;
 		}
 
-		console.log('Achievements API response not successful:', response);
 		return {};
 	} catch (error) {
-		console.error('Failed to fetch user achievements:', error);
 		return {};
 	}
 }

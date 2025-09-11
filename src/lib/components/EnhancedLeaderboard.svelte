@@ -48,18 +48,14 @@
 			// Fetch and auto-award achievements for all users in leaderboard
 			if (leaderboard?.leaderboard) {
 				const userIds = leaderboard.leaderboard.map((player) => player.id);
-				console.log('Fetching achievements for userIds:', userIds);
 				
 				// First, try to fetch existing achievements
 				const achievements = await fetchUserRecentAchievements(userIds);
-				console.log('Fetched achievements:', achievements);
 				
 				// If no achievements found and we haven't tried awarding yet, auto-award them
 				const hasAnyAchievements = Object.keys(achievements || {}).length > 0;
-				console.log('hasAnyAchievements:', hasAnyAchievements, 'achievementsAwarded:', achievementsAwarded);
 				
 				if (!hasAnyAchievements && !achievementsAwarded) {
-					console.log(`No achievements found, auto-awarding for all ${userIds.length} users...`);
 					achievementsAwarded = true; // Prevent repeated attempts
 					
 					try {
@@ -70,17 +66,12 @@
 							body: JSON.stringify({ userIds })
 						});
 						
-						console.log('Auto-award result:', autoAwardResult);
-						
 						// Only fetch again if achievements were actually awarded
 						if (autoAwardResult.totalAchievementsAwarded > 0) {
-							const newAchievements = await fetchUserRecentAchievements(userIds);
-							console.log('Achievements after auto-award:', newAchievements);
-						} else {
-							console.log('No achievements were awarded - users may not meet requirements');
+							await fetchUserRecentAchievements(userIds);
 						}
 					} catch (error) {
-						console.error('Auto-award achievements failed:', error);
+						// Auto-award failed, continue without achievements
 					}
 				}
 			}

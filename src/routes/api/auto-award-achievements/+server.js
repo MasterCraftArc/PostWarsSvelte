@@ -21,14 +21,11 @@ export async function POST(event) {
 			return json({ error: 'Maximum 50 userIds allowed' }, { status: 400 });
 		}
 
-		console.log('Auto-awarding achievements for users:', userIds);
-		
 		const results = [];
 		let totalAwarded = 0;
 
 		for (const userId of userIds) {
 			try {
-				console.log(`Checking achievements for user ${userId}...`);
 				const newAchievements = await checkAndAwardAchievements(userId);
 				const count = newAchievements?.length || 0;
 				totalAwarded += count;
@@ -38,14 +35,7 @@ export async function POST(event) {
 					newAchievements: newAchievements || [],
 					count
 				});
-				
-				if (count > 0) {
-					console.log(`✅ Awarded ${count} achievements to user ${userId}:`, newAchievements);
-				} else {
-					console.log(`❌ No achievements awarded to user ${userId}`);
-				}
 			} catch (error) {
-				console.error(`Error awarding achievements to user ${userId}:`, error);
 				results.push({
 					userId,
 					error: error.message,
