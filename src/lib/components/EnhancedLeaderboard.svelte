@@ -47,7 +47,9 @@
 			// Fetch achievements for all users in leaderboard
 			if (leaderboard?.leaderboard) {
 				const userIds = leaderboard.leaderboard.map((player) => player.id);
-				await fetchUserRecentAchievements(userIds);
+				console.log('Fetching achievements for userIds:', userIds);
+				const achievements = await fetchUserRecentAchievements(userIds);
+				console.log('Fetched achievements:', achievements);
 			}
 
 			error = '';
