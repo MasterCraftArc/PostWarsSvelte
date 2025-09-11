@@ -246,6 +246,8 @@ class JobQueue extends EventEmitter {
 			updateUserStats, 
 			checkAndAwardAchievements 
 		} = await import('./gamification.js');
+		
+		const { validateLinkedInOwnership, parseLinkedInPostUrl } = await import('./linkedin-url-parser.js');
 
 		// Scrape the post using browser pool
 		const scrapedData = await scrapeSinglePostQueued(linkedinUrl, userId);
@@ -254,7 +256,13 @@ class JobQueue extends EventEmitter {
 			throw new Error('No data could be extracted from the post');
 		}
 
-		// Get user's current streak for scoring
+		// Get user data for ownership check and streak calculation
+		const { data: user } = await supabaseAdmin
+			.from('users')
+			.select('email')
+			.eq('id', userId)
+			.single();
+
 		const { data: userPosts } = await supabaseAdmin
 			.from('linkedin_posts')
 			.select('totalScore, postedAt')
@@ -264,14 +272,19 @@ class JobQueue extends EventEmitter {
 		const currentStreak = userPosts && userPosts.length > 0 ? 
 			Math.max(...userPosts.map((p) => p.totalScore)) : 0;
 
-		// Calculate scoring
+		// Check if this is original content for scoring
+		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
+		const isOriginalContent = user?.email && urlParseResult.username ? 
+			validateLinkedInOwnership(urlParseResult.username, user.email) : true;
+
+		// Calculate scoring with ownership consideration
 		const scoring = calculatePostScore({
 			word_count: scrapedData.word_count,
 			reactions: scrapedData.reactions,
 			comments: scrapedData.comments,
 			reposts: scrapedData.reposts,
 			timestamp: scrapedData.timestamp
-		}, currentStreak);
+		}, currentStreak, isOriginalContent);
 
 		// Save to database using upsert pattern
 		const linkedinId = scrapedData.id || scrapedData.linkedinId;

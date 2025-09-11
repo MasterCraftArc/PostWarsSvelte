@@ -4,7 +4,7 @@ import { jobQueue } from '$lib/job-queue.js';
 import { postSubmissionLimiter, ipBasedLimiter } from '$lib/rate-limiter.js';
 import { handleRateLimitError, sanitizeError } from '$lib/error-handler.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
-import { parseLinkedInPostUrl, validateLinkedInOwnership } from '$lib/linkedin-url-parser.js';
+import { parseLinkedInPostUrl } from '$lib/linkedin-url-parser.js';
 
 export async function POST(event) {
 	try {
@@ -31,16 +31,7 @@ export async function POST(event) {
 			);
 		}
 
-		// Validate post ownership
-		const isOwner = validateLinkedInOwnership(urlParseResult.username, user.email);
-		if (!isOwner) {
-			return json(
-				{
-					error: `Post ownership validation failed. The LinkedIn username "${urlParseResult.username}" doesn't match your account email "${user.email}". You can only submit your own LinkedIn posts.`
-				},
-				{ status: 403 }
-			);
-		}
+		// Post ownership validation is now handled during scoring in job processing
 
 		// Check rate limits
 		const userId = user.id;
