@@ -21,13 +21,20 @@
 
 		// Frontend validation for immediate feedback
 		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
-		if (!urlParseResult.isValid || !urlParseResult.username) {
-			error = 'Invalid LinkedIn post URL format. Please use a direct link to your LinkedIn post.';
+		if (!urlParseResult.isValid) {
+			error = 'Invalid LinkedIn post URL format. Please use a direct link to a LinkedIn post.';
 			return;
 		}
 
 		// Check if this is original content for user feedback
-		const isOriginalContent = $user?.email && validateLinkedInOwnership(urlParseResult.username, $user.email);
+		let isOriginalContent = false;
+		if (urlParseResult.isFeedUpdate) {
+			// Feed updates are always treated as shared content (no username to validate)
+			isOriginalContent = false;
+		} else if (urlParseResult.username && $user?.email) {
+			// Profile posts can be validated against user ownership
+			isOriginalContent = validateLinkedInOwnership(urlParseResult.username, $user.email);
+		}
 
 		loading = true;
 		error = '';
@@ -39,7 +46,6 @@
 				body: JSON.stringify({ linkedinUrl: linkedinUrl.trim() })
 			});
 
-			const postType = isOriginalContent ? 'original post' : 'shared content';
 			const pointsInfo = isOriginalContent ? 'full points' : 'half base points (0.5)';
 			
 			success = `✅ ${isOriginalContent ? 'Original post' : 'Shared content'} submitted successfully! Your submission is being processed and will earn ${pointsInfo} plus full engagement points.`;

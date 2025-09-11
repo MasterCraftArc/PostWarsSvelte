@@ -16,11 +16,18 @@ export function extractLinkedInUsername(url) {
 	const cleanUrl = url.trim();
 
 	// LinkedIn post URL patterns:
-	// https://www.linkedin.com/posts/username_activity-123456789
-	// https://linkedin.com/posts/username_activity-123456789
-	// https://www.linkedin.com/posts/posts/username_some-text-123456789
+	// 1. Profile posts: https://www.linkedin.com/posts/username_activity-123456789
+	// 2. Profile posts: https://linkedin.com/posts/username_activity-123456789
+	// 3. Profile posts: https://www.linkedin.com/posts/username-some-text-activity-123456789
+	// 4. Feed updates: https://www.linkedin.com/feed/update/urn:li:activity:... (no username)
 
-	const postPattern = /linkedin\.com\/posts\/([^_\/\?\#]+)/i;
+	// Check for feed update URLs first (these have no username)
+	if (cleanUrl.includes('/feed/update/urn:li:activity:')) {
+		return null; // No username in feed update URLs
+	}
+
+	// Extract username from profile post URLs
+	const postPattern = /linkedin\.com\/posts\/([^_\/\?\#]+?)(?:_|$)/i;
 	const match = cleanUrl.match(postPattern);
 
 	if (match && match[1]) {
@@ -197,16 +204,33 @@ export function validateLinkedInOwnership(linkedinUsername, userEmail) {
 }
 
 /**
+ * Check if LinkedIn URL is a feed update (shared content)
+ * @param {string} url - LinkedIn post URL
+ * @returns {boolean} - True if it's a feed update
+ */
+export function isFeedUpdateUrl(url) {
+	if (!url || typeof url !== 'string') {
+		return false;
+	}
+	return url.includes('/feed/update/urn:li:activity:');
+}
+
+/**
  * Parse and validate LinkedIn post URL
  * @param {string} url - LinkedIn post URL
  * @returns {object} - Validation result with username and validity
  */
 export function parseLinkedInPostUrl(url) {
 	const username = extractLinkedInUsername(url);
+	const isFeedUpdate = isFeedUpdateUrl(url);
+
+	// Feed updates are valid but have no username (treated as shared content)
+	const isValid = !!username || isFeedUpdate;
 
 	return {
-		isValid: !!username,
+		isValid,
 		username,
+		isFeedUpdate,
 		originalUrl: url
 	};
 }

@@ -274,8 +274,18 @@ class JobQueue extends EventEmitter {
 
 		// Check if this is original content for scoring
 		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
-		const isOriginalContent = user?.email && urlParseResult.username ? 
-			validateLinkedInOwnership(urlParseResult.username, user.email) : true;
+		let isOriginalContent = false;
+		
+		if (urlParseResult.isFeedUpdate) {
+			// Feed updates are always treated as shared content (no username to validate)
+			isOriginalContent = false;
+		} else if (urlParseResult.username && user?.email) {
+			// Profile posts can be validated against user ownership
+			isOriginalContent = validateLinkedInOwnership(urlParseResult.username, user.email);
+		} else {
+			// If no username found and not a feed update, assume shared content
+			isOriginalContent = false;
+		}
 
 		// Calculate scoring with ownership consideration
 		const scoring = calculatePostScore({

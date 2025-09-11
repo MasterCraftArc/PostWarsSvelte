@@ -22,10 +22,10 @@ export async function POST(event) {
 
 		// Parse and validate LinkedIn URL
 		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
-		if (!urlParseResult.isValid || !urlParseResult.username) {
+		if (!urlParseResult.isValid) {
 			return json(
 				{
-					error: 'Invalid LinkedIn post URL format. Please use a direct link to your LinkedIn post.'
+					error: 'Invalid LinkedIn post URL format. Please use a direct link to a LinkedIn post.'
 				},
 				{ status: 400 }
 			);
