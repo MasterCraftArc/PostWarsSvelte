@@ -47,6 +47,7 @@ jobs:
       run: npx playwright install --with-deps chromium
 
     - name: Create LinkedIn authentication file
+      if: ${{ secrets.LINKEDIN_AUTH_COOKIE != '' }}
       env:
         LINKEDIN_AUTH_COOKIE: ${{ secrets.LINKEDIN_AUTH_COOKIE }}
       run: |
