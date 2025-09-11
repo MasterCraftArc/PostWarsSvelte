@@ -44,12 +44,34 @@
 
 			leaderboardData = leaderboard;
 
-			// Fetch achievements for all users in leaderboard
+			// Fetch and auto-award achievements for all users in leaderboard
 			if (leaderboard?.leaderboard) {
 				const userIds = leaderboard.leaderboard.map((player) => player.id);
 				console.log('Fetching achievements for userIds:', userIds);
+				
+				// First, try to fetch existing achievements
 				const achievements = await fetchUserRecentAchievements(userIds);
 				console.log('Fetched achievements:', achievements);
+				
+				// If no achievements found, auto-award them
+				const hasAnyAchievements = Object.keys(achievements || {}).length > 0;
+				if (!hasAnyAchievements) {
+					console.log('No achievements found, auto-awarding for all users...');
+					try {
+						// Auto-award achievements for all users
+						await authenticatedRequest('/api/auto-award-achievements', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ userIds })
+						});
+						
+						// Fetch achievements again after awarding
+						const newAchievements = await fetchUserRecentAchievements(userIds);
+						console.log('Achievements after auto-award:', newAchievements);
+					} catch (error) {
+						console.error('Auto-award achievements failed:', error);
+					}
+				}
 			}
 
 			error = '';
