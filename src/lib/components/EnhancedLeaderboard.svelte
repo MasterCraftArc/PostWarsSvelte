@@ -13,6 +13,7 @@
 	let leaderboardData = $state(null);
 	let loading = $state(true);
 	let error = $state('');
+	let achievementsAwarded = $state(false);
 
 	async function loadLeaderboard() {
 		loading = true;
@@ -53,21 +54,31 @@
 				const achievements = await fetchUserRecentAchievements(userIds);
 				console.log('Fetched achievements:', achievements);
 				
-				// If no achievements found, auto-award them
+				// If no achievements found and we haven't tried awarding yet, auto-award them
 				const hasAnyAchievements = Object.keys(achievements || {}).length > 0;
-				if (!hasAnyAchievements) {
-					console.log('No achievements found, auto-awarding for all users...');
+				console.log('hasAnyAchievements:', hasAnyAchievements, 'achievementsAwarded:', achievementsAwarded);
+				
+				if (!hasAnyAchievements && !achievementsAwarded) {
+					console.log(`No achievements found, auto-awarding for all ${userIds.length} users...`);
+					achievementsAwarded = true; // Prevent repeated attempts
+					
 					try {
-						// Auto-award achievements for all users
-						await authenticatedRequest('/api/auto-award-achievements', {
+						// Auto-award achievements for all users (they must have posts if they're on leaderboard)
+						const autoAwardResult = await authenticatedRequest('/api/auto-award-achievements', {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
 							body: JSON.stringify({ userIds })
 						});
 						
-						// Fetch achievements again after awarding
-						const newAchievements = await fetchUserRecentAchievements(userIds);
-						console.log('Achievements after auto-award:', newAchievements);
+						console.log('Auto-award result:', autoAwardResult);
+						
+						// Only fetch again if achievements were actually awarded
+						if (autoAwardResult.totalAchievementsAwarded > 0) {
+							const newAchievements = await fetchUserRecentAchievements(userIds);
+							console.log('Achievements after auto-award:', newAchievements);
+						} else {
+							console.log('No achievements were awarded - users may not meet requirements');
+						}
 					} catch (error) {
 						console.error('Auto-award achievements failed:', error);
 					}
