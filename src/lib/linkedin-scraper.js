@@ -1450,17 +1450,10 @@ export async function scrapeSinglePostQueued(url, userId) {
 
 	try {
 		debugLog('🌐 Navigating to post with optimized loading...');
-		// Use optimized loading from main scraper with redirect handling
+		// Use optimized loading from main scraper
 		await pageInfo.page.goto(url, { 
 			waitUntil: 'domcontentloaded', 
 			timeout: 30000 
-		}).catch(async (error) => {
-			if (error.message.includes('ERR_TOO_MANY_REDIRECTS')) {
-				console.error('❌ LinkedIn authentication failed - redirect loop detected');
-				console.error('💡 This usually means LINKEDIN_AUTH_COOKIE is missing or invalid');
-				throw new Error('LinkedIn authentication required: Too many redirects - likely missing or expired authentication cookie');
-			}
-			throw error;
 		});
 		
 		// Apply smart content loading optimizations
