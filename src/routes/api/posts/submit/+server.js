@@ -4,7 +4,6 @@ import { jobQueue } from '$lib/job-queue.js';
 import { postSubmissionLimiter, ipBasedLimiter } from '$lib/rate-limiter.js';
 import { handleRateLimitError, sanitizeError } from '$lib/error-handler.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
-import { parseLinkedInPostUrl } from '$lib/linkedin-url-parser.js';
 
 export async function POST(event) {
 	try {
@@ -20,18 +19,15 @@ export async function POST(event) {
 			return json({ error: 'Valid LinkedIn URL required' }, { status: 400 });
 		}
 
-		// Parse and validate LinkedIn URL
-		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
-		if (!urlParseResult.isValid) {
+		// Basic LinkedIn URL validation
+		if (!linkedinUrl.includes('linkedin.com/posts/') && !linkedinUrl.includes('linkedin.com/feed/update/')) {
 			return json(
 				{
-					error: 'Invalid LinkedIn post URL format. Please use a direct link to a LinkedIn post.'
+					error: 'Please provide a valid LinkedIn post URL (posts or feed updates).'
 				},
 				{ status: 400 }
 			);
 		}
-
-		// Post ownership validation is now handled during scoring in job processing
 
 		// Check rate limits
 		const userId = user.id;

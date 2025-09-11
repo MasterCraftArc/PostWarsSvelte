@@ -247,8 +247,6 @@ class JobQueue extends EventEmitter {
 			checkAndAwardAchievements 
 		} = await import('./gamification.js');
 		
-		const { validateLinkedInOwnership, parseLinkedInPostUrl } = await import('./linkedin-url-parser.js');
-
 		// Scrape the post using browser pool
 		const scrapedData = await scrapeSinglePostQueued(linkedinUrl, userId);
 
@@ -256,13 +254,7 @@ class JobQueue extends EventEmitter {
 			throw new Error('No data could be extracted from the post');
 		}
 
-		// Get user data for ownership check and streak calculation
-		const { data: user } = await supabaseAdmin
-			.from('users')
-			.select('email')
-			.eq('id', userId)
-			.single();
-
+		// Get user's current streak for scoring
 		const { data: userPosts } = await supabaseAdmin
 			.from('linkedin_posts')
 			.select('totalScore, postedAt')
@@ -272,29 +264,14 @@ class JobQueue extends EventEmitter {
 		const currentStreak = userPosts && userPosts.length > 0 ? 
 			Math.max(...userPosts.map((p) => p.totalScore)) : 0;
 
-		// Check if this is original content for scoring
-		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
-		let isOriginalContent = false;
-		
-		if (urlParseResult.isFeedUpdate) {
-			// Feed updates are always treated as shared content (no username to validate)
-			isOriginalContent = false;
-		} else if (urlParseResult.username && user?.email) {
-			// Profile posts can be validated against user ownership
-			isOriginalContent = validateLinkedInOwnership(urlParseResult.username, user.email);
-		} else {
-			// If no username found and not a feed update, assume shared content
-			isOriginalContent = false;
-		}
-
-		// Calculate scoring with ownership consideration
+		// Calculate scoring (all posts get full points)
 		const scoring = calculatePostScore({
 			word_count: scrapedData.word_count,
 			reactions: scrapedData.reactions,
 			comments: scrapedData.comments,
 			reposts: scrapedData.reposts,
 			timestamp: scrapedData.timestamp
-		}, currentStreak, isOriginalContent);
+		}, currentStreak);
 
 		// Save to database using upsert pattern
 		const linkedinId = scrapedData.id || scrapedData.linkedinId;

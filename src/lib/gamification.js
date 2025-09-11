@@ -3,7 +3,6 @@ import { supabaseAdmin } from './supabase-node.js';
 export const SCORING_CONFIG = {
 	// Base points for posting
 	BASE_POST_POINTS: 1,
-	REPOST_BASE_POINTS: 0.5, // Half points for shared content
 
 	// Engagement multipliers
 	REACTION_POINTS: 0.1,
@@ -19,11 +18,11 @@ export const SCORING_CONFIG = {
 	DECAY_RATE: 0.02 // 2% decay per day after fresh period
 };
 
-export function calculatePostScore(postData, userStreak = 0, isOriginalContent = true) {
+export function calculatePostScore(postData, userStreak = 0) {
 	const { reactions, comments, reposts, timestamp } = postData;
 
-	// Base score - different for original vs repost
-	let score = isOriginalContent ? SCORING_CONFIG.BASE_POST_POINTS : SCORING_CONFIG.REPOST_BASE_POINTS;
+	// Base score
+	let score = SCORING_CONFIG.BASE_POST_POINTS;
 
 	// Engagement scoring
 	const engagementScore =

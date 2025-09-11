@@ -1,7 +1,6 @@
 <script>
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
-	import { parseLinkedInPostUrl, validateLinkedInOwnership } from '$lib/linkedin-url-parser.js';
 
 	let linkedinUrl = '';
 	let loading = false;
@@ -19,21 +18,10 @@
 			return;
 		}
 
-		// Frontend validation for immediate feedback
-		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
-		if (!urlParseResult.isValid) {
-			error = 'Invalid LinkedIn post URL format. Please use a direct link to a LinkedIn post.';
+		// Basic frontend validation
+		if (!linkedinUrl.includes('linkedin.com/posts/') && !linkedinUrl.includes('linkedin.com/feed/update/')) {
+			error = 'Please provide a valid LinkedIn post URL (posts or feed updates).';
 			return;
-		}
-
-		// Check if this is original content for user feedback
-		let isOriginalContent = false;
-		if (urlParseResult.isFeedUpdate) {
-			// Feed updates are always treated as shared content (no username to validate)
-			isOriginalContent = false;
-		} else if (urlParseResult.username && $user?.email) {
-			// Profile posts can be validated against user ownership
-			isOriginalContent = validateLinkedInOwnership(urlParseResult.username, $user.email);
 		}
 
 		loading = true;
@@ -46,9 +34,7 @@
 				body: JSON.stringify({ linkedinUrl: linkedinUrl.trim() })
 			});
 
-			const pointsInfo = isOriginalContent ? 'full points' : 'half base points (0.5)';
-			
-			success = `✅ ${isOriginalContent ? 'Original post' : 'Shared content'} submitted successfully! Your submission is being processed and will earn ${pointsInfo} plus full engagement points.`;
+			success = `✅ Post submitted successfully! Your submission is being processed and will earn full points for base post plus engagement points.`;
 			if (data.estimatedWaitTime) {
 				success += ` Estimated processing time: ${data.estimatedWaitTime}.`;
 			}
@@ -108,8 +94,7 @@
 			/>
 			<p class="mt-1 text-sm" style="color:#94a3b8;">
 				Paste any LinkedIn post URL to start tracking engagement and earning points! 
-				<strong>Original content</strong> earns full base points (1 point), while 
-				<strong>shared content</strong> earns half base points (0.5) but full engagement points.
+				All posts earn <strong>1 base point</strong> plus full engagement points.
 			</p>
 		</div>
 
@@ -132,8 +117,7 @@
 			>
 				<h4 class="font-medium" style="color:#e5e7eb;">Base Points</h4>
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
-					<li>• Original content: 1 point</li>
-					<li>• Shared content: 0.5 points</li>
+					<li>• New post: 1 point</li>
 					<li>• Streak multiplier: +10% per day (max 50%)</li>
 				</ul>
 			</div>
