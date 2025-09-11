@@ -46,6 +46,28 @@ jobs:
     - name: Install Playwright browsers
       run: npx playwright install --with-deps chromium
 
+    - name: Create LinkedIn authentication file
+      if: ${{ secrets.LINKEDIN_AUTH_COOKIE != '' }}
+      env:
+        LINKEDIN_AUTH_COOKIE: ${{ secrets.LINKEDIN_AUTH_COOKIE }}
+      run: |
+        cat > linkedin_auth_state.json << 'EOF'
+        {
+          "cookies": [
+            {
+              "name": "li_at",
+              "value": "${{ secrets.LINKEDIN_AUTH_COOKIE }}",
+              "domain": ".linkedin.com",
+              "path": "/",
+              "httpOnly": true,
+              "secure": true
+            }
+          ],
+          "origins": []
+        }
+        EOF
+        echo "✅ LinkedIn authentication file created"
+
     - name: Run LinkedIn scraping
       env:
         SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}

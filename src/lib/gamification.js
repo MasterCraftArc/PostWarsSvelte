@@ -13,7 +13,6 @@ export const SCORING_CONFIG = {
 	STREAK_MULTIPLIER: 0.1, // +10% per day streak
 	MAX_STREAK_BONUS: 1.5, // Cap at 150% bonus
 
-
 	// Freshness decay (points decrease over time)
 	FRESH_HOURS: 24,
 	DECAY_RATE: 0.02 // 2% decay per day after fresh period

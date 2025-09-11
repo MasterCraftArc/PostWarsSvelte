@@ -1,7 +1,6 @@
 <script>
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
-	import { parseLinkedInPostUrl, validateLinkedInOwnership } from '$lib/linkedin-url-parser.js';
 
 	let linkedinUrl = '';
 	let loading = false;
@@ -19,15 +18,9 @@
 			return;
 		}
 
-		// Frontend validation for immediate feedback
-		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
-		if (!urlParseResult.isValid || !urlParseResult.username) {
-			error = 'Invalid LinkedIn post URL format. Please use a direct link to your LinkedIn post.';
-			return;
-		}
-
-		if ($user?.email && !validateLinkedInOwnership(urlParseResult.username, $user.email)) {
-			error = `Post ownership validation failed. The LinkedIn username "${urlParseResult.username}" doesn't match your account email "${$user.email}". You can only submit your own LinkedIn posts.`;
+		// Basic frontend validation
+		if (!linkedinUrl.includes('linkedin.com/posts/') && !linkedinUrl.includes('linkedin.com/feed/update/')) {
+			error = 'Please provide a valid LinkedIn post URL (posts or feed updates).';
 			return;
 		}
 
@@ -41,9 +34,11 @@
 				body: JSON.stringify({ linkedinUrl: linkedinUrl.trim() })
 			});
 
-			success = `✅ Post submitted successfully! Your submission is being processed.`;
+			success = `✅ Post submitted successfully! Your submission is being processed and will earn full points for base post plus engagement points.`;
 			if (data.estimatedWaitTime) {
 				success += ` Estimated processing time: ${data.estimatedWaitTime}.`;
+			} else {
+				success += ` Estimated processing time: 2-5 minutes.`;
 			}
 			success += ` Check your Recent Posts on the Dashboard to track progress.`;
 			linkedinUrl = '';
@@ -100,8 +95,8 @@
 				style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; focus:ring-color:#24b0ff;"
 			/>
 			<p class="mt-1 text-sm" style="color:#94a3b8;">
-				Paste the URL of <strong>your own</strong> LinkedIn post to start tracking engagement and earning
-				points! Posts are validated to ensure you can only submit content you authored.
+				Paste any LinkedIn post URL to start tracking engagement and earning points! 
+				All posts earn <strong>1 base point</strong> plus full engagement points.
 			</p>
 		</div>
 

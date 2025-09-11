@@ -4,7 +4,6 @@ import { jobQueue } from '$lib/job-queue.js';
 import { postSubmissionLimiter, ipBasedLimiter } from '$lib/rate-limiter.js';
 import { handleRateLimitError, sanitizeError } from '$lib/error-handler.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
-import { parseLinkedInPostUrl, validateLinkedInOwnership } from '$lib/linkedin-url-parser.js';
 
 export async function POST(event) {
 	try {
@@ -20,25 +19,13 @@ export async function POST(event) {
 			return json({ error: 'Valid LinkedIn URL required' }, { status: 400 });
 		}
 
-		// Parse and validate LinkedIn URL
-		const urlParseResult = parseLinkedInPostUrl(linkedinUrl);
-		if (!urlParseResult.isValid || !urlParseResult.username) {
+		// Basic LinkedIn URL validation
+		if (!linkedinUrl.includes('linkedin.com/posts/') && !linkedinUrl.includes('linkedin.com/feed/update/')) {
 			return json(
 				{
-					error: 'Invalid LinkedIn post URL format. Please use a direct link to your LinkedIn post.'
+					error: 'Please provide a valid LinkedIn post URL (posts or feed updates).'
 				},
 				{ status: 400 }
-			);
-		}
-
-		// Validate post ownership
-		const isOwner = validateLinkedInOwnership(urlParseResult.username, user.email);
-		if (!isOwner) {
-			return json(
-				{
-					error: `Post ownership validation failed. The LinkedIn username "${urlParseResult.username}" doesn't match your account email "${user.email}". You can only submit your own LinkedIn posts.`
-				},
-				{ status: 403 }
 			);
 		}
 
@@ -127,7 +114,7 @@ export async function POST(event) {
 							message: 'Post submitted for processing',
 							jobId: job.id,
 							status: 'queued',
-							estimatedWaitTime: '30-90 seconds',
+							estimatedWaitTime: '2-5 minutes',
 							note: 'Processing via GitHub Action'
 						},
 						{ status: 202 }
@@ -153,7 +140,7 @@ export async function POST(event) {
 						message: 'Post submitted and processed successfully',
 						jobId: job.id,
 						status: 'processing',
-						estimatedWaitTime: '10-30 seconds',
+						estimatedWaitTime: '2-5 minutes',
 						note: 'Processing locally'
 					},
 					{ status: 202 }

@@ -246,7 +246,7 @@ class JobQueue extends EventEmitter {
 			updateUserStats, 
 			checkAndAwardAchievements 
 		} = await import('./gamification.js');
-
+		
 		// Scrape the post using browser pool
 		const scrapedData = await scrapeSinglePostQueued(linkedinUrl, userId);
 
@@ -264,7 +264,7 @@ class JobQueue extends EventEmitter {
 		const currentStreak = userPosts && userPosts.length > 0 ? 
 			Math.max(...userPosts.map((p) => p.totalScore)) : 0;
 
-		// Calculate scoring
+		// Calculate scoring (all posts get full points)
 		const scoring = calculatePostScore({
 			word_count: scrapedData.word_count,
 			reactions: scrapedData.reactions,
