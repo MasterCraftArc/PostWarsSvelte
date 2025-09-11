@@ -13,6 +13,7 @@
 	let leaderboardData = $state(null);
 	let loading = $state(true);
 	let error = $state('');
+	let achievementsAwarded = $state(false);
 
 	async function loadLeaderboard() {
 		loading = true;
@@ -20,7 +21,7 @@
 			// Load leaderboard and posts data
 			const [leaderboard, postsData] = await Promise.all([
 				authenticatedRequest(`/api/leaderboard?timeframe=all&scope=company`),
-				authenticatedRequest('/api/admin/posts')
+				authenticatedRequest('/api/posts')
 			]);
 
 			// Calculate correct engagement from posts data
@@ -44,10 +45,35 @@
 
 			leaderboardData = leaderboard;
 
-			// Fetch achievements for all users in leaderboard
+			// Fetch and auto-award achievements for all users in leaderboard
 			if (leaderboard?.leaderboard) {
 				const userIds = leaderboard.leaderboard.map((player) => player.id);
-				await fetchUserRecentAchievements(userIds);
+				
+				// First, try to fetch existing achievements
+				const achievements = await fetchUserRecentAchievements(userIds);
+				
+				// If no achievements found and we haven't tried awarding yet, auto-award them
+				const hasAnyAchievements = Object.keys(achievements || {}).length > 0;
+				
+				if (!hasAnyAchievements && !achievementsAwarded) {
+					achievementsAwarded = true; // Prevent repeated attempts
+					
+					try {
+						// Auto-award achievements for all users (they must have posts if they're on leaderboard)
+						const autoAwardResult = await authenticatedRequest('/api/auto-award-achievements', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ userIds })
+						});
+						
+						// Only fetch again if achievements were actually awarded
+						if (autoAwardResult.totalAchievementsAwarded > 0) {
+							await fetchUserRecentAchievements(userIds);
+						}
+					} catch (error) {
+						// Auto-award failed, continue without achievements
+					}
+				}
 			}
 
 			error = '';

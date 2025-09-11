@@ -213,13 +213,13 @@ export async function checkAndAwardAchievements(userId) {
 
 	for (const achievementData of ACHIEVEMENTS) {
 		// Check if achievement exists, create if not
-		let { data: existingAchievement } = await supabaseAdmin
+		let { data: existingAchievement, error: achievementError } = await supabaseAdmin
 			.from('achievements')
 			.select('id, name, description, icon, points')
 			.eq('name', achievementData.name)
 			.single();
 
-		if (!existingAchievement) {
+		if (achievementError) {
 			const { data: createdAchievement } = await supabaseAdmin
 				.from('achievements')
 				.insert(achievementData)
@@ -259,6 +259,7 @@ export async function checkAndAwardAchievements(userId) {
 			const { error: insertError } = await supabaseAdmin
 				.from('user_achievements')
 				.insert({
+					id: crypto.randomUUID(),
 					userId: userId,
 					achievementId: existingAchievement.id
 				});

@@ -35,7 +35,6 @@ export async function fetchUserRecentAchievements(userIds) {
 
 		return {};
 	} catch (error) {
-		console.error('Failed to fetch user achievements:', error);
 		return {};
 	}
 }

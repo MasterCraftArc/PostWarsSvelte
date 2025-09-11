@@ -38,7 +38,6 @@ export async function POST(event) {
 			.order('earnedAt', { ascending: false });
 
 		if (error) {
-			console.error('Database error fetching achievements:', error);
 			return json({ error: 'Database error' }, { status: 500 });
 		}
 
