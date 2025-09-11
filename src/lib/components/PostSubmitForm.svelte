@@ -37,6 +37,8 @@
 			success = `✅ Post submitted successfully! Your submission is being processed and will earn full points for base post plus engagement points.`;
 			if (data.estimatedWaitTime) {
 				success += ` Estimated processing time: ${data.estimatedWaitTime}.`;
+			} else {
+				success += ` Estimated processing time: 2-5 minutes.`;
 			}
 			success += ` Check your Recent Posts on the Dashboard to track progress.`;
 			linkedinUrl = '';
