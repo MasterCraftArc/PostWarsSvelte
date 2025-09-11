@@ -307,6 +307,7 @@ export async function checkAndAwardAchievements(userId) {
 			const { error: insertError } = await supabaseAdmin
 				.from('user_achievements')
 				.insert({
+					id: crypto.randomUUID(),
 					userId: userId,
 					achievementId: existingAchievement.id
 				});
