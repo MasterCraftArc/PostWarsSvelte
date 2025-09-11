@@ -67,12 +67,6 @@
 								class="text-[#fdfdfd] hover:text-[#24b0ff] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24b0ff] rounded px-3 py-2"
 							>Leaderboard</a>
 
-							{#if $user?.role === 'TEAM_LEAD'}
-								<a
-									href="/team-lead"
-									class="text-[#fdfdfd] hover:text-[#24b0ff] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24b0ff] rounded px-3 py-2"
-								>My Team</a>
-							{/if}
 
 							{#if $user?.role === 'ADMIN'}
 								<a
@@ -134,13 +128,6 @@
 							class="block px-3 py-2 rounded-md text-base font-medium text-[#fdfdfd] hover:text-[#24b0ff] hover:bg-[#1e3a8a]/20 transition-colors"
 						>Leaderboard</a>
 
-						{#if $user?.role === 'TEAM_LEAD'}
-							<a
-								href="/team-lead"
-								onclick={closeMobileMenu}
-								class="block px-3 py-2 rounded-md text-base font-medium text-[#fdfdfd] hover:text-[#24b0ff] hover:bg-[#1e3a8a]/20 transition-colors"
-							>My Team</a>
-						{/if}
 
 						{#if $user?.role === 'ADMIN'}
 							<a
