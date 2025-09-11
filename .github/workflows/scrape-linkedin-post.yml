@@ -50,7 +50,8 @@ jobs:
       env:
         LINKEDIN_AUTH_COOKIE: ${{ secrets.LINKEDIN_AUTH_COOKIE }}
       run: |
-        cat > linkedin_auth_state.json << 'EOF'
+        if [ -n "$LINKEDIN_AUTH_COOKIE" ]; then
+          cat > linkedin_auth_state.json << 'EOF'
         {
           "cookies": [
             {
@@ -65,7 +66,11 @@ jobs:
           "origins": []
         }
         EOF
-        echo "✅ LinkedIn authentication file created"
+          echo "✅ LinkedIn authentication file created"
+        else
+          echo "⚠️ LINKEDIN_AUTH_COOKIE secret not found - scraping will run without authentication"
+          echo "⚠️ This may result in incomplete engagement data due to LinkedIn access restrictions"
+        fi
 
     - name: Run LinkedIn scraping
       env:
