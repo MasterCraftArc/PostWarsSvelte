@@ -197,7 +197,7 @@
 							<!-- Individual Post Card (GLASS) -->
 							<div
 								class="rounded-lg p-4 transition-shadow hover:shadow-xl"
-								style="background-color:rgba(16,35,73,0.28); border:1px solid {post.type === 'comment_activity' ? '#22c55e' : post.status ? (post.status === 'pending' ? '#fbbf24' : '#f97316') : '#24b0ff'}; backdrop-filter:blur(6px);"
+								style="background-color:rgba(16,35,73,0.28); border:1px solid {post.type === 'comment_activity' ? '#24b0ff' : post.status ? (post.status === 'pending' ? '#fbbf24' : '#f97316') : '#24b0ff'}; backdrop-filter:blur(6px);"
 							>
 								<div class="mb-2 flex items-start justify-between">
 									<div class="flex-1">
@@ -206,7 +206,7 @@
 											<span style="color:#cbd5e1;">{formatDate(post.postedAt)}</span>
 											{#if post.type === 'comment_activity'}
 												<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-													style="background-color:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3);">
+													style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.3);">
 													💬 Comment Activity
 												</span>
 												<span style="color:#cbd5e1;">Points: +{post.totalScore}</span>
@@ -303,7 +303,7 @@
 									</div>
 								{:else}
 									<div class="mt-3 border-t pt-3 text-center" style="border-color:rgba(148,163,184,0.2);">
-										<div class="text-sm" style="color:#22c55e;">
+										<div class="text-sm" style="color:#24b0ff;">
 											Comment activity logged • {formatDate(post.postedAt)}
 										</div>
 									</div>
