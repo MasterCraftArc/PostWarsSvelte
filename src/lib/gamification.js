@@ -9,6 +9,10 @@ export const SCORING_CONFIG = {
 	COMMENT_POINTS: 1,
 	REPOST_POINTS: 2,
 
+	// Comment activity points
+	COMMENT_ACTIVITY_POINTS: 2,
+	MAX_DAILY_COMMENTS: 10,
+
 	// Streak bonuses
 	STREAK_MULTIPLIER: 0.1, // +10% per day streak
 	MAX_STREAK_BONUS: 1.5, // Cap at 150% bonus
@@ -108,16 +112,24 @@ export async function updateUserStats(userId) {
 		.eq('userId', userId)
 		.order('postedAt', { ascending: false });
 
-	if (!linkedinPosts) return null;
+	// Get comment activities for total score calculation
+	const { data: commentActivities } = await supabaseAdmin
+		.from('comment_activities')
+		.select('points_awarded')
+		.eq('user_id', userId);
 
-	const currentStreak = calculateUserStreak(linkedinPosts);
-	const totalScore = linkedinPosts.reduce((sum, post) => sum + post.totalScore, 0);
+	if (!linkedinPosts && !commentActivities) return null;
+
+	const currentStreak = calculateUserStreak(linkedinPosts || []);
+	const postsScore = (linkedinPosts || []).reduce((sum, post) => sum + (post.totalScore || 0), 0);
+	const commentScore = (commentActivities || []).reduce((sum, activity) => sum + (activity.points_awarded || 0), 0);
+	const totalScore = postsScore + commentScore;
 
 	const thisMonth = new Date();
 	thisMonth.setDate(1);
 	thisMonth.setHours(0, 0, 0, 0);
 
-	const postsThisMonth = linkedinPosts.filter(
+	const postsThisMonth = (linkedinPosts || []).filter(
 		(post) => new Date(post.postedAt) >= thisMonth
 	).length;
 
@@ -349,3 +361,8 @@ export async function getLeaderboardData(timeframe = 'all', userIds = null) {
 
 	return enhancedUsers;
 }
+
+export function calculateCommentActivityScore() {
+	return SCORING_CONFIG.COMMENT_ACTIVITY_POINTS;
+}
+
