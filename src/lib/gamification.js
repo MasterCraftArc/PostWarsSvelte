@@ -9,6 +9,10 @@ export const SCORING_CONFIG = {
 	COMMENT_POINTS: 1,
 	REPOST_POINTS: 2,
 
+	// Comment activity points
+	COMMENT_ACTIVITY_POINTS: 2,
+	MAX_DAILY_COMMENTS: 10,
+
 	// Streak bonuses
 	STREAK_MULTIPLIER: 0.1, // +10% per day streak
 	MAX_STREAK_BONUS: 1.5, // Cap at 150% bonus
@@ -348,4 +352,59 @@ export async function getLeaderboardData(timeframe = 'all', userIds = null) {
 	);
 
 	return enhancedUsers;
+}
+
+export function calculateCommentActivityScore() {
+	return SCORING_CONFIG.COMMENT_ACTIVITY_POINTS;
+}
+
+export async function updateUserStats(userId) {
+	// Get user's current stats
+	const { data: user, error: userError } = await supabaseAdmin
+		.from('users')
+		.select('totalScore, postsThisMonth, currentStreak')
+		.eq('id', userId)
+		.single();
+
+	if (userError || !user) return;
+
+	// Get all posts for recalculation
+	const { data: linkedinPosts } = await supabaseAdmin
+		.from('linkedin_posts')
+		.select('totalScore, postedAt')
+		.eq('userId', userId);
+
+	// Get all comment activities
+	const { data: commentActivities } = await supabaseAdmin
+		.from('comment_activities')
+		.select('points_awarded')
+		.eq('user_id', userId);
+
+	if (!linkedinPosts && !commentActivities) return;
+
+	// Calculate new totals
+	const postsScore = (linkedinPosts || []).reduce((sum, post) => sum + (post.totalScore || 0), 0);
+	const commentScore = (commentActivities || []).reduce((sum, activity) => sum + (activity.points_awarded || 0), 0);
+	const newTotalScore = postsScore + commentScore;
+
+	// Calculate posts this month
+	const startOfMonth = new Date();
+	startOfMonth.setDate(1);
+	startOfMonth.setHours(0, 0, 0, 0);
+	const postsThisMonth = (linkedinPosts || []).filter(
+		post => new Date(post.postedAt) >= startOfMonth
+	).length;
+
+	// Update user stats
+	const { error: updateError } = await supabaseAdmin
+		.from('users')
+		.update({
+			totalScore: newTotalScore,
+			postsThisMonth: postsThisMonth
+		})
+		.eq('id', userId);
+
+	if (updateError) {
+		console.error('Error updating user stats:', updateError);
+	}
 }
