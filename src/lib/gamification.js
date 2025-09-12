@@ -112,16 +112,24 @@ export async function updateUserStats(userId) {
 		.eq('userId', userId)
 		.order('postedAt', { ascending: false });
 
-	if (!linkedinPosts) return null;
+	// Get comment activities for total score calculation
+	const { data: commentActivities } = await supabaseAdmin
+		.from('comment_activities')
+		.select('points_awarded')
+		.eq('user_id', userId);
 
-	const currentStreak = calculateUserStreak(linkedinPosts);
-	const totalScore = linkedinPosts.reduce((sum, post) => sum + post.totalScore, 0);
+	if (!linkedinPosts && !commentActivities) return null;
+
+	const currentStreak = calculateUserStreak(linkedinPosts || []);
+	const postsScore = (linkedinPosts || []).reduce((sum, post) => sum + (post.totalScore || 0), 0);
+	const commentScore = (commentActivities || []).reduce((sum, activity) => sum + (activity.points_awarded || 0), 0);
+	const totalScore = postsScore + commentScore;
 
 	const thisMonth = new Date();
 	thisMonth.setDate(1);
 	thisMonth.setHours(0, 0, 0, 0);
 
-	const postsThisMonth = linkedinPosts.filter(
+	const postsThisMonth = (linkedinPosts || []).filter(
 		(post) => new Date(post.postedAt) >= thisMonth
 	).length;
 
@@ -358,53 +366,3 @@ export function calculateCommentActivityScore() {
 	return SCORING_CONFIG.COMMENT_ACTIVITY_POINTS;
 }
 
-export async function updateUserStats(userId) {
-	// Get user's current stats
-	const { data: user, error: userError } = await supabaseAdmin
-		.from('users')
-		.select('totalScore, postsThisMonth, currentStreak')
-		.eq('id', userId)
-		.single();
-
-	if (userError || !user) return;
-
-	// Get all posts for recalculation
-	const { data: linkedinPosts } = await supabaseAdmin
-		.from('linkedin_posts')
-		.select('totalScore, postedAt')
-		.eq('userId', userId);
-
-	// Get all comment activities
-	const { data: commentActivities } = await supabaseAdmin
-		.from('comment_activities')
-		.select('points_awarded')
-		.eq('user_id', userId);
-
-	if (!linkedinPosts && !commentActivities) return;
-
-	// Calculate new totals
-	const postsScore = (linkedinPosts || []).reduce((sum, post) => sum + (post.totalScore || 0), 0);
-	const commentScore = (commentActivities || []).reduce((sum, activity) => sum + (activity.points_awarded || 0), 0);
-	const newTotalScore = postsScore + commentScore;
-
-	// Calculate posts this month
-	const startOfMonth = new Date();
-	startOfMonth.setDate(1);
-	startOfMonth.setHours(0, 0, 0, 0);
-	const postsThisMonth = (linkedinPosts || []).filter(
-		post => new Date(post.postedAt) >= startOfMonth
-	).length;
-
-	// Update user stats
-	const { error: updateError } = await supabaseAdmin
-		.from('users')
-		.update({
-			totalScore: newTotalScore,
-			postsThisMonth: postsThisMonth
-		})
-		.eq('id', userId);
-
-	if (updateError) {
-		console.error('Error updating user stats:', updateError);
-	}
-}
