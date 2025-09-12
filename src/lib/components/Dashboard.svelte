@@ -138,11 +138,11 @@
 
 					<div
 						class="rounded-lg p-4 text-center"
-						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(34,197,94,0.35);"
+						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
 					>
-						<div class="text-xl sm:text-2xl font-bold" style="color:#22c55e;">{dashboardData.stats.totalCommentActivities}</div>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{dashboardData.stats.totalCommentActivities || 0}</div>
 						<div class="text-sm" style="color:#cbd5e1;">Comments</div>
-						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.monthlyCommentActivities} this month</div>
+						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.monthlyCommentActivities || 0} this month</div>
 					</div>
 				</div>
 			</div>
