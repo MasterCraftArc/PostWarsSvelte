@@ -174,6 +174,12 @@ async function getFallbackDashboardData(userId) {
 	const monthlyCommentActivities = (commentActivities || []).filter(
 		(activity) => new Date(activity.created_at) >= thisMonth
 	).length;
+	
+	console.log('📊 Comment Activities Debug:');
+	console.log('- Raw comment activities:', commentActivities?.length || 0);
+	console.log('- Total comment activities:', totalCommentActivities);
+	console.log('- Monthly comment activities:', monthlyCommentActivities);
+	console.log('- Sample activity:', commentActivities?.[0] || 'none');
 
 	// Transform achievements
 	const recentAchievements = (userAchievements || []).slice(0, 5).map((ua) => ({
@@ -184,7 +190,7 @@ async function getFallbackDashboardData(userId) {
 		earnedAt: ua.earnedAt
 	}));
 
-	return {
+	const response = {
 		user: {
 			id: userData.data.id,
 			name: userData.data.name,
@@ -207,4 +213,10 @@ async function getFallbackDashboardData(userId) {
 		recentPosts,
 		recentAchievements
 	};
+	
+	console.log('📤 Dashboard Response Stats:', response.stats);
+	console.log('📤 Recent Posts Count:', response.recentPosts?.length || 0);
+	console.log('📤 Comment activities in recent posts:', response.recentPosts?.filter(p => p.type === 'comment_activity')?.length || 0);
+	
+	return response;
 }
