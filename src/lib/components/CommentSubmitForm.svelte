@@ -97,7 +97,7 @@
 			type="submit"
 			disabled={loading}
 			class="w-full rounded-md px-4 py-2 font-medium transition-colors hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-			style="background-color:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.6);"
+			style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.6);"
 		>
 			{loading ? 'Processing...' : 'Submit Comment'}
 		</button>
