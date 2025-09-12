@@ -1,15 +1,17 @@
 import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase-node.js';
 import { calculateCommentActivityScore, updateUserStats } from '$lib/gamification.js';
+import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 
-export async function POST({ request, locals }) {
+export async function POST(event) {
 	try {
-		// Check if user is authenticated
-		if (!locals.user) {
+		const user = await getAuthenticatedUser(event);
+
+		if (!user) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
 
-		const { targetPostUrl } = await request.json();
+		const { targetPostUrl } = await event.request.json();
 
 		// Validate required fields
 		if (!targetPostUrl) {
@@ -26,7 +28,7 @@ export async function POST({ request, locals }) {
 		const { data: existingActivity } = await supabaseAdmin
 			.from('comment_activities')
 			.select('id')
-			.eq('user_id', locals.user.id)
+			.eq('user_id', user.id)
 			.eq('target_post_url', targetPostUrl)
 			.single();
 
@@ -41,7 +43,7 @@ export async function POST({ request, locals }) {
 		const { data: activity, error: insertError } = await supabaseAdmin
 			.from('comment_activities')
 			.insert({
-				user_id: locals.user.id,
+				user_id: user.id,
 				target_post_url: targetPostUrl,
 				points_awarded: pointsAwarded
 			})
@@ -55,7 +57,7 @@ export async function POST({ request, locals }) {
 
 		// Update user stats
 		try {
-			await updateUserStats(locals.user.id);
+			await updateUserStats(user.id);
 		} catch (statsError) {
 			console.error('Error updating user stats:', statsError);
 			// Don't fail the request if stats update fails

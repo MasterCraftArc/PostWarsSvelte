@@ -15,27 +15,12 @@ export async function GET(event) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
 
-		console.log('⏱️ Calling RPC function for user:', user.id);
-		const rpcStart = Date.now();
+		console.log('⏱️ Getting dashboard data for user:', user.id);
+		const queryStart = Date.now();
 		
-		// Try optimized function first, fallback to original queries if it fails
-		let data;
-		const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_user_dashboard', {
-			p_user_id: user.id
-		});
-		
-		console.log('✅ RPC call took:', Date.now() - rpcStart, 'ms');
-
-		if (rpcError || !rpcData) {
-			console.log('❌ RPC function failed, falling back to original queries:', rpcError);
-			const fallbackStart = Date.now();
-			// Fallback to original implementation
-			data = await getFallbackDashboardData(user.id);
-			console.log('✅ Fallback queries took:', Date.now() - fallbackStart, 'ms');
-		} else {
-			console.log('✅ RPC function succeeded');
-			data = rpcData;
-		}
+		// Use fallback function with comment activities integration
+		const data = await getFallbackDashboardData(user.id);
+		console.log('✅ Dashboard queries took:', Date.now() - queryStart, 'ms');
 
 		console.log('🎉 Total dashboard API time:', Date.now() - startTime, 'ms');
 
@@ -76,6 +61,14 @@ async function getFallbackDashboardData(userId) {
 		.eq('userId', userId)
 		.in('status', ['QUEUED', 'PROCESSING'])
 		.order('createdAt', { ascending: false });
+
+	// Get comment activities for this user
+	const { data: commentActivities } = await supabaseAdmin
+		.from('comment_activities')
+		.select('*')
+		.eq('user_id', userId)
+		.order('created_at', { ascending: false })
+		.limit(10);
 
 	// Get achievements
 	const { data: userAchievements } = await supabaseAdmin
@@ -149,11 +142,44 @@ async function getFallbackDashboardData(userId) {
 		};
 	});
 
+	// Transform comment activities into post-like objects
+	const commentActivityPosts = (commentActivities || []).map((activity) => ({
+		id: activity.id,
+		url: activity.target_post_url,
+		content: '💬 Commented on LinkedIn post',
+		authorName: 'You',
+		reactions: 'N/A',
+		comments: 'N/A',
+		reposts: 'N/A',
+		totalEngagement: 0,
+		totalScore: activity.points_awarded,
+		postedAt: activity.created_at,
+		lastScrapedAt: activity.created_at,
+		type: 'comment_activity',
+		growth: { reactions: 0, comments: 0, reposts: 0 }
+	}));
+
 	// Combine and sort all posts by date (newest first)
-	const allPosts = [...processedPosts, ...pendingPosts];
+	const allPosts = [...processedPosts, ...pendingPosts, ...commentActivityPosts];
 	const recentPosts = allPosts
 		.sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt))
 		.slice(0, 15); // Show up to 15 total posts
+
+	// Calculate comment activity statistics
+	const totalCommentActivities = (commentActivities || []).length;
+	const thisMonth = new Date();
+	thisMonth.setDate(1);
+	thisMonth.setHours(0, 0, 0, 0);
+	
+	const monthlyCommentActivities = (commentActivities || []).filter(
+		(activity) => new Date(activity.created_at) >= thisMonth
+	).length;
+	
+	console.log('📊 Comment Activities Debug:');
+	console.log('- Raw comment activities:', commentActivities?.length || 0);
+	console.log('- Total comment activities:', totalCommentActivities);
+	console.log('- Monthly comment activities:', monthlyCommentActivities);
+	console.log('- Sample activity:', commentActivities?.[0] || 'none');
 
 	// Transform achievements
 	const recentAchievements = (userAchievements || []).slice(0, 5).map((ua) => ({
@@ -164,7 +190,7 @@ async function getFallbackDashboardData(userId) {
 		earnedAt: ua.earnedAt
 	}));
 
-	return {
+	const response = {
 		user: {
 			id: userData.data.id,
 			name: userData.data.name,
@@ -180,9 +206,17 @@ async function getFallbackDashboardData(userId) {
 			totalEngagement,
 			monthlyPosts: 0,
 			monthlyEngagement: 0,
-			averageEngagement: totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0
+			averageEngagement: totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0,
+			totalCommentActivities,
+			monthlyCommentActivities
 		},
 		recentPosts,
 		recentAchievements
 	};
+	
+	console.log('📤 Dashboard Response Stats:', response.stats);
+	console.log('📤 Recent Posts Count:', response.recentPosts?.length || 0);
+	console.log('📤 Comment activities in recent posts:', response.recentPosts?.filter(p => p.type === 'comment_activity')?.length || 0);
+	
+	return response;
 }

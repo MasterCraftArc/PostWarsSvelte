@@ -10,7 +10,7 @@ export const SCORING_CONFIG = {
 	REPOST_POINTS: 2,
 
 	// Comment activity points
-	COMMENT_ACTIVITY_POINTS: 2,
+	COMMENT_ACTIVITY_POINTS: 1,
 	MAX_DAILY_COMMENTS: 10,
 
 	// Streak bonuses
