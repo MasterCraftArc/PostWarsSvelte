@@ -15,27 +15,12 @@ export async function GET(event) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
 
-		console.log('⏱️ Calling RPC function for user:', user.id);
-		const rpcStart = Date.now();
+		console.log('⏱️ Getting dashboard data for user:', user.id);
+		const queryStart = Date.now();
 		
-		// Try optimized function first, fallback to original queries if it fails
-		let data;
-		const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_user_dashboard', {
-			p_user_id: user.id
-		});
-		
-		console.log('✅ RPC call took:', Date.now() - rpcStart, 'ms');
-
-		if (rpcError || !rpcData) {
-			console.log('❌ RPC function failed, falling back to original queries:', rpcError);
-			const fallbackStart = Date.now();
-			// Fallback to original implementation
-			data = await getFallbackDashboardData(user.id);
-			console.log('✅ Fallback queries took:', Date.now() - fallbackStart, 'ms');
-		} else {
-			console.log('✅ RPC function succeeded');
-			data = rpcData;
-		}
+		// Use fallback function with comment activities integration
+		const data = await getFallbackDashboardData(user.id);
+		console.log('✅ Dashboard queries took:', Date.now() - queryStart, 'ms');
 
 		console.log('🎉 Total dashboard API time:', Date.now() - startTime, 'ms');
 
