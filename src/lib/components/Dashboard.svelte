@@ -3,7 +3,6 @@
 	import { user } from '$lib/stores/auth.js';
 	import { authenticatedRequest } from '$lib/api.js';
 	import CompanyGoals from './CompanyGoals.svelte';
-	import CommentActivityForm from './CommentActivityForm.svelte';
 	let dashboardData = null;
 	let loading = true;
 	let error = '';
@@ -74,10 +73,6 @@
 		return 'text-gray-500';
 	}
 
-	function handleCommentActivitySuccess(event) {
-		// Refresh dashboard data when comment activity is successfully logged
-		loadDashboard();
-	}
 </script>
 
 {#if $user}
@@ -172,9 +167,6 @@
 
 			<!-- Company Goals -->
 			<CompanyGoals />
-
-			<!-- Comment Activity Form -->
-			<CommentActivityForm on:success={handleCommentActivitySuccess} />
 
 			<!-- Recent Posts (GLASS) -->
 			<div
