@@ -89,7 +89,7 @@
 			/>
 			<p class="mt-1 text-sm" style="color:#94a3b8;">
 				Paste the URL of the LinkedIn post you commented on. 
-				Each comment activity earns <strong>2 points</strong> instantly.
+				Each comment activity earns <strong>1 point</strong> instantly.
 			</p>
 		</div>
 
@@ -112,7 +112,7 @@
 			>
 				<h4 class="font-medium" style="color:#e5e7eb;">Comment Activity</h4>
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
-					<li>• Each LinkedIn comment: 2 points</li>
+					<li>• Each LinkedIn comment: 1 point</li>
 					<li>• Points awarded instantly upon submission</li>
 					<li>• Each post can only be submitted once</li>
 					<li>• No scraping required - immediate points</li>
