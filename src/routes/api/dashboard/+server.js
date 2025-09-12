@@ -77,6 +77,14 @@ async function getFallbackDashboardData(userId) {
 		.in('status', ['QUEUED', 'PROCESSING'])
 		.order('createdAt', { ascending: false });
 
+	// Get comment activities for this user
+	const { data: commentActivities } = await supabaseAdmin
+		.from('comment_activities')
+		.select('*')
+		.eq('user_id', userId)
+		.order('created_at', { ascending: false })
+		.limit(10);
+
 	// Get achievements
 	const { data: userAchievements } = await supabaseAdmin
 		.from('user_achievements')
@@ -149,8 +157,25 @@ async function getFallbackDashboardData(userId) {
 		};
 	});
 
+	// Transform comment activities into post-like objects
+	const commentActivityPosts = (commentActivities || []).map((activity) => ({
+		id: activity.id,
+		url: activity.target_post_url,
+		content: '💬 Commented on LinkedIn post',
+		authorName: 'You',
+		reactions: 'N/A',
+		comments: 'N/A',
+		reposts: 'N/A',
+		totalEngagement: 0,
+		totalScore: activity.points_awarded,
+		postedAt: activity.created_at,
+		lastScrapedAt: activity.created_at,
+		type: 'comment_activity',
+		growth: { reactions: 0, comments: 0, reposts: 0 }
+	}));
+
 	// Combine and sort all posts by date (newest first)
-	const allPosts = [...processedPosts, ...pendingPosts];
+	const allPosts = [...processedPosts, ...pendingPosts, ...commentActivityPosts];
 	const recentPosts = allPosts
 		.sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt))
 		.slice(0, 15); // Show up to 15 total posts

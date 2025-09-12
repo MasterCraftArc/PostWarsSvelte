@@ -2,6 +2,41 @@
 
 
 
+## 🚨 OUTSTANDING ISSUES
+
+### Issue #1: LinkedIn Comment Activity Tracking  
+**Problem:** Users cannot earn points for commenting on LinkedIn posts due to LinkedIn's authentication restrictions  
+**Root Cause:** LinkedIn blocks all unauthenticated scraping, preventing repost/engagement capture  
+**Impact:** Limited gamification options, users can only earn points from posting  
+**Status:** 🔥 **CRITICAL** - New feature required to maintain user engagement  
+
+**Proposed Solution:**
+Comment activity submission using existing UI pattern - users paste LinkedIn post URL they commented on, system immediately awards points and displays in dashboard (no processing/scraping)
+
+**Technical Implementation Plan:**
+1. **Database Schema:** New `comment_activities` table for URL tracking
+2. **Scoring System:** Extend existing `gamification.js` with comment activity points
+3. **API Endpoint:** `/api/comment-activities/submit` for immediate processing
+4. **Dashboard Integration:** Show comment activities alongside posts in dashboard
+5. **UI Integration:** Reuse existing post submission form pattern
+
+**Architecture Compliance:**
+- Follow TDD methodology (tests first)
+- Small batch changes (6 separate PRs, max 5 files each)
+- Extend existing files rather than create duplicates
+- Use established import patterns
+- Single source of truth principle
+
+**Expected Outcomes:**
+- Users can earn points for LinkedIn engagement without scraping
+- Increased daily app usage through activity logging
+- Gamification of community participation
+- Workaround for LinkedIn's access restrictions
+
+**Priority:** Must implement to provide alternative engagement tracking
+
+---
+
 ## ✅ RESOLVED ISSUES
 
 ### ✅ Issue #3: Scoring System Inconsistency (FIXED - Jan 2025)
@@ -264,12 +299,18 @@ Architecture Violations: 0
 
 ## 🔥 Critical (Must Fix This Sprint)
 
-1. **Fix Engagement Metrics Scraping**
+1. **Implement Comment Activity Tracking**
+   - Complete 6-PR implementation plan (see Outstanding Issues)
+   - Enable users to earn points for commenting on LinkedIn posts
+   - Workaround LinkedIn's authentication restrictions
+   - Must follow TDD and small batch policies
+
+2. **Fix Engagement Metrics Scraping**
    - Add validation for realistic engagement numbers
-   - Prevent timestamp parsing as engagement counts
+   - Prevent timestamp parsing as engagement counts  
    - Test with real LinkedIn posts
 
-2. **Fix Leaderboard Display** 
+3. **Fix Leaderboard Display**
    - Aggregate actual engagement from linkedin_posts table
    - Display real likes/comments/reposts breakdown
    - Test calculation accuracy
@@ -288,6 +329,145 @@ Architecture Violations: 0
 
 ---
 
+# 📋 COMMENT ACTIVITY TRACKING - IMPLEMENTATION PLAN
+
+## 🎯 Implementation Strategy (3 Small PRs)
+
+### **PR #1: Database Schema + Tests** 
+**Branch:** `feat/comment-activity-schema`  
+**Files:** 1 migration + 1 test file  
+**Lines:** ~50 lines  
+**TDD Order:**
+1. Write failing test for `comment_activities` table
+2. Create database migration following posts table pattern
+3. Verify test passes
+
+**Schema:** (Simple tracking table)
+```sql
+CREATE TABLE comment_activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  target_post_url TEXT NOT NULL,
+  points_awarded INTEGER DEFAULT 2,
+  created_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Prevent duplicate submissions
+  UNIQUE(user_id, target_post_url)
+);
+```
+
+### **PR #2: API Endpoint + Scoring**
+**Branch:** `feat/comment-activity-api`  
+**Files:** `src/routes/api/comment-activities/submit/+server.js` + `src/lib/gamification.js` update + tests  
+**Lines:** ~80 lines  
+**TDD Order:**
+1. Write failing integration test
+2. Implement immediate processing (no job queue)
+3. Add comment activity points to scoring system
+
+**API Endpoint:** (Immediate processing, no scraping)
+```javascript
+export async function POST({ request, locals }) {
+  const { targetPostUrl } = await request.json();
+  
+  // Validate URL format
+  // Check for duplicates
+  // Award points immediately
+  // Save to comment_activities table
+  // Return success with points awarded
+}
+```
+
+### **PR #3: Dashboard Integration**
+**Branch:** `feat/comment-activity-dashboard`  
+**Files:** Modify existing dashboard components + extend tests  
+**Lines:** ~60 lines added  
+**TDD Order:**
+1. Write integration tests for dashboard display
+2. Add comment activities to existing dashboard queries
+3. Display comment activities alongside posts
+
+**Integration:** Add to existing dashboard data fetching
+```javascript
+// Add to existing dashboard API call
+const { data: commentActivities } = await supabase
+  .from('comment_activities')
+  .select('*')
+  .eq('user_id', user.id)
+  .order('created_at', { ascending: false });
+```
+
+## 🔄 Development Workflow Per PR
+
+### **Before Starting Each PR:**
+```bash
+# 1. Ensure on latest main
+git checkout main && git pull origin main
+
+# 2. Create feature branch
+git checkout -b feat/comment-activity-schema
+
+# 3. Write failing test first (TDD mandatory)
+# Edit test file, run: npm run test:unit
+# Confirm test fails
+
+# 4. Write minimal code to pass test
+# 5. Ensure all tests pass
+npm run test:unit && npm run test:integration
+
+# 6. Check build and lint
+npm run build && npm run lint
+
+# 7. Commit small batch (<200 lines)
+git add . && git commit -m "feat: add comment activity schema"
+
+# 8. Push and create PR
+git push -u origin feat/comment-activity-schema
+```
+
+## 📋 Architecture Compliance Checklist
+
+### **Each PR Must:**
+- [ ] Follow TDD (tests written first)
+- [ ] Stay under 200 lines net change
+- [ ] Modify maximum 5 files
+- [ ] Use existing import patterns
+- [ ] Extend existing files vs creating duplicates
+- [ ] Pass all existing tests
+- [ ] Include proper error handling
+- [ ] Follow single responsibility principle
+
+### **Import Pattern Compliance:**
+```javascript
+// Server-side (API routes)
+import { supabaseAdmin } from '$lib/supabase-node.js';
+import { calculateCommentActivityScore } from '$lib/gamification.js';
+
+// Client-side (Svelte components) 
+import { supabase } from '$lib/supabase.js';
+```
+
+## 🎯 Success Metrics
+
+### **Technical:**
+- All 6 PRs merged without architecture violations
+- 100% test coverage for new functionality
+- Zero breaking changes to existing features
+- Clean build and lint on all commits
+
+### **User Experience:**
+- Users submit comment activity URLs like regular posts
+- Same familiar workflow as post submission
+- Activities appear in dashboard alongside posts
+- Clear processing status and point awards
+
+### **Business:**
+- Alternative engagement tracking established
+- Reduced dependency on LinkedIn scraping
+- Leverages existing job queue infrastructure
+- Consistent user experience across features
+
+---
 
 # 🛠️ DEVELOPMENT WORKFLOW
 
@@ -361,6 +541,7 @@ npm run lint
 
 **Last Updated:** January 2025  
 **Architecture Status:** ✅ Clean  
-**Critical Issues:** 0 remaining  
+**Critical Issues:** 1 remaining (Comment Activity Tracking implementation)  
+**High Priority Issues:** 2 (Engagement metrics validation, Leaderboard display)
 **Technical Debt:** Low
 - claude.md
