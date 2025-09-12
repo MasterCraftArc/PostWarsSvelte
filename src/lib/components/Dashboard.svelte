@@ -251,7 +251,7 @@
 												{#if post.status}
 													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
 												{:else if post.growth.reactions !== 0}
-													<div class="text-xs" style="color:{post.growth.reactions > 0 ? '#22c55e' : '#ef4444'};">
+													<div class="text-xs" style="color:{post.growth.reactions > 0 ? '#24b0ff' : '#ef4444'};">
 														{post.growth.reactions > 0 ? '+' : ''}{post.growth.reactions}
 													</div>
 												{:else}
@@ -267,7 +267,7 @@
 												{#if post.status}
 													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
 												{:else if post.growth.comments !== 0}
-													<div class="text-xs" style="color:{post.growth.comments > 0 ? '#22c55e' : '#ef4444'};">
+													<div class="text-xs" style="color:{post.growth.comments > 0 ? '#24b0ff' : '#ef4444'};">
 														{post.growth.comments > 0 ? '+' : ''}{post.growth.comments}
 													</div>
 												{:else}
@@ -283,7 +283,7 @@
 												{#if post.status}
 													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
 												{:else if post.growth.reposts !== 0}
-													<div class="text-xs" style="color:{post.growth.reposts > 0 ? '#22c55e' : '#ef4444'};">
+													<div class="text-xs" style="color:{post.growth.reposts > 0 ? '#24b0ff' : '#ef4444'};">
 														{post.growth.reposts > 0 ? '+' : ''}{post.growth.reposts}
 													</div>
 												{:else}
