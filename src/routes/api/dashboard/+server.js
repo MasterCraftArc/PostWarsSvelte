@@ -180,6 +180,16 @@ async function getFallbackDashboardData(userId) {
 		.sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt))
 		.slice(0, 15); // Show up to 15 total posts
 
+	// Calculate comment activity statistics
+	const totalCommentActivities = (commentActivities || []).length;
+	const thisMonth = new Date();
+	thisMonth.setDate(1);
+	thisMonth.setHours(0, 0, 0, 0);
+	
+	const monthlyCommentActivities = (commentActivities || []).filter(
+		(activity) => new Date(activity.created_at) >= thisMonth
+	).length;
+
 	// Transform achievements
 	const recentAchievements = (userAchievements || []).slice(0, 5).map((ua) => ({
 		name: ua.achievement?.name,
@@ -205,7 +215,9 @@ async function getFallbackDashboardData(userId) {
 			totalEngagement,
 			monthlyPosts: 0,
 			monthlyEngagement: 0,
-			averageEngagement: totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0
+			averageEngagement: totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0,
+			totalCommentActivities,
+			monthlyCommentActivities
 		},
 		recentPosts,
 		recentAchievements

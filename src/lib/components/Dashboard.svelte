@@ -96,7 +96,7 @@
 					Welcome back, {dashboardData.user.name || 'User'}!
 				</h2>
 
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
 					<!-- Stat card -->
 					<div
 						class="rounded-lg p-4 text-center"
@@ -134,6 +134,15 @@
 						</div>
 						<div class="text-sm" style="color:#cbd5e1;">Avg Engagement</div>
 						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.totalEngagement} total</div>
+					</div>
+
+					<div
+						class="rounded-lg p-4 text-center"
+						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(34,197,94,0.35);"
+					>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#22c55e;">{dashboardData.stats.totalCommentActivities}</div>
+						<div class="text-sm" style="color:#cbd5e1;">Comments</div>
+						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.monthlyCommentActivities} this month</div>
 					</div>
 				</div>
 			</div>
