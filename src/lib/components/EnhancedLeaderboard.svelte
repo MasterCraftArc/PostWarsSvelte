@@ -233,7 +233,7 @@
 						>
 							😭 Growing Their Horns
 						</h3>
-						<div class="flex flex-col-reverse space-y-3">
+						<div class="flex flex-col-reverse gap-3">
 							{#each leaderboardData.leaderboard.slice(-10) as player}
 								<div
 									class="flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02]"
@@ -241,7 +241,7 @@
 										? 'rgba(36,176,255,0.25)'
 										: 'rgba(16,35,73,0.28)'}; border:2px solid {player.isCurrentUser
 										? '#24b0ff'
-										: 'rgba(148,163,184,0.35)'}; {player.isCurrentUser
+										: 'rgba(36,176,255,0.35)'}; {player.isCurrentUser
 										? 'box-shadow: 0 0 20px rgba(36,176,255,0.3);'
 										: ''}"
 								>
@@ -305,11 +305,7 @@
 							{/each}
 						</div>
 
-						{#if leaderboardData.leaderboard.length <= 10}
-							<div class="py-8 text-center" style="color:#94a3b8;">
-								Need more than 10 users to show bottom performers.
-							</div>
-						{/if}
+						
 					</div>
 				</div>
 			</div>
