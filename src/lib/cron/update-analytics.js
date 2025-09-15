@@ -222,24 +222,34 @@ export async function initializeAchievements() {
 	console.log('Achievements initialized');
 }
 
-// CLI support for running cron jobs manually
-if (process.env.NODE_ENV !== 'production') {
-	const args = process.argv.slice(2);
+// CLI support for running cron jobs (works in all environments)
+const args = process.argv.slice(2);
 
-	if (args.includes('--update-analytics')) {
-		(async () => {
+if (args.includes('--update-analytics')) {
+	(async () => {
+		try {
+			console.log('🚀 Starting analytics update job...');
 			await initializeAchievements();
 			const result = await updateAllPostAnalytics();
-			console.log('Final result:', result);
+			console.log('✅ Analytics update completed:', result);
 			process.exit(result.success ? 0 : 1);
-		})();
-	}
+		} catch (error) {
+			console.error('❌ Analytics update failed:', error);
+			process.exit(1);
+		}
+	})();
+}
 
-	if (args.includes('--init-achievements')) {
-		(async () => {
+if (args.includes('--init-achievements')) {
+	(async () => {
+		try {
+			console.log('🚀 Starting achievements initialization...');
 			await initializeAchievements();
-			console.log('Done');
+			console.log('✅ Achievements initialization completed');
 			process.exit(0);
-		})();
-	}
+		} catch (error) {
+			console.error('❌ Achievements initialization failed:', error);
+			process.exit(1);
+		}
+	})();
 }
