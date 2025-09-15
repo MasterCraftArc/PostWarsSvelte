@@ -1,9 +1,9 @@
 name: Initialize Achievements
 
 on:
-  # Run twice daily at 6 AM and 6 PM UTC
+  # Run twice daily at 5 AM and 5 PM Mountain Time (11 AM and 11 PM UTC)
   schedule:
-    - cron: '0 6,18 * * *'
+    - cron: '0 11,23 * * *'
   
   # Allow manual triggering
   workflow_dispatch:

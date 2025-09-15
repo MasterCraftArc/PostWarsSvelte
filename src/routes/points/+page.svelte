@@ -249,7 +249,7 @@
 		>
 			<h3 class="mb-3 text-lg font-medium" style="color:#22c55e;">🔄 Update Schedule</h3>
 			<p class="text-sm" style="color:#cbd5e1;">
-				Points are updated <strong style="color:#22c55e;">twice daily at 6 AM and 6 PM UTC</strong> 
+				Points are updated <strong style="color:#22c55e;">twice daily at 5 AM and 5 PM Mountain Time</strong> 
 				when we scrape LinkedIn for the latest engagement data. Your dashboard shows real-time progress!
 			</p>
 		</div>
