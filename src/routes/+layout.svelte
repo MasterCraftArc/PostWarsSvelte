@@ -63,6 +63,10 @@
 								class="text-[#fdfdfd] hover:text-[#24b0ff] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24b0ff] rounded px-3 py-2"
 							>Submit Post</a>
 							<a
+								href="/submit-comment"
+								class="text-[#fdfdfd] hover:text-[#24b0ff] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24b0ff] rounded px-3 py-2"
+							>Submit Comment</a>
+							<a
 								href="/leaderboard"
 								class="text-[#fdfdfd] hover:text-[#24b0ff] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24b0ff] rounded px-3 py-2"
 							>Leaderboard</a>
@@ -122,6 +126,11 @@
 							onclick={closeMobileMenu}
 							class="block px-3 py-2 rounded-md text-base font-medium text-[#fdfdfd] hover:text-[#24b0ff] hover:bg-[#1e3a8a]/20 transition-colors"
 						>Submit Post</a>
+						<a
+							href="/submit-comment"
+							onclick={closeMobileMenu}
+							class="block px-3 py-2 rounded-md text-base font-medium text-[#fdfdfd] hover:text-[#24b0ff] hover:bg-[#1e3a8a]/20 transition-colors"
+						>Submit Comment</a>
 						<a
 							href="/leaderboard"
 							onclick={closeMobileMenu}

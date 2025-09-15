@@ -72,6 +72,7 @@
 		if (growth < 0) return 'text-red-600';
 		return 'text-gray-500';
 	}
+
 </script>
 
 {#if $user}
@@ -95,7 +96,7 @@
 					Welcome back, {dashboardData.user.name || 'User'}!
 				</h2>
 
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
 					<!-- Stat card -->
 					<div
 						class="rounded-lg p-4 text-center"
@@ -133,6 +134,15 @@
 						</div>
 						<div class="text-sm" style="color:#cbd5e1;">Avg Engagement</div>
 						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.totalEngagement} total</div>
+					</div>
+
+					<div
+						class="rounded-lg p-4 text-center"
+						style="background-color:rgba(16,35,73,0.35); border:1px solid rgba(36,176,255,0.28);"
+					>
+						<div class="text-xl sm:text-2xl font-bold" style="color:#24b0ff;">{dashboardData.stats.totalCommentActivities || 0}</div>
+						<div class="text-sm" style="color:#cbd5e1;">Comments</div>
+						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.monthlyCommentActivities || 0} this month</div>
 					</div>
 				</div>
 			</div>
@@ -187,14 +197,20 @@
 							<!-- Individual Post Card (GLASS) -->
 							<div
 								class="rounded-lg p-4 transition-shadow hover:shadow-xl"
-								style="background-color:rgba(16,35,73,0.28); border:1px solid {post.status ? (post.status === 'pending' ? '#fbbf24' : '#f97316') : '#24b0ff'}; backdrop-filter:blur(6px);"
+								style="background-color:rgba(16,35,73,0.28); border:1px solid {post.type === 'comment_activity' ? '#24b0ff' : post.status ? (post.status === 'pending' ? '#fbbf24' : '#f97316') : '#24b0ff'}; backdrop-filter:blur(6px);"
 							>
 								<div class="mb-2 flex items-start justify-between">
 									<div class="flex-1">
 										<p class="mb-2 text-sm" style="color:#e2e8f0;">{post.content}</p>
 										<div class="flex items-center space-x-4 text-sm">
 											<span style="color:#cbd5e1;">{formatDate(post.postedAt)}</span>
-											{#if post.status}
+											{#if post.type === 'comment_activity'}
+												<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+													style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.3);">
+													💬 Comment Activity
+												</span>
+												<span style="color:#cbd5e1;">Points: +{post.totalScore}</span>
+											{:else if post.status}
 												<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
 													style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.3);">
 													{post.status === 'pending' ? '⏳ Processing' : '🔄 Scraping'}
@@ -226,64 +242,72 @@
 									</div>
 								</div>
 
-								<div class="mt-3 flex items-center justify-between border-t pt-3" style="border-color:rgba(148,163,184,0.2);">
-									<div class="grid flex-1 grid-cols-3 gap-4">
-										<div class="text-center">
-											<div class="font-medium" style="color:#f1f5f9;">{post.reactions}</div>
-											<div class="text-xs" style="color:#94a3b8;">Reactions</div>
-											{#if post.status}
-												<div class="text-xs" style="color:#24b0ff;">+? pts</div>
-											{:else if post.growth.reactions !== 0}
-												<div class="text-xs" style="color:{post.growth.reactions > 0 ? '#22c55e' : '#ef4444'};">
-													{post.growth.reactions > 0 ? '+' : ''}{post.growth.reactions}
-												</div>
-											{:else}
-												<div class="text-xs" style="color:#94a3b8;">
-													+{(post.reactions * 0.1).toFixed(1)} pts
-												</div>
-											{/if}
+								{#if post.type !== 'comment_activity'}
+									<div class="mt-3 flex items-center justify-between border-t pt-3" style="border-color:rgba(148,163,184,0.2);">
+										<div class="grid flex-1 grid-cols-3 gap-4">
+											<div class="text-center">
+												<div class="font-medium" style="color:#f1f5f9;">{post.reactions}</div>
+												<div class="text-xs" style="color:#94a3b8;">Reactions</div>
+												{#if post.status}
+													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
+												{:else if post.growth.reactions !== 0}
+													<div class="text-xs" style="color:{post.growth.reactions > 0 ? '#24b0ff' : '#ef4444'};">
+														{post.growth.reactions > 0 ? '+' : ''}{post.growth.reactions}
+													</div>
+												{:else}
+													<div class="text-xs" style="color:#94a3b8;">
+														+{(post.reactions * 0.1).toFixed(1)} pts
+													</div>
+												{/if}
+											</div>
+
+											<div class="text-center">
+												<div class="font-medium" style="color:#f1f5f9;">{post.comments}</div>
+												<div class="text-xs" style="color:#94a3b8;">Comments</div>
+												{#if post.status}
+													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
+												{:else if post.growth.comments !== 0}
+													<div class="text-xs" style="color:{post.growth.comments > 0 ? '#24b0ff' : '#ef4444'};">
+														{post.growth.comments > 0 ? '+' : ''}{post.growth.comments}
+													</div>
+												{:else}
+													<div class="text-xs" style="color:#94a3b8;">
+														+{post.comments * 1} pts
+													</div>
+												{/if}
+											</div>
+
+											<div class="text-center">
+												<div class="font-medium" style="color:#f1f5f9;">{post.reposts}</div>
+												<div class="text-xs" style="color:#94a3b8;">Reposts</div>
+												{#if post.status}
+													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
+												{:else if post.growth.reposts !== 0}
+													<div class="text-xs" style="color:{post.growth.reposts > 0 ? '#24b0ff' : '#ef4444'};">
+														{post.growth.reposts > 0 ? '+' : ''}{post.growth.reposts}
+													</div>
+												{:else}
+													<div class="text-xs" style="color:#94a3b8;">
+														+{post.reposts * 2} pts
+													</div>
+												{/if}
+											</div>
 										</div>
 
-										<div class="text-center">
-											<div class="font-medium" style="color:#f1f5f9;">{post.comments}</div>
-											<div class="text-xs" style="color:#94a3b8;">Comments</div>
-											{#if post.status}
-												<div class="text-xs" style="color:#24b0ff;">+? pts</div>
-											{:else if post.growth.comments !== 0}
-												<div class="text-xs" style="color:{post.growth.comments > 0 ? '#22c55e' : '#ef4444'};">
-													{post.growth.comments > 0 ? '+' : ''}{post.growth.comments}
-												</div>
-											{:else}
-												<div class="text-xs" style="color:#94a3b8;">
-													+{post.comments * 1} pts
-												</div>
-											{/if}
-										</div>
-
-										<div class="text-center">
-											<div class="font-medium" style="color:#f1f5f9;">{post.reposts}</div>
-											<div class="text-xs" style="color:#94a3b8;">Reposts</div>
-											{#if post.status}
-												<div class="text-xs" style="color:#24b0ff;">+? pts</div>
-											{:else if post.growth.reposts !== 0}
-												<div class="text-xs" style="color:{post.growth.reposts > 0 ? '#22c55e' : '#ef4444'};">
-													{post.growth.reposts > 0 ? '+' : ''}{post.growth.reposts}
-												</div>
-											{:else}
-												<div class="text-xs" style="color:#94a3b8;">
-													+{post.reposts * 2} pts
-												</div>
-											{/if}
+										<div class="ml-4 text-right">
+											<div class="text-sm" style="color:#cbd5e1;">
+												{post.status ? 'Submitted' : 'Last updated'}
+											</div>
+											<div class="text-xs" style="color:#94a3b8;">{formatDate(post.lastScrapedAt)}</div>
 										</div>
 									</div>
-
-									<div class="ml-4 text-right">
-										<div class="text-sm" style="color:#cbd5e1;">
-											{post.status ? 'Submitted' : 'Last updated'}
+								{:else}
+									<div class="mt-3 border-t pt-3 text-center" style="border-color:rgba(148,163,184,0.2);">
+										<div class="text-sm" style="color:#24b0ff;">
+											Comment activity logged • {formatDate(post.postedAt)}
 										</div>
-										<div class="text-xs" style="color:#94a3b8;">{formatDate(post.lastScrapedAt)}</div>
 									</div>
-								</div>
+								{/if}
 							</div>
 						{/each}
 					</div>
