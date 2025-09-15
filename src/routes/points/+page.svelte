@@ -1,5 +1,64 @@
 <script>
-	import { SCORING_CONFIG, ACHIEVEMENTS } from '$lib/gamification.js';
+	// Static scoring configuration
+	const SCORING_CONFIG = {
+		BASE_POST_POINTS: 1,
+		REACTION_POINTS: 0.1,
+		COMMENT_POINTS: 1,
+		REPOST_POINTS: 2,
+		COMMENT_ACTIVITY_POINTS: 1,
+		MAX_DAILY_COMMENTS: 10,
+		STREAK_MULTIPLIER: 0.1,
+		MAX_STREAK_BONUS: 1.5,
+		FRESH_HOURS: 24,
+		DECAY_RATE: 0.02
+	};
+
+	// Static achievements data
+	const ACHIEVEMENTS = [
+		{
+			name: 'First Post',
+			description: 'Share your first LinkedIn post',
+			icon: '🎉',
+			points: 50,
+			requirementType: 'posts_count',
+			requirementValue: 1
+		},
+		{
+			name: 'Consistent Creator',
+			description: 'Post 5 times in a month',
+			icon: '📝',
+			points: 100,
+			requirementType: 'posts_count',
+			requirementValue: 5
+		},
+		{
+			name: 'Engagement Magnet',
+			description: 'Get 100 total reactions across all posts',
+			icon: '🧲',
+			points: 150,
+			requirementType: 'engagement_total',
+			requirementValue: 100
+		},
+		{
+			name: 'Week Warrior',
+			description: 'Post for 7 consecutive days',
+			icon: '🔥',
+			points: 200,
+			requirementType: 'streak_days',
+			requirementValue: 7
+		},
+		{
+			name: 'Viral Moment',
+			description: 'Get 50 reactions on a single post',
+			icon: '🚀',
+			points: 300,
+			requirementType: 'single_post_reactions',
+			requirementValue: 50
+		}
+	];
+
+	// Calculate total achievement points
+	const totalAchievementPoints = ACHIEVEMENTS.reduce((sum, achievement) => sum + achievement.points, 0);
 </script>
 
 <svelte:head>
@@ -96,9 +155,19 @@
 		<!-- Achievements -->
 		<section>
 			<h2 class="mb-6 text-2xl font-semibold" style="color:#fdfdfd;">🏆 Available Achievements</h2>
-			<p class="mb-6 text-sm" style="color:#cbd5e1;">
-				Unlock achievements by reaching specific milestones. Each achievement awards bonus points!
-			</p>
+			<div class="mb-6 flex items-center justify-between">
+				<p class="text-sm" style="color:#cbd5e1;">
+					Unlock achievements by reaching specific milestones. Each achievement awards bonus points!
+				</p>
+				<div
+					class="rounded-lg px-4 py-2 backdrop-blur-md"
+					style="background-color:rgba(36,176,255,0.15); border:1px solid #24b0ff;"
+				>
+					<span class="text-sm font-medium" style="color:#24b0ff;">
+						Total Available: {totalAchievementPoints} points
+					</span>
+				</div>
+			</div>
 			
 			<div class="grid gap-4 md:grid-cols-2">
 				{#each ACHIEVEMENTS as achievement}
