@@ -132,7 +132,6 @@
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
 					<li>• Reaction: 0.1 points each</li>
 					<li>• Comment: 1 point each</li>
-					<li>• Repost: 2 points each</li>
 				</ul>
 			</div>
 		</div>
@@ -144,7 +143,7 @@
 			<h4 class="mb-2 font-medium" style="color:#22c55e;">Update Schedule</h4>
 			<p class="text-sm" style="color:#cbd5e1;">
 				Posts are scraped and updated <strong style="color:#22c55e;"
-					>twice daily at 6 AM and 6 PM UTC</strong
+					>twice daily at 5 AM and 5 PM Mountain Time</strong
 				> to track your latest engagement and update your scores automatically.
 			</p>
 		</div>
