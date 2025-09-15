@@ -129,116 +129,188 @@
 				{error}
 			</div>
 		{:else if leaderboardData}
-			<div
-				class="overflow-y-auto shadow-lg custom-scrollbar max-h-96 rounded-xl backdrop-blur-md"
-				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
-			>
-				<div class="p-6">
-					<h3
-						class="top-0 z-10 p-2 mb-4 text-xl font-bold rounded-lg "
-						style="color:#fdfdfd; background-color:rgba(255,255,255,0.05);"
-					>
-						Company Leaderboard
-					</h3>
-					<div class="space-y-3">
-						{#each leaderboardData.leaderboard as player}
-							<div
-								class="flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02]"
-								style="background-color:{player.isCurrentUser
-									? 'rgba(36,176,255,0.25)'
-									: 'rgba(16,35,73,0.28)'}; border:2px solid {player.isCurrentUser
-									? '#24b0ff'
-									: 'rgba(36,176,255,0.35)'}; {player.isCurrentUser
-									? 'box-shadow: 0 0 20px rgba(36,176,255,0.3);'
-									: ''}"
-							>
-								<!-- Rank -->
-								<div class="w-16 text-center">
-									<div
-										class="text-xl font-bold"
-										style="color:{player.isCurrentUser ? '#24b0ff' : '#24b0ff'};"
-									>
-										{getRankIcon(player.rank)}
-									</div>
-								</div>
-
-								<!-- User Info -->
-								<div class="flex-1">
-									<div
-										class="font-semibold"
-										style="color:{player.isCurrentUser ? '#ffffff' : '#fdfdfd'};"
-									>
-										{player.name}
-										{#if player.isCurrentUser}
-											<span class="text-sm font-normal animate-pulse" style="color:#24b0ff;"
-												>YOU</span
-											>
-										{/if}
-									</div>
-									<div class="text-sm" style="color:#94a3b8;">
-										{#if player.teamName !== 'No Team'}
-											{player.teamName} •
-										{/if}
-										{player.postsInTimeframe || 0} posts
-									</div>
-								</div>
-
-								<!-- Recent Achievement -->
-								<div class="mr-4 text-center">
-									{#if getUserRecentAchievement(player.id, $userAchievements)}
-										{@const recentAchievement = getUserRecentAchievement(player.id, $userAchievements)}
+			<!-- Split Leaderboards: Top 10 and Bottom 10 -->
+			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+				<!-- Top 10 Users -->
+				<div
+					class="overflow-y-auto shadow-lg custom-scrollbar max-h-[600px] lg:max-h-[1200px] rounded-xl backdrop-blur-md"
+					style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
+				>
+					<div class="p-6">
+						<h3
+							class="top-0 z-10 p-2 mb-4 text-xl font-bold rounded-lg"
+							style="color:#fdfdfd; background-color:rgba(255,255,255,0.05);"
+						>
+							🦄 Sparkling
+						</h3>
+						<div class="space-y-3">
+							{#each leaderboardData.leaderboard.slice(0, 10) as player}
+								<div
+									class="flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02]"
+									style="background-color:{player.isCurrentUser
+										? 'rgba(36,176,255,0.25)'
+										: 'rgba(16,35,73,0.28)'}; border:2px solid {player.isCurrentUser
+										? '#24b0ff'
+										: 'rgba(36,176,255,0.35)'}; {player.isCurrentUser
+										? 'box-shadow: 0 0 20px rgba(36,176,255,0.3);'
+										: ''}"
+								>
+									<!-- Rank -->
+									<div class="w-12 text-center">
 										<div
-											class="text-lg"
-											title="{recentAchievement.name} - {recentAchievement.points} points"
+											class="text-lg font-bold"
+											style="color:{player.isCurrentUser ? '#24b0ff' : '#24b0ff'};"
 										>
-											{recentAchievement.icon}
+											{getRankIcon(player.rank)}
 										</div>
-										<div class="text-xs" style="color:#94a3b8;">
-											{recentAchievement.name}
+									</div>
+
+									<!-- User Info -->
+									<div class="flex-1 min-w-0">
+										<div
+											class="font-semibold truncate"
+											style="color:{player.isCurrentUser ? '#ffffff' : '#fdfdfd'};"
+										>
+											{player.name}
+											{#if player.isCurrentUser}
+												<span class="text-xs font-normal animate-pulse" style="color:#24b0ff;"
+													>YOU</span
+												>
+											{/if}
 										</div>
-									{:else}
-										<div class="text-lg opacity-30">🏆</div>
-										<div class="text-xs" style="color:#94a3b8;">No achievement</div>
-									{/if}
-								</div>
-
-								<!-- Stats -->
-								<div class="mr-6 text-right">
-									<div
-										class="text-xl font-bold"
-										style="color:{player.isCurrentUser ? '#ffffff' : '#fdfdfd'};"
-									>
-										{player.totalScore.toLocaleString()}
+										<div class="text-xs truncate" style="color:#94a3b8;">
+											{#if player.teamName !== 'No Team'}
+												{player.teamName} •
+											{/if}
+											{player.postsInTimeframe || 0} posts
+										</div>
 									</div>
-									<div class="text-sm" style="color:#94a3b8;">points</div>
-								</div>
 
-								<!-- Engagement -->
-								<div class="mr-6 text-right">
-									<div
-										class="text-lg font-semibold"
-										style="color:#22c55e;"
-										title="Total engagement from all posts"
-									>
-										{(player.engagementInTimeframe || 0).toLocaleString()}
+									<!-- Recent Achievement -->
+									<div class="mr-2 text-center">
+										{#if getUserRecentAchievement(player.id, $userAchievements)}
+											{@const recentAchievement = getUserRecentAchievement(player.id, $userAchievements)}
+											<div
+												class="text-sm"
+												title="{recentAchievement.name} - {recentAchievement.points} points"
+											>
+												{recentAchievement.icon}
+											</div>
+										{:else}
+											<div class="text-sm opacity-30">🏆</div>
+										{/if}
 									</div>
-									<div class="text-sm" style="color:#94a3b8;">engagement</div>
-								</div>
 
-								<!-- Streak -->
-								<div class="text-right">
-									<div class="text-lg font-semibold" style="color:#fbbf24;">
-										{player.currentStreak}
+									<!-- Stats -->
+									<div class="text-right">
+										<div
+											class="text-sm font-bold"
+											style="color:{player.isCurrentUser ? '#ffffff' : '#fdfdfd'};"
+										>
+											{player.totalScore.toLocaleString()}
+										</div>
+										<div class="text-xs" style="color:#94a3b8;">points</div>
 									</div>
-									<div class="text-sm" style="color:#94a3b8;">streak</div>
 								</div>
-							</div>
-						{/each}
+							{/each}
+						</div>
+
+						{#if leaderboardData.leaderboard.length === 0}
+							<div class="py-8 text-center" style="color:#94a3b8;">No users found.</div>
+						{/if}
 					</div>
+				</div>
 
-					{#if leaderboardData.leaderboard.length === 0}
-						<div class="py-8 text-center" style="color:#94a3b8;">No users found.</div>
-					{/if}
+				<!-- Bottom 10 Users -->
+				<div
+					class="overflow-y-auto shadow-lg custom-scrollbar-reverse max-h-[600px] lg:max-h-[1200px] rounded-xl backdrop-blur-md"
+					style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
+				>
+					<div class="p-6">
+						<h3
+							class="top-0 z-10 p-2 mb-4 text-xl font-bold rounded-lg"
+							style="color:#fdfdfd; background-color:rgba(255,255,255,0.05);"
+						>
+							😭 Growing Their Horns
+						</h3>
+						<div class="flex flex-col-reverse space-y-3">
+							{#each leaderboardData.leaderboard.slice(-10) as player}
+								<div
+									class="flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02]"
+									style="background-color:{player.isCurrentUser
+										? 'rgba(36,176,255,0.25)'
+										: 'rgba(16,35,73,0.28)'}; border:2px solid {player.isCurrentUser
+										? '#24b0ff'
+										: 'rgba(148,163,184,0.35)'}; {player.isCurrentUser
+										? 'box-shadow: 0 0 20px rgba(36,176,255,0.3);'
+										: ''}"
+								>
+									<!-- Rank -->
+									<div class="w-12 text-center">
+										<div
+											class="text-lg font-bold"
+											style="color:{player.isCurrentUser ? '#24b0ff' : '#94a3b8'};"
+										>
+											{getRankIcon(player.rank)}
+										</div>
+									</div>
+
+									<!-- User Info -->
+									<div class="flex-1 min-w-0">
+										<div
+											class="font-semibold truncate"
+											style="color:{player.isCurrentUser ? '#ffffff' : '#fdfdfd'};"
+										>
+											{player.name}
+											{#if player.isCurrentUser}
+												<span class="text-xs font-normal animate-pulse" style="color:#24b0ff;"
+													>YOU</span
+												>
+											{/if}
+										</div>
+										<div class="text-xs truncate" style="color:#94a3b8;">
+											{#if player.teamName !== 'No Team'}
+												{player.teamName} •
+											{/if}
+											{player.postsInTimeframe || 0} posts
+										</div>
+									</div>
+
+									<!-- Recent Achievement -->
+									<div class="mr-2 text-center">
+										{#if getUserRecentAchievement(player.id, $userAchievements)}
+											{@const recentAchievement = getUserRecentAchievement(player.id, $userAchievements)}
+											<div
+												class="text-sm"
+												title="{recentAchievement.name} - {recentAchievement.points} points"
+											>
+												{recentAchievement.icon}
+											</div>
+										{:else}
+											<div class="text-sm opacity-30">🏆</div>
+										{/if}
+									</div>
+
+									<!-- Stats -->
+									<div class="text-right">
+										<div
+											class="text-sm font-bold"
+											style="color:{player.isCurrentUser ? '#ffffff' : '#fdfdfd'};"
+										>
+											{player.totalScore.toLocaleString()}
+										</div>
+										<div class="text-xs" style="color:#94a3b8;">points</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+
+						{#if leaderboardData.leaderboard.length <= 10}
+							<div class="py-8 text-center" style="color:#94a3b8;">
+								Need more than 10 users to show bottom performers.
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 		{/if}
@@ -271,6 +343,32 @@
 
 	/* Firefox scrollbar styling */
 	.custom-scrollbar {
+		scrollbar-width: thin;
+		scrollbar-color: #24b0ff rgba(16, 35, 73, 0.35);
+	}
+
+	/* Reverse scrollbar for bottom 10 - same style as regular */
+	.custom-scrollbar-reverse::-webkit-scrollbar {
+		width: 8px;
+	}
+
+	.custom-scrollbar-reverse::-webkit-scrollbar-track {
+		background: rgba(16, 35, 73, 0.35);
+		border-radius: 4px;
+	}
+
+	.custom-scrollbar-reverse::-webkit-scrollbar-thumb {
+		background: #24b0ff;
+		border-radius: 4px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.custom-scrollbar-reverse::-webkit-scrollbar-thumb:hover {
+		background: #1e9adb;
+	}
+
+	/* Firefox scrollbar styling for reverse */
+	.custom-scrollbar-reverse {
 		scrollbar-width: thin;
 		scrollbar-color: #24b0ff rgba(16, 35, 73, 0.35);
 	}

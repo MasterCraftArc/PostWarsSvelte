@@ -38,7 +38,7 @@ export async function updateAllPostAnalytics() {
 				const { scrapeSinglePost } = await import('../linkedin-scraper.js');
 				const currentData = await scrapeSinglePost(post.url, {
 					headed: false,
-					storageStatePath: 'linkedin_auth_state.json'
+					storageStatePath: 'non-existent-auth-file.json'
 				});
 
 				if (!currentData) {
@@ -68,7 +68,7 @@ export async function updateAllPostAnalytics() {
 						reactions: currentData.reactions,
 						comments: currentData.comments,
 						reposts: currentData.reposts,
-						timestamp: post.postedAt.toISOString()
+						timestamp: post.postedAt instanceof Date ? post.postedAt.toISOString() : post.postedAt
 					},
 					currentStreak
 				);
@@ -225,19 +225,33 @@ export async function initializeAchievements() {
 // CLI support for running cron jobs (works in all environments)
 const args = process.argv.slice(2);
 
+console.log('🔍 Debug: Script loaded, args:', args);
+console.log('🔍 Debug: NODE_ENV:', process.env.NODE_ENV);
+console.log('🔍 Debug: SUPABASE_SERVICE_KEY present:', !!process.env.SUPABASE_SERVICE_KEY);
+console.log('🔍 Debug: PUBLIC_SUPABASE_URL present:', !!process.env.PUBLIC_SUPABASE_URL);
+console.log('🔍 Debug: Checking for --update-analytics flag...');
+
 if (args.includes('--update-analytics')) {
+	console.log('✅ Debug: Found --update-analytics flag, starting job...');
 	(async () => {
 		try {
 			console.log('🚀 Starting analytics update job...');
+			console.log('📋 Step 1: Initializing achievements...');
 			await initializeAchievements();
+			console.log('✅ Step 1 completed: Achievements initialized');
+			
+			console.log('📋 Step 2: Starting post analytics update...');
 			const result = await updateAllPostAnalytics();
 			console.log('✅ Analytics update completed:', result);
 			process.exit(result.success ? 0 : 1);
 		} catch (error) {
 			console.error('❌ Analytics update failed:', error);
+			console.error('❌ Error stack:', error.stack);
 			process.exit(1);
 		}
 	})();
+} else {
+	console.log('❌ Debug: No --update-analytics flag found in args:', args);
 }
 
 if (args.includes('--init-achievements')) {
