@@ -132,7 +132,6 @@
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
 					<li>• Reaction: 0.1 points each</li>
 					<li>• Comment: 1 point each</li>
-					<li>• Repost: 2 points each</li>
 				</ul>
 			</div>
 		</div>

@@ -102,7 +102,6 @@
 					<ul class="space-y-2 text-sm" style="color:#cbd5e1;">
 						<li>• Reaction: <strong style="color:#24b0ff;">{SCORING_CONFIG.REACTION_POINTS} points</strong> each</li>
 						<li>• Comment: <strong style="color:#24b0ff;">{SCORING_CONFIG.COMMENT_POINTS} point</strong> each</li>
-						<li>• Repost: <strong style="color:#24b0ff;">{SCORING_CONFIG.REPOST_POINTS} points</strong> each</li>
 					</ul>
 				</div>
 
@@ -141,12 +140,12 @@
 				<h3 class="mb-3 text-lg font-medium" style="color:#22c55e;">🧮 Example Calculation</h3>
 				<div class="text-sm" style="color:#cbd5e1;">
 					<p class="mb-2">
-						<strong>Post with 50 reactions, 10 comments, 3 reposts, 3-day streak:</strong>
+						<strong>Post with 50 reactions, 10 comments, 3-day streak:</strong>
 					</p>
 					<ul class="ml-4 space-y-1">
 						<li>• Base: 1 point × 1.3 (30% streak bonus) = 1.3 points</li>
-						<li>• Engagement: (50 × 0.1) + (10 × 1) + (3 × 2) = 21 points</li>
-						<li>• <strong style="color:#22c55e;">Total: 22.3 points</strong></li>
+						<li>• Engagement: (50 × 0.1) + (10 × 1) = 15 points</li>
+						<li>• <strong style="color:#22c55e;">Total: 16.3 points</strong></li>
 					</ul>
 				</div>
 			</div>
