@@ -9,7 +9,7 @@ export async function POST(event) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
 
-		const { userIds } = await event.request.json();
+		const { userIds, limit = 1 } = await event.request.json();
 
 		if (!Array.isArray(userIds) || userIds.length === 0) {
 			return json({ error: 'userIds array is required' }, { status: 400 });
@@ -30,7 +30,8 @@ export async function POST(event) {
 				achievements (
 					name,
 					icon,
-					points
+					points,
+					description
 				)
 			`
 			)
@@ -41,22 +42,37 @@ export async function POST(event) {
 			return json({ error: 'Database error' }, { status: 500 });
 		}
 
-		// Group by userId and get most recent for each
+		// Group by userId and get achievements for each (limited by limit parameter)
 		const userAchievements = {};
 
 		if (data) {
 			data.forEach((item) => {
 				const userId = item.userId;
-				// Only store if this is the first (most recent) achievement for this user
+
 				if (!userAchievements[userId]) {
-					userAchievements[userId] = {
+					userAchievements[userId] = [];
+				}
+
+				// Add achievement if we haven't reached the limit for this user
+				if (userAchievements[userId].length < limit) {
+					userAchievements[userId].push({
 						name: item.achievements.name,
 						icon: item.achievements.icon,
 						points: item.achievements.points,
-						earnedAt: item.earnedAt
-					};
+						earnedAt: item.earnedAt,
+						description: item.achievements.description || ''
+					});
 				}
 			});
+		}
+
+		// For single user requests with limit 1, return the achievement directly (backward compatibility)
+		if (userIds.length === 1 && limit === 1) {
+			const userId = userIds[0];
+			const achievements = userAchievements[userId];
+			if (achievements && achievements.length > 0) {
+				userAchievements[userId] = achievements[0];
+			}
 		}
 
 		return json({

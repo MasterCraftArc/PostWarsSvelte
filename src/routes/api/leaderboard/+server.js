@@ -4,9 +4,123 @@ import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 
 async function handleTeamCompetition(timeframe, userTeamId) {
 	try {
-		// Note: Currently using user totalScore (all-time) rather than timeframe-filtered posts
-		// This could be enhanced later to filter posts by timeframe for more accurate competition
+		// Check for active race goal first
+		const { data: raceGoal, error: raceError } = await supabaseAdmin
+			.from('goals')
+			.select('*')
+			.is('teamId', null)
+			.eq('status', 'ACTIVE')
+			.eq('is_race', true)
+			.single();
 
+		// If there's an active race, use race-based rankings
+		if (raceGoal && !raceError) {
+			// Get race data from the race API logic
+			const { data: teams, error: teamsError } = await supabaseAdmin
+				.from('teams')
+				.select('id, name')
+				.not('id', 'eq', 'company-team-id')
+				.not('name', 'ilike', '%company%');
+
+			if (teamsError) {
+				console.error('Teams query error:', teamsError);
+				return json({ error: `Database error: ${teamsError.message}` }, { status: 500 });
+			}
+
+			// Calculate race progress for each team
+			const teamRankings = await Promise.all(teams.map(async team => {
+				// Get team members
+				const { data: members } = await supabaseAdmin
+					.from('users')
+					.select('id, totalScore')
+					.eq('teamId', team.id);
+
+				const memberCount = members?.length || 0;
+				const totalScore = members?.reduce((sum, user) => sum + (user.totalScore || 0), 0) || 0;
+				const averageScore = memberCount > 0 ? Math.round((totalScore / memberCount) * 10) / 10 : 0;
+
+				if (memberCount === 0) {
+					return {
+						id: team.id,
+						name: team.name,
+						totalScore,
+						memberCount,
+						averageScore,
+						raceProgress: 0,
+						raceValue: 0,
+						isUserTeam: team.id === userTeamId
+					};
+				}
+
+				const userIds = members.map(m => m.id);
+				let raceValue = 0;
+
+				// Calculate race progress based on goal type
+				switch (raceGoal.type) {
+					case 'POSTS_COUNT':
+						const { count: postCount } = await supabaseAdmin
+							.from('linkedin_posts')
+							.select('*', { count: 'exact', head: true })
+							.in('userId', userIds)
+							.gte('createdAt', raceGoal.startDate);
+						raceValue = postCount || 0;
+						break;
+
+					case 'TOTAL_ENGAGEMENT':
+						const { data: engagementData } = await supabaseAdmin
+							.from('linkedin_posts')
+							.select('totalEngagement')
+							.in('userId', userIds)
+							.gte('createdAt', raceGoal.startDate);
+						raceValue = engagementData?.reduce((sum, post) => sum + (post.totalEngagement || 0), 0) || 0;
+						break;
+
+					case 'TEAM_SCORE':
+						raceValue = totalScore;
+						break;
+
+					default:
+						raceValue = 0;
+						break;
+				}
+
+				const raceProgress = raceGoal.targetValue > 0 ? Math.min(100, (raceValue / raceGoal.targetValue) * 100) : 0;
+
+				return {
+					id: team.id,
+					name: team.name,
+					totalScore,
+					memberCount,
+					averageScore,
+					raceProgress: Math.round(raceProgress * 10) / 10,
+					raceValue,
+					isUserTeam: team.id === userTeamId
+				};
+			}));
+
+			// Filter teams with members and sort by race progress
+			const filteredAndSorted = teamRankings
+				.filter(team => team.memberCount > 0)
+				.sort((a, b) => b.raceProgress - a.raceProgress || b.raceValue - a.raceValue)
+				.map((team, index) => ({
+					...team,
+					rank: index + 1
+				}));
+
+			const response = json({
+				teamRankings: filteredAndSorted,
+				raceGoal: {
+					...raceGoal,
+					daysLeft: Math.max(0, Math.ceil((new Date(raceGoal.endDate) - new Date()) / (1000 * 60 * 60 * 24)))
+				},
+				scope: 'teams',
+				isRace: true
+			});
+			response.headers.set('Cache-Control', 'public, max-age=300');
+			return response;
+		}
+
+		// No active race - use normal score-based competition
 		// Get all teams first to debug what's being returned
 		const { data: allTeams, error: teamsError } = await supabaseAdmin
 			.from('teams')
@@ -44,7 +158,7 @@ async function handleTeamCompetition(timeframe, userTeamId) {
 			usersByTeam[user.teamId].push(user);
 		});
 
-		// Calculate team scores and rankings
+		// Calculate team scores and rankings (normal mode)
 		const teamRankings = teams.map(team => {
 			const teamMembers = usersByTeam[team.id] || [];
 			const memberCount = teamMembers.length;
@@ -72,7 +186,8 @@ async function handleTeamCompetition(timeframe, userTeamId) {
 
 		const response = json({
 			teamRankings,
-			scope: 'teams'
+			scope: 'teams',
+			isRace: false
 		});
 		response.headers.set('Cache-Control', 'public, max-age=300');
 		return response;

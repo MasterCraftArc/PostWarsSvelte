@@ -181,13 +181,14 @@ export async function POST(event) {
 	}
 
 	try {
-		const { 
-			title, 
-			description, 
-			type, 
-			targetValue, 
-			teamId, 
-			endDate 
+		const {
+			title,
+			description,
+			type,
+			targetValue,
+			teamId,
+			endDate,
+			isRace = false
 		} = await event.request.json();
 
 		if (!title || !type || !targetValue || !endDate) {
@@ -196,11 +197,18 @@ export async function POST(event) {
 			}, { status: 400 });
 		}
 
-		// Handle team vs company goals
+		// Handle different goal types
 		let finalTeamId = teamId;
-		
-		if (!teamId || teamId === 'company') {
-			// Company goal - only admins can create
+
+		if (isRace) {
+			// Race goals are always company-wide competitions
+			if (user.role !== 'ADMIN') {
+				return json({ error: 'Only admins can create race goals' }, { status: 403 });
+			}
+			// Race goals don't belong to a specific team - use null
+			finalTeamId = null;
+		} else if (!teamId || teamId === 'company') {
+			// Regular company goal - only admins can create
 			if (user.role !== 'ADMIN') {
 				return json({ error: 'Only admins can create company-wide goals' }, { status: 403 });
 			}
@@ -243,7 +251,8 @@ export async function POST(event) {
 				type,
 				targetValue: parseInt(targetValue),
 				teamId: finalTeamId,
-				endDate: new Date(endDate).toISOString()
+				endDate: new Date(endDate).toISOString(),
+				is_race: isRace
 			})
 			.select(`
 				*,

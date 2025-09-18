@@ -242,6 +242,93 @@
 			</div>
 		</section>
 
+		<!-- How Teams Work -->
+		<section class="mt-12">
+			<h2 class="mb-6 text-2xl font-semibold" style="color:#fdfdfd;">🏆 How Teams Work</h2>
+
+			<div class="grid gap-6 md:grid-cols-2">
+				<!-- Team Assignment -->
+				<div
+					class="rounded-lg p-6 backdrop-blur-md"
+					style="background-color:rgba(16,35,73,0.28); border:1px solid #24b0ff;"
+				>
+					<h3 class="mb-3 text-lg font-medium" style="color:#e5e7eb;">👥 Getting on a Team</h3>
+					<ul class="space-y-2 text-sm" style="color:#cbd5e1;">
+						<li>• <strong style="color:#24b0ff;">New users are automatically assigned</strong> to a team when they join</li>
+						<li>• Teams are balanced to keep competition fair</li>
+					</ul>
+				</div>
+
+				<!-- Team Competition -->
+				<div
+					class="rounded-lg p-6 backdrop-blur-md"
+					style="background-color:rgba(16,35,73,0.28); border:1px solid #24b0ff;"
+				>
+					<h3 class="mb-3 text-lg font-medium" style="color:#e5e7eb;">🥇 Team Competition</h3>
+					<ul class="space-y-2 text-sm" style="color:#cbd5e1;">
+						<li>• <strong style="color:#24b0ff;">Your individual points count toward your team's total</strong></li>
+						<li>• Teams compete on the leaderboard for the highest combined score</li>
+						<li>• Click on any team to see all members and their individual rankings</li>
+						<li>• Best performing teams get recognition and bragging rights!</li>
+					</ul>
+				</div>
+
+				<!-- Team Benefits -->
+				<div
+					class="rounded-lg p-6 backdrop-blur-md"
+					style="background-color:rgba(16,35,73,0.28); border:1px solid #24b0ff;"
+				>
+					<h3 class="mb-3 text-lg font-medium" style="color:#e5e7eb;">🎯 Why Teams Matter</h3>
+					<ul class="space-y-2 text-sm" style="color:#cbd5e1;">
+						<li>• <strong style="color:#24b0ff;">Motivation through friendly competition</strong></li>
+						<li>• Support and encouragement from teammates</li>
+						<li>• Share content strategies and best practices</li>
+						<li>• Celebrate wins together and learn from each other</li>
+					</ul>
+				</div>
+
+				<!-- Team Features -->
+				<div
+					class="rounded-lg p-6 backdrop-blur-md"
+					style="background-color:rgba(16,35,73,0.28); border:1px solid #24b0ff;"
+				>
+					<h3 class="mb-3 text-lg font-medium" style="color:#e5e7eb;">🔧 Team Features</h3>
+					<ul class="space-y-2 text-sm" style="color:#cbd5e1;">
+						<li>• <strong style="color:#24b0ff;">Team Progress page</strong> shows your team's performance</li>
+						<li>• Active Goals that your team is working toward together</li>
+						<li>• Individual vs Team leaderboard views</li>
+						<li>• Click any teammate's name to see their full profile and achievements</li>
+					</ul>
+				</div>
+			</div>
+
+			<!-- Team Strategy Tips -->
+			<div
+				class="mt-6 rounded-lg p-6 backdrop-blur-md"
+				style="background-color:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3);"
+			>
+				<h3 class="mb-3 text-lg font-medium" style="color:#6366f1;">💡 Team Success Tips</h3>
+				<div class="grid gap-4 md:grid-cols-2">
+					<div>
+						<h4 class="mb-2 text-sm font-medium" style="color:#e5e7eb;">For Everyone:</h4>
+						<ul class="space-y-1 text-sm" style="color:#cbd5e1;">
+							<li>• Stay consistent with your posting to help the team</li>
+							<li>• Engage with teammates' content to boost team engagement</li>
+							<li>• Check the Team Progress page to see how you're contributing</li>
+						</ul>
+					</div>
+					<div>
+						<h4 class="mb-2 text-sm font-medium" style="color:#e5e7eb;">Team Strategy:</h4>
+						<ul class="space-y-1 text-sm" style="color:#cbd5e1;">
+							<li>• Focus on Active Goals to maximize team points</li>
+							<li>• Help newer teammates understand the scoring system</li>
+							<li>• Celebrate team achievements and milestones together</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</section>
+
 		<!-- Update Schedule -->
 		<div
 			class="mt-8 rounded-lg p-6 backdrop-blur-md"
@@ -249,7 +336,7 @@
 		>
 			<h3 class="mb-3 text-lg font-medium" style="color:#22c55e;">🔄 Update Schedule</h3>
 			<p class="text-sm" style="color:#cbd5e1;">
-				Points are updated <strong style="color:#22c55e;">twice daily at 5 AM and 5 PM Mountain Time</strong> 
+				Points are updated <strong style="color:#22c55e;">twice daily at 5 AM and 5 PM Mountain Time</strong>
 				when we scrape LinkedIn for the latest engagement data. Your dashboard shows real-time progress!
 			</p>
 		</div>
