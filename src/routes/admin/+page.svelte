@@ -123,6 +123,19 @@
 		}
 	}
 
+	async function updateUserTeam(userId, newTeamId) {
+		try {
+			await authenticatedRequest('/api/admin/users', {
+				method: 'PATCH',
+				body: JSON.stringify({ userId, teamId: newTeamId })
+			});
+
+			await loadData();
+		} catch (err) {
+			alert('Error: ' + err.message);
+		}
+	}
+
 	function formatDate(dateString) {
 		return new Date(dateString).toLocaleDateString();
 	}
@@ -345,6 +358,30 @@
 													<span>Lead: {team.teamLead.name}</span>
 												{/if}
 											</div>
+
+											<!-- Team Statistics -->
+											{#if team.members && team.members.length > 0}
+												{@const totalScore = team.members.reduce((sum, m) => sum + (m.totalScore || 0), 0)}
+												{@const avgScore = Math.round(totalScore / team.members.length)}
+												{@const topPerformer = team.members.reduce((top, m) => (m.totalScore || 0) > (top.totalScore || 0) ? m : top, team.members[0])}
+												<div class="mt-3 rounded-md p-3" style="background-color:rgba(36,176,255,0.08); border:1px solid rgba(36,176,255,0.25);">
+													<h4 class="mb-2 text-sm font-medium" style="color:#24b0ff;">Team Performance</h4>
+													<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+														<div class="text-center">
+															<div class="font-semibold" style="color:#fdfdfd;">{totalScore.toLocaleString()}</div>
+															<div style="color:#94a3b8;">Total Score</div>
+														</div>
+														<div class="text-center">
+															<div class="font-semibold" style="color:#fdfdfd;">{avgScore.toLocaleString()}</div>
+															<div style="color:#94a3b8;">Avg Score</div>
+														</div>
+														<div class="text-center">
+															<div class="font-semibold" style="color:#fdfdfd;">{topPerformer.name}</div>
+															<div style="color:#94a3b8;">Top Performer</div>
+														</div>
+													</div>
+												</div>
+											{/if}
 										</div>
 										<div class="flex flex-col sm:flex-row gap-2">
 											<button
@@ -706,7 +743,19 @@
 													<option value="ADMIN" class="text-slate-900">Admin</option>
 												</select>
 											</td>
-											<td class="px-4 py-3" style="color:#cbd5e1;">{u.team?.name || 'No team'}</td>
+											<td class="px-4 py-3">
+												<select
+													value={u.teamId || ''}
+													onchange={(e) => updateUserTeam(u.id, e.target.value || null)}
+													class="rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 hover:cursor-pointer"
+													style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; --tw-ring-color:#24b0ff;"
+												>
+													<option value="" class="text-slate-900">No Team</option>
+													{#each teams.filter(t => t.id !== 'company-team-id' && t.name !== 'Company') as team}
+														<option value={team.id} class="text-slate-900">{team.name}</option>
+													{/each}
+												</select>
+											</td>
 											<td class="px-4 py-3" style="color:#fdfdfd;">{u.totalScore}</td>
 											<td class="px-4 py-3">
 												<div class="flex flex-col sm:flex-row gap-2">
