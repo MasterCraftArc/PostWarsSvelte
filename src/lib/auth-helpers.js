@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase-node.js';
+import { assignUserToTeam } from './team-assignment.js';
 
 /**
  * Extract and validate Supabase session from Authorization header
@@ -48,9 +49,29 @@ export async function validateSupabaseAuth(authorization) {
 			}
 
 			localUser = newUser;
+
+			// Auto-assign new user to team
+			try {
+				await assignUserToTeam(user.id);
+				console.log(`✅ New user ${user.id} assigned to team automatically`);
+			} catch (error) {
+				console.error(`⚠️ Failed to assign team for new user ${user.id}:`, error.message);
+				// Continue without failing auth - user creation succeeded
+			}
 		} else if (dbError) {
 			console.error('Database error:', dbError);
 			return null;
+		}
+
+		// Auto-assign existing users without teams
+		if (localUser && !localUser.teamId) {
+			try {
+				await assignUserToTeam(localUser.id);
+				console.log(`✅ Existing user ${localUser.id} assigned to team automatically`);
+			} catch (error) {
+				console.error(`⚠️ Failed to assign team for existing user ${localUser.id}:`, error.message);
+				// Continue without failing auth - user lookup succeeded
+			}
 		}
 
 		return localUser;
