@@ -256,8 +256,6 @@
 					<ul class="space-y-2 text-sm" style="color:#cbd5e1;">
 						<li>• <strong style="color:#24b0ff;">New users are automatically assigned</strong> to a team when they join</li>
 						<li>• Teams are balanced to keep competition fair</li>
-						<li>• You can see your team name and teammates in your profile</li>
-						<li>• Team leads can add specific people they want to work with</li>
 					</ul>
 				</div>
 
