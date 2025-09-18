@@ -7,24 +7,41 @@ async function handleTeamCompetition(timeframe, userTeamId) {
 		// Note: Currently using user totalScore (all-time) rather than timeframe-filtered posts
 		// This could be enhanced later to filter posts by timeframe for more accurate competition
 
-		// Get all teams with their members (using the correct foreign key relationship)
+		// Get all teams first, then fetch their members separately to avoid relationship ambiguity
 		const { data: teams, error: teamsError } = await supabaseAdmin
 			.from('teams')
-			.select(`
-				id,
-				name,
-				users!users_teamId_fkey(id, totalScore)
-			`);
+			.select('id, name');
 
 		if (teamsError) {
 			console.error('Teams query error:', teamsError);
 			return json({ error: `Database error: ${teamsError.message}` }, { status: 500 });
 		}
 
+		// Get all users with their team assignments
+		const { data: users, error: usersError } = await supabaseAdmin
+			.from('users')
+			.select('id, totalScore, teamId')
+			.not('teamId', 'is', null);
+
+		if (usersError) {
+			console.error('Users query error:', usersError);
+			return json({ error: `Database error: ${usersError.message}` }, { status: 500 });
+		}
+
+		// Group users by team
+		const usersByTeam = {};
+		users?.forEach(user => {
+			if (!usersByTeam[user.teamId]) {
+				usersByTeam[user.teamId] = [];
+			}
+			usersByTeam[user.teamId].push(user);
+		});
+
 		// Calculate team scores and rankings
 		const teamRankings = teams.map(team => {
-			const memberCount = team.users.length;
-			const totalScore = team.users.reduce((sum, user) => sum + (user.totalScore || 0), 0);
+			const teamMembers = usersByTeam[team.id] || [];
+			const memberCount = teamMembers.length;
+			const totalScore = teamMembers.reduce((sum, user) => sum + (user.totalScore || 0), 0);
 			const averageScore = memberCount > 0 ? Math.round((totalScore / memberCount) * 10) / 10 : 0;
 
 			return {
@@ -36,6 +53,8 @@ async function handleTeamCompetition(timeframe, userTeamId) {
 				isUserTeam: team.id === userTeamId
 			};
 		})
+		// Filter out teams with no members
+		.filter(team => team.memberCount > 0)
 		// Sort by total score descending
 		.sort((a, b) => b.totalScore - a.totalScore)
 		// Add rank
