@@ -7,8 +7,8 @@ async function handleTeamCompetition(timeframe, userTeamId) {
 		// Note: Currently using user totalScore (all-time) rather than timeframe-filtered posts
 		// This could be enhanced later to filter posts by timeframe for more accurate competition
 
-		// Get all teams first, then fetch their members separately to avoid relationship ambiguity
-		const { data: teams, error: teamsError } = await supabaseAdmin
+		// Get all teams first to debug what's being returned
+		const { data: allTeams, error: teamsError } = await supabaseAdmin
 			.from('teams')
 			.select('id, name');
 
@@ -16,6 +16,13 @@ async function handleTeamCompetition(timeframe, userTeamId) {
 			console.error('Teams query error:', teamsError);
 			return json({ error: `Database error: ${teamsError.message}` }, { status: 500 });
 		}
+
+		// Filter out company team from teams list (everyone belongs to both company + regular team)
+		const teams = allTeams?.filter(team =>
+			team.id !== 'company-team-id' &&
+			team.name !== 'Company' &&
+			!team.name.toLowerCase().includes('company')
+		) || [];
 
 		// Get all users with their team assignments
 		const { data: users, error: usersError } = await supabaseAdmin
