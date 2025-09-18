@@ -14,67 +14,70 @@
 	let loading = $state(true);
 	let error = $state('');
 	let achievementsAwarded = $state(false);
+	let viewMode = $state('company'); // 'company' for individual users, 'teams' for team competition
 
 	async function loadLeaderboard() {
 		loading = true;
 		try {
-			// Load leaderboard and posts data
-			const [leaderboard, postsData] = await Promise.all([
-				authenticatedRequest(`/api/leaderboard?timeframe=all&scope=company`),
-				authenticatedRequest('/api/posts')
-			]);
+			// Load leaderboard data based on view mode
+			const leaderboard = await authenticatedRequest(`/api/leaderboard?timeframe=all&scope=${viewMode}`);
 
-			// Calculate correct engagement from posts data
-			const userEngagement = {};
-			if (postsData?.posts) {
-				postsData.posts.forEach((post) => {
-					const userId = post.userId;
-					if (!userEngagement[userId]) {
-						userEngagement[userId] = 0;
-					}
-					userEngagement[userId] += getPostEngagement(post);
-				});
-			}
+			if (viewMode === 'company') {
+				// For individual users, also load posts data for engagement calculation
+				const postsData = await authenticatedRequest('/api/posts');
 
-			// Update leaderboard with correct engagement
-			if (leaderboard?.leaderboard) {
-				leaderboard.leaderboard.forEach((player) => {
-					player.engagementInTimeframe = userEngagement[player.id] || 0;
-				});
-			}
-
-			leaderboardData = leaderboard;
-
-			// Fetch and auto-award achievements for all users in leaderboard
-			if (leaderboard?.leaderboard) {
-				const userIds = leaderboard.leaderboard.map((player) => player.id);
-				
-				// First, try to fetch existing achievements
-				const achievements = await fetchUserRecentAchievements(userIds);
-				
-				// If no achievements found and we haven't tried awarding yet, auto-award them
-				const hasAnyAchievements = Object.keys(achievements || {}).length > 0;
-				
-				if (!hasAnyAchievements && !achievementsAwarded) {
-					achievementsAwarded = true; // Prevent repeated attempts
-					
-					try {
-						// Auto-award achievements for all users (they must have posts if they're on leaderboard)
-						const autoAwardResult = await authenticatedRequest('/api/auto-award-achievements', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ userIds })
-						});
-						
-						// Only fetch again if achievements were actually awarded
-						if (autoAwardResult.totalAchievementsAwarded > 0) {
-							await fetchUserRecentAchievements(userIds);
+				// Calculate correct engagement from posts data
+				const userEngagement = {};
+				if (postsData?.posts) {
+					postsData.posts.forEach((post) => {
+						const userId = post.userId;
+						if (!userEngagement[userId]) {
+							userEngagement[userId] = 0;
 						}
-					} catch (error) {
-						// Auto-award failed, continue without achievements
+						userEngagement[userId] += getPostEngagement(post);
+					});
+				}
+
+				// Update leaderboard with correct engagement
+				if (leaderboard?.leaderboard) {
+					leaderboard.leaderboard.forEach((player) => {
+						player.engagementInTimeframe = userEngagement[player.id] || 0;
+					});
+				}
+
+				// Handle achievements for individual view
+				if (leaderboard?.leaderboard) {
+					const userIds = leaderboard.leaderboard.map((player) => player.id);
+
+					// First, try to fetch existing achievements
+					const achievements = await fetchUserRecentAchievements(userIds);
+
+					// If no achievements found and we haven't tried awarding yet, auto-award them
+					const hasAnyAchievements = Object.keys(achievements || {}).length > 0;
+
+					if (!hasAnyAchievements && !achievementsAwarded) {
+						achievementsAwarded = true; // Prevent repeated attempts
+
+						try {
+							// Auto-award achievements for all users (they must have posts if they're on leaderboard)
+							const autoAwardResult = await authenticatedRequest('/api/auto-award-achievements', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ userIds })
+							});
+
+							// Only fetch again if achievements were actually awarded
+							if (autoAwardResult.totalAchievementsAwarded > 0) {
+								await fetchUserRecentAchievements(userIds);
+							}
+						} catch (error) {
+							// Auto-award failed, continue without achievements
+						}
 					}
 				}
 			}
+
+			leaderboardData = leaderboard;
 
 			error = '';
 		} catch (err) {
@@ -96,6 +99,14 @@
 		}
 	}
 
+	function toggleView() {
+		viewMode = viewMode === 'company' ? 'teams' : 'company';
+		leaderboardData = null; // Reset data to show loading
+		if ($user) {
+			loadLeaderboard();
+		}
+	}
+
 	// Svelte 5: Effect to load leaderboard when user becomes available
 	$effect(() => {
 		if ($user && !leaderboardData) {
@@ -113,6 +124,33 @@
 		<!-- Company Goals Progress -->
 		<CompanyGoals />
 
+		<!-- View Toggle -->
+		<div class="flex justify-center">
+			<div
+				class="inline-flex rounded-lg p-1 backdrop-blur-md"
+				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
+			>
+				<button
+					onclick={toggleView}
+					class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200"
+					style="background-color:{viewMode === 'company' ? 'rgba(36,176,255,0.25)' : 'transparent'};
+						   color:{viewMode === 'company' ? '#ffffff' : '#94a3b8'};
+						   border:1px solid {viewMode === 'company' ? '#24b0ff' : 'transparent'};"
+				>
+					👤 Individual
+				</button>
+				<button
+					onclick={toggleView}
+					class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200"
+					style="background-color:{viewMode === 'teams' ? 'rgba(36,176,255,0.25)' : 'transparent'};
+						   color:{viewMode === 'teams' ? '#ffffff' : '#94a3b8'};
+						   border:1px solid {viewMode === 'teams' ? '#24b0ff' : 'transparent'};"
+				>
+					🏆 Team Competition
+				</button>
+			</div>
+		</div>
+
 		<!-- Scrollable Leaderboard -->
 		{#if loading}
 			<div class="flex items-center justify-center py-12">
@@ -129,8 +167,83 @@
 				{error}
 			</div>
 		{:else if leaderboardData}
-			<!-- Split Leaderboards: Top 10 and Bottom 10 -->
-			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+			{#if viewMode === 'teams'}
+				<!-- Team Competition View -->
+				<div class="max-w-4xl mx-auto">
+					<div
+						class="overflow-y-auto shadow-lg custom-scrollbar max-h-[800px] rounded-xl backdrop-blur-md"
+						style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
+					>
+						<div class="p-6">
+							<h3
+								class="top-0 z-10 p-2 mb-4 text-xl font-bold rounded-lg"
+								style="color:#fdfdfd; background-color:rgba(255,255,255,0.05);"
+							>
+								🏆 Team Competition
+							</h3>
+							<div class="space-y-3">
+								{#each leaderboardData.teamRankings || [] as team}
+									<div
+										class="flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02]"
+										style="background-color:{team.isUserTeam
+											? 'rgba(36,176,255,0.25)'
+											: 'rgba(16,35,73,0.28)'}; border:2px solid {team.isUserTeam
+											? '#24b0ff'
+											: 'rgba(36,176,255,0.35)'}; {team.isUserTeam
+											? 'box-shadow: 0 0 20px rgba(36,176,255,0.3);'
+											: ''}"
+									>
+										<!-- Rank -->
+										<div class="w-12 text-center">
+											<div
+												class="text-lg font-bold"
+												style="color:{team.isUserTeam ? '#24b0ff' : '#24b0ff'};"
+											>
+												{getRankIcon(team.rank)}
+											</div>
+										</div>
+
+										<!-- Team Info -->
+										<div class="flex-1 min-w-0">
+											<div
+												class="font-semibold truncate"
+												style="color:{team.isUserTeam ? '#ffffff' : '#fdfdfd'};"
+											>
+												{team.name}
+												{#if team.isUserTeam}
+													<span class="text-xs font-normal animate-pulse" style="color:#24b0ff;"
+														>YOUR TEAM</span
+													>
+												{/if}
+											</div>
+											<div class="text-xs truncate" style="color:#94a3b8;">
+												{team.memberCount} members • Avg: {team.averageScore} points
+											</div>
+										</div>
+
+										<!-- Stats -->
+										<div class="text-right">
+											<div
+												class="text-sm font-bold"
+												style="color:{team.isUserTeam ? '#ffffff' : '#fdfdfd'};"
+											>
+												{team.totalScore.toLocaleString()}
+											</div>
+											<div class="text-xs" style="color:#94a3b8;">total points</div>
+										</div>
+									</div>
+								{/each}
+							</div>
+
+							{#if !leaderboardData.teamRankings || leaderboardData.teamRankings.length === 0}
+								<div class="py-8 text-center" style="color:#94a3b8;">No teams found.</div>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{:else}
+				<!-- Individual User View (existing split leaderboard) -->
+				<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 				<!-- Top 10 Users -->
 				<div
 					class="overflow-y-auto shadow-lg custom-scrollbar max-h-[600px] lg:max-h-[1200px] rounded-xl backdrop-blur-md"
@@ -309,6 +422,7 @@
 					</div>
 				</div>
 			</div>
+			{/if}
 		{/if}
 	</div>
 {:else}

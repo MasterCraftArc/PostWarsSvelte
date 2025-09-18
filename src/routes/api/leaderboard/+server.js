@@ -2,6 +2,61 @@ import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/supabase-node.js';
 import { getAuthenticatedUser } from '$lib/auth-helpers.js';
 
+async function handleTeamCompetition(timeframe, userTeamId) {
+	try {
+		// Note: Currently using user totalScore (all-time) rather than timeframe-filtered posts
+		// This could be enhanced later to filter posts by timeframe for more accurate competition
+
+		// Get all teams with their member counts
+		const { data: teams, error: teamsError } = await supabaseAdmin
+			.from('teams')
+			.select(`
+				id,
+				name,
+				users!inner(id, totalScore)
+			`);
+
+		if (teamsError) {
+			console.error('Teams query error:', teamsError);
+			return json({ error: `Database error: ${teamsError.message}` }, { status: 500 });
+		}
+
+		// Calculate team scores and rankings
+		const teamRankings = teams.map(team => {
+			const memberCount = team.users.length;
+			const totalScore = team.users.reduce((sum, user) => sum + (user.totalScore || 0), 0);
+			const averageScore = memberCount > 0 ? Math.round((totalScore / memberCount) * 10) / 10 : 0;
+
+			return {
+				id: team.id,
+				name: team.name,
+				totalScore,
+				memberCount,
+				averageScore,
+				isUserTeam: team.id === userTeamId
+			};
+		})
+		// Sort by total score descending
+		.sort((a, b) => b.totalScore - a.totalScore)
+		// Add rank
+		.map((team, index) => ({
+			...team,
+			rank: index + 1
+		}));
+
+		const response = json({
+			teamRankings,
+			scope: 'teams'
+		});
+		response.headers.set('Cache-Control', 'public, max-age=300');
+		return response;
+
+	} catch (error) {
+		console.error('Team competition error:', error);
+		return json({ error: 'Internal server error' }, { status: 500 });
+	}
+}
+
 export async function GET(event) {
 	try {
 		const authenticatedUser = await getAuthenticatedUser(event);
@@ -16,13 +71,18 @@ export async function GET(event) {
 			return json({ error: 'Invalid timeframe. Use: all, month, or week' }, { status: 400 });
 		}
 
-		if (!['team', 'company'].includes(scope)) {
-			return json({ error: 'Invalid scope. Use: team or company' }, { status: 400 });
+		if (!['team', 'company', 'teams'].includes(scope)) {
+			return json({ error: 'Invalid scope. Use: team, company, or teams' }, { status: 400 });
 		}
 
 		// Check team scope requirements
 		if (scope === 'team' && !authenticatedUser.teamId) {
 			return json({ error: 'User not assigned to a team' }, { status: 404 });
+		}
+
+		// Handle team vs team competition separately
+		if (scope === 'teams') {
+			return await handleTeamCompetition(timeframe, authenticatedUser.teamId);
 		}
 
 		// OPTIMIZED: Single database function call instead of multiple queries
@@ -41,7 +101,7 @@ export async function GET(event) {
 		// Cache response for 5 minutes (leaderboard changes frequently but not every second)
 		const response = json(data);
 		response.headers.set('Cache-Control', 'public, max-age=300');
-		
+
 		return response;
 	} catch (error) {
 		console.error('Leaderboard error:', error);
