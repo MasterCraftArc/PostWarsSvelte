@@ -170,3 +170,32 @@ export async function getTeamAssignmentStats() {
 
 	return stats;
 }
+
+/**
+ * One-time migration function to assign all existing users to teams
+ * Should be run after teams are created and before new user flow is enabled
+ * @returns {Promise<Object>} Migration summary
+ */
+export async function migrateExistingUsersToTeams() {
+	console.log('🔄 Starting migration of existing users to teams...');
+
+	const startTime = Date.now();
+	const summary = await assignAllUnassignedUsers();
+	const duration = Date.now() - startTime;
+
+	console.log(`✅ Migration completed in ${duration}ms`);
+	console.log(`📊 Final stats: ${summary.assigned} users assigned, ${summary.skipped} skipped`);
+
+	// Get final team distribution
+	const stats = await getTeamAssignmentStats();
+	console.log('📈 Team distribution after migration:');
+	stats.teamDistribution.forEach(team => {
+		console.log(`  ${team.name}: ${team.memberCount} members`);
+	});
+
+	return {
+		...summary,
+		duration,
+		finalStats: stats
+	};
+}
