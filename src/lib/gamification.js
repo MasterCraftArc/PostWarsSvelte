@@ -123,7 +123,19 @@ export async function updateUserStats(userId) {
 	const currentStreak = calculateUserStreak(linkedinPosts || []);
 	const postsScore = (linkedinPosts || []).reduce((sum, post) => sum + (post.totalScore || 0), 0);
 	const commentScore = (commentActivities || []).reduce((sum, activity) => sum + (activity.points_awarded || 0), 0);
-	const totalScore = postsScore + commentScore;
+
+	// Get achievement points
+	const { data: userAchievements } = await supabaseAdmin
+		.from('user_achievements')
+		.select(`
+			achievements (
+				points
+			)
+		`)
+		.eq('userId', userId);
+
+	const achievementScore = (userAchievements || []).reduce((sum, ua) => sum + (ua.achievements?.points || 0), 0);
+	const totalScore = postsScore + commentScore + achievementScore;
 
 	const thisMonth = new Date();
 	thisMonth.setDate(1);

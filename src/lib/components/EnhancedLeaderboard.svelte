@@ -9,12 +9,14 @@
 		getUserRecentAchievement
 	} from '$lib/stores/achievements.js';
 	import CompanyGoals from './CompanyGoals.svelte';
+	import TeamMembersModal from './TeamMembersModal.svelte';
 
 	let leaderboardData = $state(null);
 	let loading = $state(true);
 	let error = $state('');
 	let achievementsAwarded = $state(false);
 	let viewMode = $state('company'); // 'company' for individual users, 'teams' for team competition
+	let teamMembersModal;
 
 	async function loadLeaderboard() {
 		loading = true;
@@ -107,6 +109,14 @@
 		}
 	}
 
+	function openTeamMembers(teamId) {
+		teamMembersModal?.openModal(teamId);
+	}
+
+	function navigateToUser(userId) {
+		window.location.href = `/user/${userId}`;
+	}
+
 	// Svelte 5: Effect to load leaderboard when user becomes available
 	$effect(() => {
 		if ($user && !leaderboardData) {
@@ -183,8 +193,9 @@
 							</h3>
 							<div class="space-y-3">
 								{#each leaderboardData.teamRankings || [] as team}
-									<div
-										class="flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02]"
+									<button
+										onclick={() => openTeamMembers(team.id)}
+										class="w-full flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02] hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#24b0ff]/50"
 										style="background-color:{team.isUserTeam
 											? 'rgba(36,176,255,0.25)'
 											: 'rgba(16,35,73,0.28)'}; border:2px solid {team.isUserTeam
@@ -231,7 +242,7 @@
 											</div>
 											<div class="text-xs" style="color:#94a3b8;">total points</div>
 										</div>
-									</div>
+									</button>
 								{/each}
 							</div>
 
@@ -258,8 +269,9 @@
 						</h3>
 						<div class="space-y-3">
 							{#each leaderboardData.leaderboard.slice(0, 10) as player}
-								<div
-									class="flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02]"
+								<button
+									onclick={() => navigateToUser(player.id)}
+									class="w-full flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02] hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#24b0ff]/50"
 									style="background-color:{player.isCurrentUser
 										? 'rgba(36,176,255,0.25)'
 										: 'rgba(16,35,73,0.28)'}; border:2px solid {player.isCurrentUser
@@ -324,7 +336,7 @@
 										</div>
 										<div class="text-xs" style="color:#94a3b8;">points</div>
 									</div>
-								</div>
+								</button>
 							{/each}
 						</div>
 
@@ -348,8 +360,9 @@
 						</h3>
 						<div class="flex flex-col-reverse gap-3">
 							{#each leaderboardData.leaderboard.slice(-10) as player}
-								<div
-									class="flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02]"
+								<button
+									onclick={() => navigateToUser(player.id)}
+									class="w-full flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02] hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#24b0ff]/50"
 									style="background-color:{player.isCurrentUser
 										? 'rgba(36,176,255,0.25)'
 										: 'rgba(16,35,73,0.28)'}; border:2px solid {player.isCurrentUser
@@ -414,7 +427,7 @@
 										</div>
 										<div class="text-xs" style="color:#94a3b8;">points</div>
 									</div>
-								</div>
+								</button>
 							{/each}
 						</div>
 
@@ -483,3 +496,6 @@
 		scrollbar-color: #24b0ff rgba(16, 35, 73, 0.35);
 	}
 </style>
+
+<!-- Team Members Modal -->
+<TeamMembersModal bind:this={teamMembersModal} />

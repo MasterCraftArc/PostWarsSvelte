@@ -10,20 +10,35 @@ export async function GET(event) {
 			return json({ error: 'Authentication required' }, { status: 401 });
 		}
 
+		// Get query parameters
+		const url = new URL(event.request.url);
+		const userIdParam = url.searchParams.get('userId');
+
 		// Fetch posts with basic user information for engagement calculation
-		const { data: posts, error } = await supabaseAdmin
+		let query = supabaseAdmin
 			.from('linkedin_posts')
 			.select(`
 				id,
 				userId,
+				url,
+				content,
 				reactions,
 				comments,
 				reposts,
+				totalScore,
 				createdAt,
 				user:users(id, name)
 			`)
-			.order('createdAt', { ascending: false })
-			.limit(500);
+			.order('createdAt', { ascending: false });
+
+		// Apply filter if userId provided
+		if (userIdParam) {
+			query = query.eq('userId', userIdParam);
+		} else {
+			query = query.limit(500);
+		}
+
+		const { data: posts, error } = await query;
 
 		if (error) {
 			console.error('Error fetching posts:', error);
@@ -34,9 +49,12 @@ export async function GET(event) {
 		const formattedPosts = posts.map(post => ({
 			id: post.id,
 			userId: post.userId,
+			url: post.url,
+			content: post.content,
 			reactions: post.reactions || 0,
 			comments: post.comments || 0,
 			reposts: post.reposts || 0,
+			totalScore: post.totalScore || 0,
 			createdAt: post.createdAt,
 			userName: post.user?.name || 'Unknown'
 		}));
