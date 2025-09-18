@@ -17,13 +17,14 @@
 
 	// Goal creation form
 	let showCreateGoal = false;
-	let newGoal = { 
-		title: '', 
-		description: '', 
-		type: 'POSTS_COUNT', 
-		targetValue: '', 
-		teamId: '', 
-		endDate: '' 
+	let newGoal = {
+		title: '',
+		description: '',
+		type: 'POSTS_COUNT',
+		targetValue: '',
+		teamId: '',
+		endDate: '',
+		isRace: false
 	};
 
 	// Post metrics editing
@@ -95,13 +96,14 @@
 				body: JSON.stringify(newGoal)
 			});
 
-			newGoal = { 
-				title: '', 
-				description: '', 
-				type: 'POSTS_COUNT', 
-				targetValue: '', 
-				teamId: '', 
-				endDate: '' 
+			newGoal = {
+				title: '',
+				description: '',
+				type: 'POSTS_COUNT',
+				targetValue: '',
+				teamId: '',
+				endDate: '',
+				isRace: false
 			};
 			showCreateGoal = false;
 			await loadData();
@@ -475,6 +477,18 @@
 										class="rounded-md px-3 py-2 focus:outline-none focus:ring-2"
 										style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; --tw-ring-color:#24b0ff;"
 									/>
+									<div class="flex items-center space-x-3 p-3 rounded-md"
+										style="background-color:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3);">
+										<input
+											bind:checked={newGoal.isRace}
+											type="checkbox"
+											id="isRace"
+											class="w-4 h-4 accent-orange-500"
+										/>
+										<label for="isRace" class="text-sm font-medium" style="color:#ffa500;">
+											🏁 Team Race Goal (All teams compete toward same target)
+										</label>
+									</div>
 									<textarea
 										bind:value={newGoal.description}
 										placeholder="Description (optional)"

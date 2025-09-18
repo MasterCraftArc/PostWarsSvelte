@@ -180,6 +180,39 @@
 			{#if viewMode === 'teams'}
 				<!-- Team Competition View -->
 				<div class="max-w-4xl mx-auto">
+					<!-- Race Goal Banner (if active) -->
+					{#if leaderboardData.isRace && leaderboardData.raceGoal}
+						<div
+							class="mb-6 rounded-xl p-6 backdrop-blur-md"
+							style="background-color:rgba(255,165,0,0.15); border:2px solid #ffa500; box-shadow: 0 0 20px rgba(255,165,0,0.3);"
+						>
+							<div class="text-center">
+								<h2 class="text-2xl font-bold mb-2" style="color:#ffa500;">
+									🏁 ACTIVE RACE: {leaderboardData.raceGoal.title}
+								</h2>
+								<p class="text-sm mb-3" style="color:#fdfdfd;">
+									{leaderboardData.raceGoal.description || 'Teams competing to reach the goal first!'}
+								</p>
+								<div class="flex justify-center items-center space-x-6 text-sm">
+									<div>
+										<span style="color:#94a3b8;">Target:</span>
+										<span class="font-bold" style="color:#ffa500;">
+											{leaderboardData.raceGoal.targetValue.toLocaleString()}
+											{leaderboardData.raceGoal.type === 'POSTS_COUNT' ? 'posts' :
+											 leaderboardData.raceGoal.type === 'TOTAL_ENGAGEMENT' ? 'engagement' : 'points'}
+										</span>
+									</div>
+									<div>
+										<span style="color:#94a3b8;">Time Left:</span>
+										<span class="font-bold" style="color:#ffa500;">
+											{leaderboardData.raceGoal.daysLeft} days
+										</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					{/if}
+
 					<div
 						class="overflow-y-auto shadow-lg custom-scrollbar max-h-[800px] rounded-xl backdrop-blur-md"
 						style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
@@ -189,7 +222,7 @@
 								class="top-0 z-10 p-2 mb-4 text-xl font-bold rounded-lg"
 								style="color:#fdfdfd; background-color:rgba(255,255,255,0.05);"
 							>
-								🏆 Team Competition
+								{leaderboardData.isRace ? '🏁 Race Standings' : '🏆 Team Competition'}
 							</h3>
 							<div class="space-y-3">
 								{#each leaderboardData.teamRankings || [] as team}
@@ -227,20 +260,64 @@
 													>
 												{/if}
 											</div>
-											<div class="text-xs truncate" style="color:#94a3b8;">
-												{team.memberCount} members • Avg: {team.averageScore} points
-											</div>
+
+											{#if leaderboardData.isRace && team.raceProgress !== undefined}
+												<!-- Race Progress -->
+												<div class="mt-2">
+													<div class="flex items-center justify-between text-xs mb-1">
+														<span style="color:#94a3b8;">
+															{team.raceValue}/{leaderboardData.raceGoal.targetValue}
+															{leaderboardData.raceGoal.type === 'POSTS_COUNT' ? 'posts' :
+															 leaderboardData.raceGoal.type === 'TOTAL_ENGAGEMENT' ? 'engagement' : 'points'}
+														</span>
+														<span class="font-bold" style="color:{team.raceProgress >= 100 ? '#22c55e' : '#ffa500'};">
+															{team.raceProgress}%
+														</span>
+													</div>
+													<div class="w-full bg-gray-700 rounded-full h-2">
+														<div
+															class="h-2 rounded-full transition-all duration-300"
+															style="width: {Math.min(team.raceProgress, 100)}%; background-color: {team.raceProgress >= 100 ? '#22c55e' : team.raceProgress >= 75 ? '#ffa500' : '#24b0ff'};"
+														></div>
+													</div>
+												</div>
+											{:else}
+												<!-- Normal Mode -->
+												<div class="text-xs truncate" style="color:#94a3b8;">
+													{team.memberCount} members • Avg: {team.averageScore} points
+												</div>
+											{/if}
 										</div>
 
 										<!-- Stats -->
 										<div class="text-right">
-											<div
-												class="text-sm font-bold"
-												style="color:{team.isUserTeam ? '#ffffff' : '#fdfdfd'};"
-											>
-												{team.totalScore.toLocaleString()}
-											</div>
-											<div class="text-xs" style="color:#94a3b8;">total points</div>
+											{#if leaderboardData.isRace && team.raceProgress !== undefined}
+												<!-- Race Stats -->
+												<div
+													class="text-lg font-bold"
+													style="color:{team.raceProgress >= 100 ? '#22c55e' : team.rank === 1 ? '#ffa500' : team.isUserTeam ? '#ffffff' : '#fdfdfd'};"
+												>
+													{#if team.raceProgress >= 100}
+														🏆 WINNER!
+													{:else if team.rank === 1}
+														🥇 LEADING
+													{:else}
+														{team.raceProgress}%
+													{/if}
+												</div>
+												<div class="text-xs" style="color:#94a3b8;">
+													{team.raceValue} / {leaderboardData.raceGoal.targetValue}
+												</div>
+											{:else}
+												<!-- Normal Stats -->
+												<div
+													class="text-sm font-bold"
+													style="color:{team.isUserTeam ? '#ffffff' : '#fdfdfd'};"
+												>
+													{team.totalScore.toLocaleString()}
+												</div>
+												<div class="text-xs" style="color:#94a3b8;">total points</div>
+											{/if}
 										</div>
 									</button>
 								{/each}
