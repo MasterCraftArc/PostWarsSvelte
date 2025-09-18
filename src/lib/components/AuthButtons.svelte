@@ -8,7 +8,18 @@
 
 <div class="flex items-center space-x-4">
 	{#if $user}
-		<span class="text-[#fdfdfd]">Hello, {$user.name || $user.email}!</span>
+		<div class="flex items-center space-x-2">
+			<span class="text-[#fdfdfd]">Hello, {$user.name || $user.email}!</span>
+			{#if $user.team}
+				<span
+					class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium backdrop-blur-sm"
+					style="background-color:rgba(36,176,255,0.15); color:#24b0ff; border:1px solid rgba(36,176,255,0.4);"
+					title="Your team: {$user.team.name}"
+				>
+					🏆 {$user.team.name}
+				</span>
+			{/if}
+		</div>
 		<button
 	onclick={logout}
 	class="rounded-full px-4 py-2 text-white font-medium 
