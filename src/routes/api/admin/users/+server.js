@@ -54,32 +54,60 @@ export async function PATCH(event) {
 	}
 
 	try {
-		const { userId, role } = await event.request.json();
+		const { userId, role, teamId } = await event.request.json();
 
-		if (!userId || !role) {
-			return json({ error: 'userId and role are required' }, { status: 400 });
+		if (!userId) {
+			return json({ error: 'userId is required' }, { status: 400 });
 		}
 
-		if (!['REGULAR', 'TEAM_LEAD', 'ADMIN'].includes(role)) {
-			return json({ error: 'Invalid role' }, { status: 400 });
+		const updateData = {};
+
+		// Validate and add role update if provided
+		if (role !== undefined) {
+			if (!['REGULAR', 'TEAM_LEAD', 'ADMIN'].includes(role)) {
+				return json({ error: 'Invalid role' }, { status: 400 });
+			}
+			updateData.role = role;
+		}
+
+		// Validate and add team assignment if provided
+		if (teamId !== undefined) {
+			// Allow null/empty string to unassign from team
+			if (teamId && typeof teamId === 'string') {
+				// Verify team exists
+				const { data: team, error: teamError } = await supabaseAdmin
+					.from('teams')
+					.select('id')
+					.eq('id', teamId)
+					.single();
+
+				if (teamError || !team) {
+					return json({ error: 'Invalid team ID' }, { status: 400 });
+				}
+			}
+			updateData.teamId = teamId || null;
+		}
+
+		if (Object.keys(updateData).length === 0) {
+			return json({ error: 'No update data provided' }, { status: 400 });
 		}
 
 		const { data: updatedUser, error } = await supabaseAdmin
 			.from('users')
-			.update({ role })
+			.update(updateData)
 			.eq('id', userId)
 			.select('id, name, email, role, teamId')
 			.single();
 
 		if (error) {
 			console.error('Update user error:', error);
-			return json({ error: 'Failed to update user role' }, { status: 500 });
+			return json({ error: 'Failed to update user' }, { status: 500 });
 		}
 
 		return json({ user: updatedUser });
 	} catch (error) {
-		console.error('Update user role error:', error);
-		return json({ error: 'Failed to update user role' }, { status: 500 });
+		console.error('Update user error:', error);
+		return json({ error: 'Failed to update user' }, { status: 500 });
 	}
 }
 
