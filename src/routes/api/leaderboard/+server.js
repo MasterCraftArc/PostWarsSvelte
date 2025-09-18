@@ -7,13 +7,13 @@ async function handleTeamCompetition(timeframe, userTeamId) {
 		// Note: Currently using user totalScore (all-time) rather than timeframe-filtered posts
 		// This could be enhanced later to filter posts by timeframe for more accurate competition
 
-		// Get all teams with their member counts
+		// Get all teams with their members (using the correct foreign key relationship)
 		const { data: teams, error: teamsError } = await supabaseAdmin
 			.from('teams')
 			.select(`
 				id,
 				name,
-				users!inner(id, totalScore)
+				users!users_teamId_fkey(id, totalScore)
 			`);
 
 		if (teamsError) {
