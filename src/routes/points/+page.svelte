@@ -54,6 +54,22 @@
 			points: 300,
 			requirementType: 'single_post_reactions',
 			requirementValue: 50
+		},
+		{
+			name: 'Leaderboard Champion',
+			description: 'Reach #1 on the individual leaderboard',
+			icon: '👑',
+			points: 500,
+			requirementType: 'leaderboard_first_place',
+			requirementValue: 1
+		},
+		{
+			name: 'Race Winner',
+			description: 'Be part of a team that wins a race goal',
+			icon: '🏆',
+			points: 250,
+			requirementType: 'team_race_victory',
+			requirementValue: 1
 		}
 	];
 

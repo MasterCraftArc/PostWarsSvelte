@@ -106,10 +106,11 @@ async function updateGoalsProgress() {
 
 			const isCompleted = currentValue >= goal.targetValue;
 			const newStatus = isCompleted ? 'COMPLETED' : 'ACTIVE';
+			const wasJustCompleted = isCompleted && goal.status === 'ACTIVE';
 
 			const { error: updateError } = await supabaseAdmin
 				.from('goals')
-				.update({ 
+				.update({
 					currentValue,
 					status: newStatus,
 					updatedAt: new Date().toISOString()
@@ -121,6 +122,13 @@ async function updateGoalsProgress() {
 			} else {
 				const progressPercent = Math.min(100, Math.round((currentValue / goal.targetValue) * 100));
 				console.log(`  📈 Goal "${goal.title}": ${currentValue}/${goal.targetValue} (${progressPercent}%) ${isCompleted ? '✅ COMPLETED' : ''}`);
+
+				// If this was a race goal that just completed, award Race Winner achievement
+				if (wasJustCompleted && goal.is_race) {
+					console.log(`🏁 Race goal completed! Awarding Race Winner achievement...`);
+					const { awardRaceWinnerAchievement } = await import('$lib/gamification.js');
+					await awardRaceWinnerAchievement(goal.id);
+				}
 			}
 		}
 
