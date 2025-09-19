@@ -207,6 +207,22 @@ export const ACHIEVEMENTS = [
 		points: 300,
 		requirementType: 'single_post_reactions',
 		requirementValue: 50
+	},
+	{
+		name: 'Leaderboard Champion',
+		description: 'Reach #1 on the individual leaderboard',
+		icon: '👑',
+		points: 500,
+		requirementType: 'leaderboard_first_place',
+		requirementValue: 1
+	},
+	{
+		name: 'Race Winner',
+		description: 'Be part of a team that wins a race goal',
+		icon: '🏆',
+		points: 250,
+		requirementType: 'team_race_victory',
+		requirementValue: 1
 	}
 ];
 
@@ -275,6 +291,108 @@ export async function checkAndAwardAchievements(userId) {
 			case 'single_post_reactions':
 				const maxReactions = Math.max(...linkedinPosts.map((post) => post.reactions || 0), 0);
 				isEarned = maxReactions >= achievementData.requirementValue;
+				break;
+
+			case 'leaderboard_first_place':
+				// Check if user is currently #1 on individual leaderboard
+				const { data: leaderboardData } = await supabaseAdmin.rpc('get_leaderboard', {
+					p_timeframe: 'all',
+					p_scope: 'company',
+					p_team_id: null,
+					p_requesting_user_id: userId
+				});
+
+				if (leaderboardData?.rankings?.length > 0) {
+					const topUser = leaderboardData.rankings[0];
+					isEarned = topUser.userId === userId;
+				}
+				break;
+
+			case 'team_race_victory':
+				// Check if user's team has won any completed race goals
+				const { data: completedRaceGoals } = await supabaseAdmin
+					.from('goals')
+					.select('*')
+					.is('teamId', null)
+					.eq('is_race', true)
+					.eq('status', 'COMPLETED');
+
+				if (completedRaceGoals?.length > 0) {
+					// Get user's team
+					const { data: userTeam } = await supabaseAdmin
+						.from('users')
+						.select('teamId')
+						.eq('id', userId)
+						.single();
+
+					if (userTeam?.teamId) {
+						// Check if this team won any of the completed races
+						for (const raceGoal of completedRaceGoals) {
+							// Get final race standings when goal was completed
+							const { data: teams } = await supabaseAdmin
+								.from('teams')
+								.select('id, name')
+								.not('id', 'eq', 'company-team-id')
+								.not('name', 'ilike', '%company%');
+
+							if (teams) {
+								// Calculate each team's progress for this race
+								const teamProgress = await Promise.all(teams.map(async team => {
+									const { data: members } = await supabaseAdmin
+										.from('users')
+										.select('id, totalScore')
+										.eq('teamId', team.id);
+
+									if (!members || members.length === 0) return null;
+
+									const userIds = members.map(m => m.id);
+									let raceValue = 0;
+
+									switch (raceGoal.type) {
+										case 'POSTS_COUNT':
+											const { count: postCount } = await supabaseAdmin
+												.from('linkedin_posts')
+												.select('*', { count: 'exact', head: true })
+												.in('userId', userIds)
+												.gte('createdAt', raceGoal.startDate);
+											raceValue = postCount || 0;
+											break;
+
+										case 'TOTAL_ENGAGEMENT':
+											const { data: engagementData } = await supabaseAdmin
+												.from('linkedin_posts')
+												.select('totalEngagement')
+												.in('userId', userIds)
+												.gte('createdAt', raceGoal.startDate);
+											raceValue = engagementData?.reduce((sum, post) => sum + (post.totalEngagement || 0), 0) || 0;
+											break;
+
+										case 'TEAM_SCORE':
+											raceValue = members.reduce((sum, user) => sum + (user.totalScore || 0), 0);
+											break;
+									}
+
+									return {
+										teamId: team.id,
+										raceValue,
+										progress: raceGoal.targetValue > 0 ? (raceValue / raceGoal.targetValue) * 100 : 0
+									};
+								}));
+
+								// Filter out null results and sort by progress
+								const validTeams = teamProgress
+									.filter(team => team !== null)
+									.sort((a, b) => b.progress - a.progress || b.raceValue - a.raceValue);
+
+								// Check if user's team won (was first and completed the goal)
+								if (validTeams.length > 0 && validTeams[0].teamId === userTeam.teamId && validTeams[0].progress >= 100) {
+									isEarned = true;
+									break;
+								}
+							}
+						}
+					}
+				}
 				break;
 		}
 
@@ -376,5 +494,108 @@ export async function getLeaderboardData(timeframe = 'all', userIds = null) {
 
 export function calculateCommentActivityScore() {
 	return SCORING_CONFIG.COMMENT_ACTIVITY_POINTS;
+}
+
+// Function to award Race Winner achievement to all members of winning team
+export async function awardRaceWinnerAchievement(raceGoalId) {
+	try {
+		// Get the completed race goal
+		const { data: raceGoal, error: goalError } = await supabaseAdmin
+			.from('goals')
+			.select('*')
+			.eq('id', raceGoalId)
+			.eq('is_race', true)
+			.eq('status', 'COMPLETED')
+			.single();
+
+		if (goalError || !raceGoal) {
+			console.log('Race goal not found or not completed:', goalError?.message);
+			return;
+		}
+
+		// Get all teams (excluding company team)
+		const { data: teams, error: teamsError } = await supabaseAdmin
+			.from('teams')
+			.select('id, name')
+			.not('id', 'eq', 'company-team-id')
+			.not('name', 'ilike', '%company%');
+
+		if (teamsError || !teams) {
+			console.log('Failed to fetch teams:', teamsError?.message);
+			return;
+		}
+
+		// Calculate final standings for each team
+		const teamStandings = await Promise.all(teams.map(async team => {
+			const { data: members } = await supabaseAdmin
+				.from('users')
+				.select('id, totalScore')
+				.eq('teamId', team.id);
+
+			if (!members || members.length === 0) return null;
+
+			const userIds = members.map(m => m.id);
+			let raceValue = 0;
+
+			switch (raceGoal.type) {
+				case 'POSTS_COUNT':
+					const { count: postCount } = await supabaseAdmin
+						.from('linkedin_posts')
+						.select('*', { count: 'exact', head: true })
+						.in('userId', userIds)
+						.gte('createdAt', raceGoal.startDate);
+					raceValue = postCount || 0;
+					break;
+
+				case 'TOTAL_ENGAGEMENT':
+					const { data: engagementData } = await supabaseAdmin
+						.from('linkedin_posts')
+						.select('totalEngagement')
+						.in('userId', userIds)
+						.gte('createdAt', raceGoal.startDate);
+					raceValue = engagementData?.reduce((sum, post) => sum + (post.totalEngagement || 0), 0) || 0;
+					break;
+
+				case 'TEAM_SCORE':
+					raceValue = members.reduce((sum, user) => sum + (user.totalScore || 0), 0);
+					break;
+			}
+
+			return {
+				teamId: team.id,
+				teamName: team.name,
+				members: members,
+				raceValue,
+				progress: raceGoal.targetValue > 0 ? (raceValue / raceGoal.targetValue) * 100 : 0
+			};
+		}));
+
+		// Filter and sort to find the winning team
+		const validTeams = teamStandings
+			.filter(team => team !== null)
+			.sort((a, b) => b.progress - a.progress || b.raceValue - a.raceValue);
+
+		if (validTeams.length === 0) {
+			console.log('No valid teams found for race goal');
+			return;
+		}
+
+		// Check if there's a winner (team that completed the goal)
+		const winningTeam = validTeams[0];
+		if (winningTeam.progress >= 100) {
+			console.log(`🏆 Team "${winningTeam.teamName}" won race goal "${raceGoal.title}"!`);
+
+			// Award Race Winner achievement to all team members
+			for (const member of winningTeam.members) {
+				await checkAndAwardAchievements(member.id);
+			}
+
+			console.log(`✅ Awarded Race Winner achievement to ${winningTeam.members.length} team members`);
+		} else {
+			console.log('No team completed the race goal yet');
+		}
+	} catch (error) {
+		console.error('Error awarding race winner achievement:', error);
+	}
 }
 
