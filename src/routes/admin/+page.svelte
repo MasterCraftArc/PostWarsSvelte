@@ -38,6 +38,16 @@
 	let availableUsers = [];
 	let selectedUserIds = [];
 
+	// Team balancing
+	let showBalanceModal = false;
+	let balanceTargetTeams = 3;
+	let balancing = false;
+
+	// Team editing
+	let editingTeamId = null;
+	let editingTeamName = '';
+	let editingTeamDescription = '';
+
 	// Reactive statement to handle admin access when user becomes available
 	$: {
 		if ($user !== null) { // User auth has finished loading
@@ -256,6 +266,43 @@
 			alert('Error updating metrics: ' + err.message);
 		}
 	}
+
+	function startEditingTeam(team) {
+		editingTeamId = team.id;
+		editingTeamName = team.name;
+		editingTeamDescription = team.description || '';
+	}
+
+	function cancelEditingTeam() {
+		editingTeamId = null;
+		editingTeamName = '';
+		editingTeamDescription = '';
+	}
+
+	async function saveTeamChanges() {
+		if (!editingTeamName.trim()) {
+			alert('Team name is required');
+			return;
+		}
+
+		try {
+			await authenticatedRequest('/api/admin/teams', {
+				method: 'PUT',
+				body: JSON.stringify({
+					id: editingTeamId,
+					name: editingTeamName.trim(),
+					description: editingTeamDescription.trim() || null
+				})
+			});
+
+			editingTeamId = null;
+			editingTeamName = '';
+			editingTeamDescription = '';
+			await loadData();
+		} catch (err) {
+			alert('Error updating team: ' + err.message);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -347,19 +394,68 @@
 							{#each teams as team}
 								<div class="rounded-lg p-4 backdrop-blur-md"
 									style="background-color:rgba(16,35,73,0.28); border:1px solid rgba(36,176,255,0.35);">
-									<div class="flex items-start justify-between">
-										<div>
-											<h3 class="text-lg font-medium" style="color:#fdfdfd;">{team.name}</h3>
-											{#if team.description}
-												<p class="mt-1 text-sm" style="color:#cbd5e1;">{team.description}</p>
-											{/if}
-											<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm" style="color:#94a3b8;">
-												<span>Members: {team._count.members}</span>
-												<span>Active Goals: {team._count.goals}</span>
-												{#if team.teamLead}
-													<span>Lead: {team.teamLead.name}</span>
-												{/if}
+									{#if editingTeamId === team.id}
+										<!-- Editing Mode -->
+										<div class="space-y-4">
+											<div>
+												<label class="block text-sm font-medium mb-1" style="color:#cbd5e1;">Team Name</label>
+												<input
+													bind:value={editingTeamName}
+													class="w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2"
+													style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; --tw-ring-color:#24b0ff;"
+													placeholder="Enter team name"
+													autofocus
+												/>
 											</div>
+											<div>
+												<label class="block text-sm font-medium mb-1" style="color:#cbd5e1;">Description (optional)</label>
+												<textarea
+													bind:value={editingTeamDescription}
+													class="w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2"
+													style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; --tw-ring-color:#24b0ff;"
+													placeholder="Enter team description"
+													rows="2"
+												></textarea>
+											</div>
+											<div class="flex gap-2">
+												<button
+													onclick={saveTeamChanges}
+													class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
+													style="background:linear-gradient(90deg,#16a34a,#22c55e); box-shadow:0 0 10px rgba(34,197,94,.45);">
+													Save Changes
+												</button>
+												<button
+													onclick={cancelEditingTeam}
+													class="rounded-lg px-4 py-2 text-white transition hover:brightness-110 hover:cursor-pointer"
+													style="background:linear-gradient(90deg,#6b7280,#9ca3af);">
+													Cancel
+												</button>
+											</div>
+										</div>
+									{:else}
+										<!-- Display Mode -->
+										<div class="flex items-start justify-between">
+											<div>
+												<h3 class="text-lg font-medium" style="color:#fdfdfd;">
+													{#if team.id === 'company-team-id'}
+														🏢 {team.name}
+													{:else}
+														{team.name}
+													{/if}
+												</h3>
+												{#if team.description}
+													<p class="mt-1 text-sm" style="color:#cbd5e1;">{team.description}</p>
+												{/if}
+												<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm" style="color:#94a3b8;">
+													<span>Members: {team._count.members}</span>
+													<span>Active Goals: {team._count.goals}</span>
+													{#if team.teamLead}
+														<span>Lead: {team.teamLead.name}</span>
+													{/if}
+													{#if team.id === 'company-team-id'}
+														<span style="color:#22c55e;">• All employees</span>
+													{/if}
+												</div>
 
 											<!-- Team Statistics -->
 											{#if team.members && team.members.length > 0}
@@ -384,16 +480,29 @@
 													</div>
 												</div>
 											{/if}
+											</div>
+											<div class="flex flex-col sm:flex-row gap-2">
+												{#if team.id !== 'company-team-id'}
+													<button
+														onclick={() => startEditingTeam(team)}
+														class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110 hover:cursor-pointer"
+														style="background:linear-gradient(90deg,#1392d6,#24b0ff); box-shadow:0 0 10px rgba(36,176,255,.6);">
+														Edit
+													</button>
+													<button
+														onclick={() => deleteTeam(team.id, team.name)}
+														class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110 hover:cursor-pointer"
+														style="background:linear-gradient(90deg,#dc2626,#ef4444); box-shadow:0 0 10px rgba(239,68,68,.45);">
+														Delete
+													</button>
+												{:else}
+													<span class="text-xs px-3 py-1.5 rounded-md" style="color:#94a3b8; background-color:rgba(148,163,184,0.1);">
+														System team (cannot be edited)
+													</span>
+												{/if}
+											</div>
 										</div>
-										<div class="flex flex-col sm:flex-row gap-2">
-											<button
-												onclick={() => deleteTeam(team.id, team.name)}
-												class="rounded-md px-3 py-1.5 text-sm text-white transition hover:brightness-110 hover:cursor-pointer"
-												style="background:linear-gradient(90deg,#dc2626,#ef4444); box-shadow:0 0 10px rgba(239,68,68,.45);">
-												Delete
-											</button>
-										</div>
-									</div>
+									{/if}
 
 									{#if team.members && team.members.length > 0}
 										<div class="mt-4 border-t border-slate-700/40 pt-4">
@@ -403,12 +512,35 @@
 													<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
 														style="background-color:rgba(36,176,255,0.12); color:#24b0ff; border:1px solid rgba(36,176,255,0.35);">
 														{member.name} ({member.role})
-														<button
-															onclick={() => removeFromTeam(team.id, member.id)}
-															class="ml-1 transition hover:scale-110 hover:cursor-pointer"
-															style="color:#24b0ff;">
-															×
-														</button>
+														<div class="ml-1 flex items-center gap-1">
+															{#if team.id !== 'company-team-id'}
+																<!-- Quick team swap dropdown (only for non-company teams) -->
+																<select
+																	value={member.teamId || team.id}
+																	onchange={(e) => updateUserTeam(member.id, e.target.value || null)}
+																	class="rounded text-xs px-1 py-0 hover:cursor-pointer"
+																	style="background-color:rgba(16,35,73,0.8); border:1px solid #24b0ff; color:#fdfdfd; max-width: 80px;"
+																	title="Move to team"
+																>
+																	{#each teams.filter(t => t.id !== 'company-team-id') as t}
+																		<option value={t.id} class="text-slate-900">{t.name.split(' ')[1] || t.name}</option>
+																	{/each}
+																</select>
+																<button
+																	onclick={() => removeFromTeam(team.id, member.id)}
+																	class="transition hover:scale-110 hover:cursor-pointer"
+																	style="color:#24b0ff;"
+																	title="Remove from team"
+																>
+																	×
+																</button>
+															{:else}
+																<!-- Company team members cannot be moved -->
+																<span class="text-xs" style="color:#94a3b8;" title="All users belong to company team">
+																	Employee
+																</span>
+															{/if}
+														</div>
 													</span>
 												{/each}
 											</div>

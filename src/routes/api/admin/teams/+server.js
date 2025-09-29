@@ -59,14 +59,31 @@ export async function GET(event) {
 			return json({ error: 'Failed to fetch teams' }, { status: 500 });
 		}
 
-		// Filter goals to only active ones and add counts
-		const processedTeams = (teams || []).map(team => ({
-			...team,
-			goals: (team.goals || []).filter(goal => goal.status === 'ACTIVE'),
-			_count: {
-				members: team.members?.length || 0,
-				goals: (team.goals || []).filter(goal => goal.status === 'ACTIVE').length
+		// Process teams and handle company team specially
+		const processedTeams = await Promise.all((teams || []).map(async team => {
+			let members = team.members || [];
+
+			// For company team, get ALL users (including admins since they're employees too)
+			if (team.id === 'company-team-id') {
+				const { data: allUsers, error: usersError } = await supabaseAdmin
+					.from('users')
+					.select('id, name, email, role')
+					.order('name');
+
+				if (!usersError && allUsers) {
+					members = allUsers;
+				}
 			}
+
+			return {
+				...team,
+				members,
+				goals: (team.goals || []).filter(goal => goal.status === 'ACTIVE'),
+				_count: {
+					members: members.length,
+					goals: (team.goals || []).filter(goal => goal.status === 'ACTIVE').length
+				}
+			};
 		}));
 
 		return json({ teams: processedTeams });

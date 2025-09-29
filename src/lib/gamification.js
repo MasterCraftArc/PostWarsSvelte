@@ -5,17 +5,17 @@ export const SCORING_CONFIG = {
 	BASE_POST_POINTS: 1,
 
 	// Engagement multipliers
-	REACTION_POINTS: 0.1,
-	COMMENT_POINTS: 1,
-	REPOST_POINTS: 2,
+	REACTION_POINTS: 0.1, // 200 reactions * 0.1 = 20 points
+	COMMENT_POINTS: 0.5, // 0.5 points per comment
+	REPOST_POINTS: 0, // Exclude reposts from earning points
 
-	// Comment activity points
-	COMMENT_ACTIVITY_POINTS: 1,
-	MAX_DAILY_COMMENTS: 10,
+	// Comment activity points (separate from posts)
+	COMMENT_ACTIVITY_POINTS: 0.5, // 0.5 base points as requested
+	MAX_DAILY_COMMENTS: 5,
 
 	// Streak bonuses
-	STREAK_MULTIPLIER: 0.1, // +10% per day streak
-	MAX_STREAK_BONUS: 1.5, // Cap at 150% bonus
+	STREAK_MULTIPLIER: 0.15, // +15% per day streak
+	MAX_STREAK_BONUS: 2.0, // Cap at 200% bonus
 
 	// Freshness decay (points decrease over time)
 	FRESH_HOURS: 24,
@@ -172,7 +172,7 @@ export const ACHIEVEMENTS = [
 		name: 'First Post',
 		description: 'Share your first LinkedIn post',
 		icon: '🎉',
-		points: 50,
+		points: 5, // Base achievement points
 		requirementType: 'posts_count',
 		requirementValue: 1
 	},
@@ -180,7 +180,7 @@ export const ACHIEVEMENTS = [
 		name: 'Consistent Creator',
 		description: 'Post 5 times in a month',
 		icon: '📝',
-		points: 100,
+		points: 10, // Build up from base
 		requirementType: 'posts_count',
 		requirementValue: 5
 	},
@@ -188,7 +188,7 @@ export const ACHIEVEMENTS = [
 		name: 'Engagement Magnet',
 		description: 'Get 100 total reactions across all posts',
 		icon: '🧲',
-		points: 150,
+		points: 15, // Mid-tier achievement
 		requirementType: 'engagement_total',
 		requirementValue: 100
 	},
@@ -196,7 +196,7 @@ export const ACHIEVEMENTS = [
 		name: 'Week Warrior',
 		description: 'Post for 7 consecutive days',
 		icon: '🔥',
-		points: 200,
+		points: 20, // Higher-tier achievement
 		requirementType: 'streak_days',
 		requirementValue: 7
 	},
@@ -204,9 +204,25 @@ export const ACHIEVEMENTS = [
 		name: 'Viral Moment',
 		description: 'Get 50 reactions on a single post',
 		icon: '🚀',
-		points: 300,
+		points: 25, // High-tier achievement
 		requirementType: 'single_post_reactions',
 		requirementValue: 50
+	},
+	{
+		name: 'Leaderboard Champion',
+		description: 'Reach #1 on the individual leaderboard',
+		icon: '👑',
+		points: 30, // Maximum achievement points
+		requirementType: 'leaderboard_first_place',
+		requirementValue: 1
+	},
+	{
+		name: 'Race Winner',
+		description: 'Be part of a team that wins a race goal',
+		icon: '🏆',
+		points: 25, // High-tier team achievement
+		requirementType: 'team_race_victory',
+		requirementValue: 1
 	}
 ];
 
@@ -275,6 +291,108 @@ export async function checkAndAwardAchievements(userId) {
 			case 'single_post_reactions':
 				const maxReactions = Math.max(...linkedinPosts.map((post) => post.reactions || 0), 0);
 				isEarned = maxReactions >= achievementData.requirementValue;
+				break;
+
+			case 'leaderboard_first_place':
+				// Check if user is currently #1 on individual leaderboard
+				const { data: leaderboardData } = await supabaseAdmin.rpc('get_leaderboard', {
+					p_timeframe: 'all',
+					p_scope: 'company',
+					p_team_id: null,
+					p_requesting_user_id: userId
+				});
+
+				if (leaderboardData?.rankings?.length > 0) {
+					const topUser = leaderboardData.rankings[0];
+					isEarned = topUser.userId === userId;
+				}
+				break;
+
+			case 'team_race_victory':
+				// Check if user's team has won any completed race goals
+				const { data: completedRaceGoals } = await supabaseAdmin
+					.from('goals')
+					.select('*')
+					.is('teamId', null)
+					.eq('is_race', true)
+					.eq('status', 'COMPLETED');
+
+				if (completedRaceGoals?.length > 0) {
+					// Get user's team
+					const { data: userTeam } = await supabaseAdmin
+						.from('users')
+						.select('teamId')
+						.eq('id', userId)
+						.single();
+
+					if (userTeam?.teamId) {
+						// Check if this team won any of the completed races
+						for (const raceGoal of completedRaceGoals) {
+							// Get final race standings when goal was completed
+							const { data: teams } = await supabaseAdmin
+								.from('teams')
+								.select('id, name')
+								.not('id', 'eq', 'company-team-id')
+								.not('name', 'ilike', '%company%');
+
+							if (teams) {
+								// Calculate each team's progress for this race
+								const teamProgress = await Promise.all(teams.map(async team => {
+									const { data: members } = await supabaseAdmin
+										.from('users')
+										.select('id, totalScore')
+										.eq('teamId', team.id);
+
+									if (!members || members.length === 0) return null;
+
+									const userIds = members.map(m => m.id);
+									let raceValue = 0;
+
+									switch (raceGoal.type) {
+										case 'POSTS_COUNT':
+											const { count: postCount } = await supabaseAdmin
+												.from('linkedin_posts')
+												.select('*', { count: 'exact', head: true })
+												.in('userId', userIds)
+												.gte('createdAt', raceGoal.startDate);
+											raceValue = postCount || 0;
+											break;
+
+										case 'TOTAL_ENGAGEMENT':
+											const { data: engagementData } = await supabaseAdmin
+												.from('linkedin_posts')
+												.select('totalEngagement')
+												.in('userId', userIds)
+												.gte('createdAt', raceGoal.startDate);
+											raceValue = engagementData?.reduce((sum, post) => sum + (post.totalEngagement || 0), 0) || 0;
+											break;
+
+										case 'TEAM_SCORE':
+											raceValue = members.reduce((sum, user) => sum + (user.totalScore || 0), 0);
+											break;
+									}
+
+									return {
+										teamId: team.id,
+										raceValue,
+										progress: raceGoal.targetValue > 0 ? (raceValue / raceGoal.targetValue) * 100 : 0
+									};
+								}));
+
+								// Filter out null results and sort by progress
+								const validTeams = teamProgress
+									.filter(team => team !== null)
+									.sort((a, b) => b.progress - a.progress || b.raceValue - a.raceValue);
+
+								// Check if user's team won (was first and completed the goal)
+								if (validTeams.length > 0 && validTeams[0].teamId === userTeam.teamId && validTeams[0].progress >= 100) {
+									isEarned = true;
+									break;
+								}
+							}
+						}
+					}
+				}
 				break;
 		}
 
@@ -374,7 +492,128 @@ export async function getLeaderboardData(timeframe = 'all', userIds = null) {
 	return enhancedUsers;
 }
 
-export function calculateCommentActivityScore() {
-	return SCORING_CONFIG.COMMENT_ACTIVITY_POINTS;
+export function calculateCommentActivityScore(userStreak = 0) {
+	let baseScore = SCORING_CONFIG.COMMENT_ACTIVITY_POINTS;
+
+	// Apply streak multiplier (same as posts)
+	const streakMultiplier = Math.min(
+		1 + userStreak * SCORING_CONFIG.STREAK_MULTIPLIER,
+		SCORING_CONFIG.MAX_STREAK_BONUS
+	);
+
+	const finalScore = Math.round(baseScore * streakMultiplier);
+
+	return {
+		baseScore: baseScore,
+		streakMultiplier: streakMultiplier,
+		totalScore: finalScore,
+		breakdown: {
+			basePoints: baseScore,
+			streakBonus: finalScore - baseScore
+		}
+	};
+}
+
+// Function to award Race Winner achievement to all members of winning team
+export async function awardRaceWinnerAchievement(raceGoalId) {
+	try {
+		// Get the completed race goal
+		const { data: raceGoal, error: goalError } = await supabaseAdmin
+			.from('goals')
+			.select('*')
+			.eq('id', raceGoalId)
+			.eq('is_race', true)
+			.eq('status', 'COMPLETED')
+			.single();
+
+		if (goalError || !raceGoal) {
+			console.log('Race goal not found or not completed:', goalError?.message);
+			return;
+		}
+
+		// Get all teams (excluding company team)
+		const { data: teams, error: teamsError } = await supabaseAdmin
+			.from('teams')
+			.select('id, name')
+			.not('id', 'eq', 'company-team-id')
+			.not('name', 'ilike', '%company%');
+
+		if (teamsError || !teams) {
+			console.log('Failed to fetch teams:', teamsError?.message);
+			return;
+		}
+
+		// Calculate final standings for each team
+		const teamStandings = await Promise.all(teams.map(async team => {
+			const { data: members } = await supabaseAdmin
+				.from('users')
+				.select('id, totalScore')
+				.eq('teamId', team.id);
+
+			if (!members || members.length === 0) return null;
+
+			const userIds = members.map(m => m.id);
+			let raceValue = 0;
+
+			switch (raceGoal.type) {
+				case 'POSTS_COUNT':
+					const { count: postCount } = await supabaseAdmin
+						.from('linkedin_posts')
+						.select('*', { count: 'exact', head: true })
+						.in('userId', userIds)
+						.gte('createdAt', raceGoal.startDate);
+					raceValue = postCount || 0;
+					break;
+
+				case 'TOTAL_ENGAGEMENT':
+					const { data: engagementData } = await supabaseAdmin
+						.from('linkedin_posts')
+						.select('totalEngagement')
+						.in('userId', userIds)
+						.gte('createdAt', raceGoal.startDate);
+					raceValue = engagementData?.reduce((sum, post) => sum + (post.totalEngagement || 0), 0) || 0;
+					break;
+
+				case 'TEAM_SCORE':
+					raceValue = members.reduce((sum, user) => sum + (user.totalScore || 0), 0);
+					break;
+			}
+
+			return {
+				teamId: team.id,
+				teamName: team.name,
+				members: members,
+				raceValue,
+				progress: raceGoal.targetValue > 0 ? (raceValue / raceGoal.targetValue) * 100 : 0
+			};
+		}));
+
+		// Filter and sort to find the winning team
+		const validTeams = teamStandings
+			.filter(team => team !== null)
+			.sort((a, b) => b.progress - a.progress || b.raceValue - a.raceValue);
+
+		if (validTeams.length === 0) {
+			console.log('No valid teams found for race goal');
+			return;
+		}
+
+		// Check if there's a winner (team that completed the goal)
+		const winningTeam = validTeams[0];
+		if (winningTeam.progress >= 100) {
+			console.log(`🏆 Team "${winningTeam.teamName}" won race goal "${raceGoal.title}"!`);
+
+			// Award Race Winner achievement to all team members
+			for (const member of winningTeam.members) {
+				await checkAndAwardAchievements(member.id);
+			}
+
+			console.log(`✅ Awarded Race Winner achievement to ${winningTeam.members.length} team members`);
+		} else {
+			console.log('No team completed the race goal yet');
+		}
+	} catch (error) {
+		console.error('Error awarding race winner achievement:', error);
+	}
 }
 

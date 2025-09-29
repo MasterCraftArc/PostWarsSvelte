@@ -4,11 +4,151 @@
 
 ## 🚨 OUTSTANDING ISSUES
 
-### Issue #1: LinkedIn Comment Activity Tracking  
-**Problem:** Users cannot earn points for commenting on LinkedIn posts due to LinkedIn's authentication restrictions  
-**Root Cause:** LinkedIn blocks all unauthenticated scraping, preventing repost/engagement capture  
-**Impact:** Limited gamification options, users can only earn points from posting  
-**Status:** 🔥 **CRITICAL** - New feature required to maintain user engagement  
+### Issue #11: Streak Multipliers Implementation
+**Problem:** Current scoring system lacks streak multipliers to encourage consistent engagement
+**Root Cause:** No streak-based bonus system implemented in gamification logic
+**Impact:** Reduced incentive for consistent daily posting and commenting
+**Status:** 🔥 **HIGH PRIORITY** - Gamification enhancement needed
+
+**Proposed Solution:**
+Implement streak multipliers for both posts and comments to reward consistent engagement
+
+**Technical Implementation Plan:**
+1. **Scoring System:** Add 0.2 streak multiplier for comments in `gamification.js`
+2. **Post Multipliers:** Add post-point streak multiplier for posts
+3. **Calculation Updates:** Update examples/calculations to reflect streak multipliers
+4. **Documentation:** Update scoring explanations with streak bonus examples
+
+**Architecture Compliance:**
+- Extend existing `gamification.js` (single source of truth)
+- Follow TDD methodology with streak calculation tests
+- Small batch changes (2-3 PRs maximum)
+- Maintain backward compatibility
+
+**Expected Outcomes:**
+- Increased user retention through streak rewards
+- Enhanced gamification encouraging daily participation
+- Clear streak bonus calculations and display
+
+**Priority:** High - Gamification enhancement
+
+### Issue #12: Point System Rebalancing
+**Problem:** Current point values make viral posts unachievable at 30 points, need 200+ reaction support
+**Root Cause:** Conservative scoring doesn't account for viral content engagement levels
+**Impact:** Demotivating scoring for high-performing content creators
+**Status:** 🔥 **HIGH PRIORITY** - Scoring system adjustment needed
+
+**Proposed Solution:**
+Reduce base points and adjust calculations to make 30 points achievable for viral posts (200+ reactions)
+
+**Technical Implementation Plan:**
+1. **Scoring Adjustment:** Reduce base post points in `SCORING_CONFIG`
+2. **Viral Calculations:** Include 200+ reactions in viral post calculations
+3. **Repost Exclusion:** Exclude reposts from earning points entirely
+4. **Documentation:** Update scoring examples with new viral thresholds
+
+**Architecture Compliance:**
+- Modify existing `gamification.js` scoring configuration
+- Follow TDD with comprehensive scoring tests
+- Single PR for scoring consistency
+- Maintain existing API contracts
+
+**Expected Outcomes:**
+- Achievable viral post scoring (30 points with 200+ reactions)
+- Balanced point economy encouraging quality content
+- Clear viral content recognition
+
+**Priority:** High - Core scoring system
+
+### Issue #13: Admin Team Management Controls
+**Problem:** Admins lack tools to balance teams and manage team distribution
+**Root Cause:** No admin interface for team reassignment and balancing
+**Impact:** Unbalanced teams affecting competition fairness
+**Status:** 🟡 **MEDIUM PRIORITY** - Admin tooling enhancement
+
+**Proposed Solution:**
+Implement admin controls for team balancing and management with scheduled updates
+
+**Technical Implementation Plan:**
+1. **Admin Interface:** Add team balancing controls to admin dashboard
+2. **Balancing Logic:** Implement team redistribution algorithms
+3. **Scheduling:** Update schedules for team management and point updates
+4. **Documentation:** Move updates to top of "how points work" section
+
+**Architecture Compliance:**
+- Extend existing admin routes and components
+- Follow TDD with admin permission tests
+- Small batch changes (3-4 PRs maximum)
+- Use existing authentication patterns
+
+**Expected Outcomes:**
+- Fair team distribution through admin controls
+- Automated team balancing capabilities
+- Improved admin oversight of competition
+
+**Priority:** Medium - Admin tooling
+
+### Issue #14: Real-time Points Display & Feedback
+**Problem:** Users don't see immediate point changes or reasoning when submitting content
+**Root Cause:** No real-time feedback system for point calculations
+**Impact:** Poor user experience, unclear scoring understanding
+**Status:** 🟡 **MEDIUM PRIORITY** - UX enhancement needed
+
+**Proposed Solution:**
+Display immediate point updates with reasoning when users submit posts/comments
+
+**Technical Implementation Plan:**
+1. **Real-time Updates:** Update points on comment/post submit immediately
+2. **Reasoning Display:** Show calculation breakdown for point changes
+3. **UI Enhancement:** Add point change notifications and explanations
+4. **API Integration:** Return scoring details in submission responses
+
+**Architecture Compliance:**
+- Extend existing submission APIs with scoring details
+- Follow component patterns for point display
+- Small batch changes (2-3 PRs maximum)
+- Use existing stores for real-time updates
+
+**Expected Outcomes:**
+- Immediate visual feedback on point changes
+- Clear understanding of scoring calculations
+- Enhanced user engagement through transparency
+
+**Priority:** Medium - User experience
+
+### Issue #15: Team Achievements System
+**Problem:** No team-level achievements tracking or display system
+**Root Cause:** Achievement system only tracks individual accomplishments
+**Impact:** Missing team competition and collaboration incentives
+**Status:** 🟡 **MEDIUM PRIORITY** - Team gamification expansion
+
+**Proposed Solution:**
+Implement team achievements tracking and display system
+
+**Technical Implementation Plan:**
+1. **Database Schema:** Extend achievements system for team-level tracking
+2. **Achievement Logic:** Define team-based achievement criteria
+3. **Display System:** Add team achievements to leaderboard and team pages
+4. **Notification System:** Alert team members of team achievements
+
+**Architecture Compliance:**
+- Extend existing achievements store and API
+- Follow TDD with team achievement tests
+- Small batch changes (4-5 PRs maximum)
+- Use existing achievement patterns
+
+**Expected Outcomes:**
+- Team-based achievement recognition
+- Enhanced team collaboration incentives
+- Comprehensive team competition system
+
+**Priority:** Medium - Team gamification
+
+### Issue #1: LinkedIn Comment Activity Tracking
+**Problem:** Users cannot earn points for commenting on LinkedIn posts due to LinkedIn's authentication restrictions
+**Root Cause:** LinkedIn blocks all unauthenticated scraping, preventing repost/engagement capture
+**Impact:** Limited gamification options, users can only earn points from posting
+**Status:** 🔥 **CRITICAL** - New feature required to maintain user engagement
 
 **Proposed Solution:**
 Comment activity submission using existing UI pattern - users paste LinkedIn post URL they commented on, system immediately awards points and displays in dashboard (no processing/scraping)

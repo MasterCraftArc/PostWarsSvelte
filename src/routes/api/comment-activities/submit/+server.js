@@ -36,8 +36,18 @@ export async function POST(event) {
 			return json({ error: 'You have already logged activity for this post' }, { status: 409 });
 		}
 
-		// Calculate points
-		const pointsAwarded = calculateCommentActivityScore();
+		// Get user's current streak for streak multiplier
+		const { data: userData } = await supabaseAdmin
+			.from('users')
+			.select('currentStreak')
+			.eq('id', user.id)
+			.single();
+
+		const userStreak = userData?.currentStreak || 0;
+
+		// Calculate points with streak multiplier
+		const scoreResult = calculateCommentActivityScore(userStreak);
+		const pointsAwarded = scoreResult.totalScore || scoreResult; // Handle both old and new return formats
 
 		// Create comment activity record
 		const { data: activity, error: insertError } = await supabaseAdmin
