@@ -5,17 +5,17 @@ export const SCORING_CONFIG = {
 	BASE_POST_POINTS: 1,
 
 	// Engagement multipliers
-	REACTION_POINTS: 0.1,
-	COMMENT_POINTS: 1,
-	REPOST_POINTS: 2,
+	REACTION_POINTS: 0.1, // 200 reactions * 0.1 = 20 points
+	COMMENT_POINTS: 0.5, // 0.5 points per comment
+	REPOST_POINTS: 0, // Exclude reposts from earning points
 
-	// Comment activity points
-	COMMENT_ACTIVITY_POINTS: 1,
-	MAX_DAILY_COMMENTS: 10,
+	// Comment activity points (separate from posts)
+	COMMENT_ACTIVITY_POINTS: 0.5, // 0.5 base points as requested
+	MAX_DAILY_COMMENTS: 5,
 
 	// Streak bonuses
-	STREAK_MULTIPLIER: 0.1, // +10% per day streak
-	MAX_STREAK_BONUS: 1.5, // Cap at 150% bonus
+	STREAK_MULTIPLIER: 0.15, // +15% per day streak
+	MAX_STREAK_BONUS: 2.0, // Cap at 200% bonus
 
 	// Freshness decay (points decrease over time)
 	FRESH_HOURS: 24,
@@ -172,7 +172,7 @@ export const ACHIEVEMENTS = [
 		name: 'First Post',
 		description: 'Share your first LinkedIn post',
 		icon: '🎉',
-		points: 50,
+		points: 5, // Base achievement points
 		requirementType: 'posts_count',
 		requirementValue: 1
 	},
@@ -180,7 +180,7 @@ export const ACHIEVEMENTS = [
 		name: 'Consistent Creator',
 		description: 'Post 5 times in a month',
 		icon: '📝',
-		points: 100,
+		points: 10, // Build up from base
 		requirementType: 'posts_count',
 		requirementValue: 5
 	},
@@ -188,7 +188,7 @@ export const ACHIEVEMENTS = [
 		name: 'Engagement Magnet',
 		description: 'Get 100 total reactions across all posts',
 		icon: '🧲',
-		points: 150,
+		points: 15, // Mid-tier achievement
 		requirementType: 'engagement_total',
 		requirementValue: 100
 	},
@@ -196,7 +196,7 @@ export const ACHIEVEMENTS = [
 		name: 'Week Warrior',
 		description: 'Post for 7 consecutive days',
 		icon: '🔥',
-		points: 200,
+		points: 20, // Higher-tier achievement
 		requirementType: 'streak_days',
 		requirementValue: 7
 	},
@@ -204,7 +204,7 @@ export const ACHIEVEMENTS = [
 		name: 'Viral Moment',
 		description: 'Get 50 reactions on a single post',
 		icon: '🚀',
-		points: 300,
+		points: 25, // High-tier achievement
 		requirementType: 'single_post_reactions',
 		requirementValue: 50
 	},
@@ -212,7 +212,7 @@ export const ACHIEVEMENTS = [
 		name: 'Leaderboard Champion',
 		description: 'Reach #1 on the individual leaderboard',
 		icon: '👑',
-		points: 500,
+		points: 30, // Maximum achievement points
 		requirementType: 'leaderboard_first_place',
 		requirementValue: 1
 	},
@@ -220,7 +220,7 @@ export const ACHIEVEMENTS = [
 		name: 'Race Winner',
 		description: 'Be part of a team that wins a race goal',
 		icon: '🏆',
-		points: 250,
+		points: 25, // High-tier team achievement
 		requirementType: 'team_race_victory',
 		requirementValue: 1
 	}
@@ -492,8 +492,26 @@ export async function getLeaderboardData(timeframe = 'all', userIds = null) {
 	return enhancedUsers;
 }
 
-export function calculateCommentActivityScore() {
-	return SCORING_CONFIG.COMMENT_ACTIVITY_POINTS;
+export function calculateCommentActivityScore(userStreak = 0) {
+	let baseScore = SCORING_CONFIG.COMMENT_ACTIVITY_POINTS;
+
+	// Apply streak multiplier (same as posts)
+	const streakMultiplier = Math.min(
+		1 + userStreak * SCORING_CONFIG.STREAK_MULTIPLIER,
+		SCORING_CONFIG.MAX_STREAK_BONUS
+	);
+
+	const finalScore = Math.round(baseScore * streakMultiplier);
+
+	return {
+		baseScore: baseScore,
+		streakMultiplier: streakMultiplier,
+		totalScore: finalScore,
+		breakdown: {
+			basePoints: baseScore,
+			streakBonus: finalScore - baseScore
+		}
+	};
 }
 
 // Function to award Race Winner achievement to all members of winning team

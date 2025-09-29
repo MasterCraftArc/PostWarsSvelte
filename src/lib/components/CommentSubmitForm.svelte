@@ -88,8 +88,8 @@
 				style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; focus:ring-color:#24b0ff;"
 			/>
 			<p class="mt-1 text-sm" style="color:#94a3b8;">
-				Paste the URL of the LinkedIn post you commented on. 
-				Each comment activity earns <strong>1 point</strong> instantly.
+				Paste the URL of the LinkedIn post you commented on.
+				Each comment activity earns <strong>0.5 base points</strong> plus streak bonus instantly.
 			</p>
 		</div>
 
@@ -112,9 +112,11 @@
 			>
 				<h4 class="font-medium" style="color:#e5e7eb;">Comment Activity</h4>
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
-					<li>• Each LinkedIn comment: 1 point</li>
+					<li>• Each LinkedIn comment: 0.5 base points</li>
+					<li>• Streak multiplier: +15% per day (max 200%)</li>
 					<li>• Points awarded instantly upon submission</li>
 					<li>• Each post can only be submitted once</li>
+					<li>• Maximum 5 comment activities per day</li>
 					<li>• No scraping required - immediate points</li>
 				</ul>
 			</div>

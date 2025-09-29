@@ -95,8 +95,8 @@
 				style="background-color:rgba(16,35,73,0.35); border:1px solid #24b0ff; color:#fdfdfd; focus:ring-color:#24b0ff;"
 			/>
 			<p class="mt-1 text-sm" style="color:#94a3b8;">
-				Paste any LinkedIn post URL to start tracking engagement and earning points! 
-				All posts earn <strong>1 base point</strong> plus full engagement points.
+				Paste any LinkedIn post URL to start tracking engagement and earning points!
+				All posts earn <strong>1 base point</strong> plus engagement points.
 			</p>
 		</div>
 
@@ -112,6 +112,20 @@
 
 	<div class="mx-auto mt-8 max-w-2xl">
 		<h3 class="mb-4 text-lg font-semibold" style="color:#fdfdfd;">How Points Work:</h3>
+
+		<!-- Update Schedule moved to top -->
+		<div
+			class="mb-6 rounded-lg p-4 backdrop-blur-md"
+			style="background-color:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3);"
+		>
+			<h4 class="mb-2 font-medium" style="color:#22c55e;">Update Schedule</h4>
+			<p class="text-sm" style="color:#cbd5e1;">
+				Posts are scraped and updated <strong style="color:#22c55e;"
+					>twice daily at 5 AM and 5 PM Mountain Time</strong
+				> to track your latest engagement and update your scores automatically.
+			</p>
+		</div>
+
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<div
 				class="rounded-lg p-4 backdrop-blur-md"
@@ -120,7 +134,7 @@
 				<h4 class="font-medium" style="color:#e5e7eb;">Base Points</h4>
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
 					<li>• New post: 1 point</li>
-					<li>• Streak multiplier: +10% per day (max 50%)</li>
+					<li>• Streak multiplier: +15% per day (max 200%)</li>
 				</ul>
 			</div>
 
@@ -131,21 +145,13 @@
 				<h4 class="font-medium" style="color:#e5e7eb;">Engagement Points</h4>
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
 					<li>• Reaction: 0.1 points each</li>
-					<li>• Comment: 1 point each</li>
+					<li>• Comment: 0.5 points each</li>
+					<li>• Reposts: 0 points (excluded)</li>
 				</ul>
+				<p class="mt-2 text-xs" style="color:#94a3b8;">
+					🚀 Viral posts (200+ reactions) can achieve 20+ points!
+				</p>
 			</div>
-		</div>
-
-		<div
-			class="mt-6 rounded-lg p-4 backdrop-blur-md"
-			style="background-color:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3);"
-		>
-			<h4 class="mb-2 font-medium" style="color:#22c55e;">Update Schedule</h4>
-			<p class="text-sm" style="color:#cbd5e1;">
-				Posts are scraped and updated <strong style="color:#22c55e;"
-					>twice daily at 5 AM and 5 PM Mountain Time</strong
-				> to track your latest engagement and update your scores automatically.
-			</p>
 		</div>
 	</div>
 {:else}

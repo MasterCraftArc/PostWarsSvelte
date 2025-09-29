@@ -1,14 +1,14 @@
 <script>
-	// Static scoring configuration
+	// Static scoring configuration (updated values)
 	const SCORING_CONFIG = {
 		BASE_POST_POINTS: 1,
 		REACTION_POINTS: 0.1,
-		COMMENT_POINTS: 1,
-		REPOST_POINTS: 2,
-		COMMENT_ACTIVITY_POINTS: 1,
-		MAX_DAILY_COMMENTS: 10,
-		STREAK_MULTIPLIER: 0.1,
-		MAX_STREAK_BONUS: 1.5,
+		COMMENT_POINTS: 0.5,
+		REPOST_POINTS: 0, // Excluded from earning points
+		COMMENT_ACTIVITY_POINTS: 0.5,
+		MAX_DAILY_COMMENTS: 5,
+		STREAK_MULTIPLIER: 0.15,
+		MAX_STREAK_BONUS: 2.0,
 		FRESH_HOURS: 24,
 		DECAY_RATE: 0.02
 	};
@@ -19,7 +19,7 @@
 			name: 'First Post',
 			description: 'Share your first LinkedIn post',
 			icon: '🎉',
-			points: 50,
+			points: 5,
 			requirementType: 'posts_count',
 			requirementValue: 1
 		},
@@ -27,7 +27,7 @@
 			name: 'Consistent Creator',
 			description: 'Post 5 times in a month',
 			icon: '📝',
-			points: 100,
+			points: 10,
 			requirementType: 'posts_count',
 			requirementValue: 5
 		},
@@ -35,7 +35,7 @@
 			name: 'Engagement Magnet',
 			description: 'Get 100 total reactions across all posts',
 			icon: '🧲',
-			points: 150,
+			points: 15,
 			requirementType: 'engagement_total',
 			requirementValue: 100
 		},
@@ -43,7 +43,7 @@
 			name: 'Week Warrior',
 			description: 'Post for 7 consecutive days',
 			icon: '🔥',
-			points: 200,
+			points: 20,
 			requirementType: 'streak_days',
 			requirementValue: 7
 		},
@@ -51,24 +51,24 @@
 			name: 'Viral Moment',
 			description: 'Get 50 reactions on a single post',
 			icon: '🚀',
-			points: 300,
+			points: 25,
 			requirementType: 'single_post_reactions',
 			requirementValue: 50
-		},
-		{
-			name: 'Leaderboard Champion',
-			description: 'Reach #1 on the individual leaderboard',
-			icon: '👑',
-			points: 500,
-			requirementType: 'leaderboard_first_place',
-			requirementValue: 1
 		},
 		{
 			name: 'Race Winner',
 			description: 'Be part of a team that wins a race goal',
 			icon: '🏆',
-			points: 250,
+			points: 25,
 			requirementType: 'team_race_victory',
+			requirementValue: 1
+		},
+		{
+			name: 'Leaderboard Champion',
+			description: 'Reach #1 on the individual leaderboard',
+			icon: '👑',
+			points: 30,
+			requirementType: 'leaderboard_first_place',
 			requirementValue: 1
 		}
 	];
@@ -94,7 +94,19 @@
 		<!-- Points System -->
 		<section class="mb-12">
 			<h2 class="mb-6 text-2xl font-semibold" style="color:#fdfdfd;">📊 How Points Work</h2>
-			
+
+			<!-- Update Schedule moved to top -->
+			<div
+				class="mb-6 rounded-lg p-6 backdrop-blur-md"
+				style="background-color:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3);"
+			>
+				<h3 class="mb-3 text-lg font-medium" style="color:#22c55e;">🔄 Update Schedule</h3>
+				<p class="text-sm" style="color:#cbd5e1;">
+					Points are updated <strong style="color:#22c55e;">twice daily at 5 AM and 5 PM Mountain Time</strong>
+					when we scrape LinkedIn for the latest engagement data. Your dashboard shows real-time progress!
+				</p>
+			</div>
+
 			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 				<!-- Base Points -->
 				<div
@@ -345,16 +357,5 @@
 			</div>
 		</section>
 
-		<!-- Update Schedule -->
-		<div
-			class="mt-8 rounded-lg p-6 backdrop-blur-md"
-			style="background-color:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3);"
-		>
-			<h3 class="mb-3 text-lg font-medium" style="color:#22c55e;">🔄 Update Schedule</h3>
-			<p class="text-sm" style="color:#cbd5e1;">
-				Points are updated <strong style="color:#22c55e;">twice daily at 5 AM and 5 PM Mountain Time</strong>
-				when we scrape LinkedIn for the latest engagement data. Your dashboard shows real-time progress!
-			</p>
-		</div>
 	</div>
 </div>
