@@ -5,6 +5,38 @@ import path from 'path';
 
 const DEFAULT_STORAGE_STATE = 'linkedin_auth_state.json';
 
+/**
+ * Load LinkedIn authentication cookies from file or environment
+ */
+async function loadLinkedInCookies(page) {
+	debugLog('🍪 Loading LinkedIn authentication cookies...');
+
+	try {
+		let cookies;
+
+		// Try to load from environment variable first (for GitHub Actions)
+		const cookiesEnv = process.env.LINKEDIN_COOKIES;
+		if (cookiesEnv) {
+			debugLog('📱 Loading cookies from environment variable');
+			cookies = JSON.parse(cookiesEnv);
+		} else {
+			// Fallback to local file
+			debugLog('📂 Loading cookies from local file');
+			const cookiesData = await fs.readFile('./linkedin-cookies.json', 'utf8');
+			cookies = JSON.parse(cookiesData);
+		}
+
+		// Add cookies to the browser context
+		await page.context().addCookies(cookies);
+		debugLog(`✅ Applied ${cookies.length} LinkedIn authentication cookies`);
+
+		return true;
+	} catch (error) {
+		debugLog('❌ Failed to load LinkedIn cookies:', error.message);
+		throw error;
+	}
+}
+
 // Performance optimizations
 const DEBUG_MODE = process.env.NODE_ENV === 'development';
 const PERFORMANCE_LOG = process.env.SCRAPER_PERF_LOG === 'true';
@@ -1449,32 +1481,23 @@ export async function scrapeSinglePostQueued(url, userId) {
 	const pageInfo = await browserPool.getPage(browser, userId);
 
 	try {
+		// Load LinkedIn authentication cookies BEFORE navigation
+		debugLog('🍪 Loading LinkedIn authentication cookies...');
+		try {
+			await loadLinkedInCookies(pageInfo.page);
+		} catch (error) {
+			debugLog('⚠️ Failed to load cookies:', error.message);
+		}
+
 		debugLog('🌐 Navigating to post with optimized loading...');
 		// Use optimized loading from main scraper
-		await pageInfo.page.goto(url, { 
-			waitUntil: 'domcontentloaded', 
-			timeout: 30000 
+		await pageInfo.page.goto(url, {
+			waitUntil: 'domcontentloaded',
+			timeout: 30000
 		});
-		
+
 		// Apply smart content loading optimizations
 		await smartContentLoader(pageInfo.page);
-
-		// Check for and dismiss the LinkedIn sign-in modal if present
-		debugLog('🔍 Checking for LinkedIn sign-in modal...');
-		try {
-			const modalDismissButton = await pageInfo.page.$('.modal__dismiss, .contextual-sign-in-modal__modal-dismiss');
-			if (modalDismissButton) {
-				debugLog('✅ Found sign-in modal, dismissing...');
-				await modalDismissButton.click();
-				// Wait a moment for the modal to close
-				await pageInfo.page.waitForTimeout(1000);
-				debugLog('✅ Sign-in modal dismissed successfully');
-			} else {
-				debugLog('ℹ️ No sign-in modal found');
-			}
-		} catch (error) {
-			debugLog('⚠️ Error checking for modal:', error.message);
-		}
 
 		// Add debug logging to understand what LinkedIn is serving
 		debugLog('🔍 Checking page state before container search...');
