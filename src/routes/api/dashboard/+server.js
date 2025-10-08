@@ -86,6 +86,19 @@ async function getFallbackDashboardData(userId) {
 		.select('*', { count: 'exact', head: true })
 		.eq('userId', userId);
 
+	console.log('📊 Total Posts Count for user', userId, ':', totalPosts);
+
+	// Calculate monthly posts
+	const thisMonth = new Date();
+	thisMonth.setDate(1);
+	thisMonth.setHours(0, 0, 0, 0);
+
+	const { count: monthlyPosts } = await supabaseAdmin
+		.from('linkedin_posts')
+		.select('*', { count: 'exact', head: true })
+		.eq('userId', userId)
+		.gte('postedAt', thisMonth.toISOString());
+
 	const { data: totalEngagementData } = await supabaseAdmin
 		.from('linkedin_posts')
 		.select('totalEngagement')
@@ -167,9 +180,6 @@ async function getFallbackDashboardData(userId) {
 
 	// Calculate comment activity statistics
 	const totalCommentActivities = (commentActivities || []).length;
-	const thisMonth = new Date();
-	thisMonth.setDate(1);
-	thisMonth.setHours(0, 0, 0, 0);
 	
 	const monthlyCommentActivities = (commentActivities || []).filter(
 		(activity) => new Date(activity.created_at) >= thisMonth
