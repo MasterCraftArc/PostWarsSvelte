@@ -731,6 +731,14 @@
 													<div>
 														<div style="color:#fdfdfd;" class="font-medium">{post.userName}</div>
 														<div style="color:#94a3b8;" class="text-xs">{post.userEmail}</div>
+														<a
+															href={post.url}
+															target="_blank"
+															rel="noopener noreferrer"
+															class="text-xs hover:underline transition-colors mt-1 inline-block"
+															style="color:#24b0ff;">
+															🔗 View Post
+														</a>
 													</div>
 												</td>
 												<td class="px-4 py-3">
