@@ -9,7 +9,7 @@ const DEFAULT_STORAGE_STATE = 'linkedin_auth_state.json';
  * Load LinkedIn authentication cookies from file or environment
  */
 async function loadLinkedInCookies(page) {
-	debugLog('🍪 Loading LinkedIn authentication cookies...');
+	console.log('🍪 Loading LinkedIn authentication cookies...'); // Always log
 
 	try {
 		let cookies;
@@ -17,22 +17,23 @@ async function loadLinkedInCookies(page) {
 		// Try to load from environment variable first (for GitHub Actions)
 		const cookiesEnv = process.env.LINKEDIN_COOKIES;
 		if (cookiesEnv) {
-			debugLog('📱 Loading cookies from environment variable');
+			console.log('📱 Loading cookies from environment variable'); // Always log
+			console.log(`📊 Environment variable length: ${cookiesEnv.length} characters`); // Debug length
 			cookies = JSON.parse(cookiesEnv);
 		} else {
 			// Fallback to local file
-			debugLog('📂 Loading cookies from local file');
+			console.log('📂 Loading cookies from local file'); // Always log
 			const cookiesData = await fs.readFile('./linkedin-cookies.json', 'utf8');
 			cookies = JSON.parse(cookiesData);
 		}
 
 		// Add cookies to the browser context
 		await page.context().addCookies(cookies);
-		debugLog(`✅ Applied ${cookies.length} LinkedIn authentication cookies`);
+		console.log(`✅ Applied ${cookies.length} LinkedIn authentication cookies`); // Always log
 
 		return true;
 	} catch (error) {
-		debugLog('❌ Failed to load LinkedIn cookies:', error.message);
+		console.error('❌ Failed to load LinkedIn cookies:', error.message); // Always log errors
 		throw error;
 	}
 }
@@ -1482,11 +1483,12 @@ export async function scrapeSinglePostQueued(url, userId) {
 
 	try {
 		// Load LinkedIn authentication cookies BEFORE navigation
-		debugLog('🍪 Loading LinkedIn authentication cookies...');
+		console.log('🍪 Loading LinkedIn authentication cookies...'); // Always log
 		try {
 			await loadLinkedInCookies(pageInfo.page);
+			console.log('✅ LinkedIn cookies loaded successfully'); // Always log success
 		} catch (error) {
-			debugLog('⚠️ Failed to load cookies:', error.message);
+			console.error('❌ Failed to load cookies:', error.message); // Always log errors
 		}
 
 		debugLog('🌐 Navigating to post with optimized loading...');
