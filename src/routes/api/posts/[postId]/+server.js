@@ -22,7 +22,7 @@ export async function DELETE(event) {
 			return json({ error: 'Post not found' }, { status: 404 });
 		}
 
-		if (post.userId !== user.id) {
+		if (post.userId !== user.id && user.role !== 'ADMIN') {
 			return json({ error: 'Unauthorized - you can only delete your own posts' }, { status: 403 });
 		}
 
@@ -43,18 +43,18 @@ export async function DELETE(event) {
 			return json({ error: 'Failed to delete post' }, { status: 500 });
 		}
 
-		// Update user stats after deletion - recalculate total score
+		// Update user stats after deletion - recalculate total score for the post owner
 		const { data: remainingPosts } = await supabaseAdmin
 			.from('linkedin_posts')
 			.select('totalScore')
-			.eq('userId', user.id);
+			.eq('userId', post.userId);
 
 		const newTotalScore = remainingPosts?.reduce((sum, post) => sum + (post.totalScore || 0), 0) || 0;
 
 		await supabaseAdmin
 			.from('users')
 			.update({ totalScore: newTotalScore })
-			.eq('id', user.id);
+			.eq('id', post.userId);
 
 		return json({ 
 			success: true, 
