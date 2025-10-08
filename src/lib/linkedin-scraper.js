@@ -1459,6 +1459,23 @@ export async function scrapeSinglePostQueued(url, userId) {
 		// Apply smart content loading optimizations
 		await smartContentLoader(pageInfo.page);
 
+		// Check for and dismiss the LinkedIn sign-in modal if present
+		debugLog('🔍 Checking for LinkedIn sign-in modal...');
+		try {
+			const modalDismissButton = await pageInfo.page.$('.modal__dismiss, .contextual-sign-in-modal__modal-dismiss');
+			if (modalDismissButton) {
+				debugLog('✅ Found sign-in modal, dismissing...');
+				await modalDismissButton.click();
+				// Wait a moment for the modal to close
+				await pageInfo.page.waitForTimeout(1000);
+				debugLog('✅ Sign-in modal dismissed successfully');
+			} else {
+				debugLog('ℹ️ No sign-in modal found');
+			}
+		} catch (error) {
+			debugLog('⚠️ Error checking for modal:', error.message);
+		}
+
 		// Add debug logging to understand what LinkedIn is serving
 		debugLog('🔍 Checking page state before container search...');
 		const pageTitle = await pageInfo.page.title();
