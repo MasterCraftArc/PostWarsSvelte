@@ -19,6 +19,39 @@ export async function POST(event) {
 			return json({ error: 'Valid LinkedIn URL required' }, { status: 400 });
 		}
 
+		// Normalize LinkedIn URL for consistent duplicate detection
+		function normalizeLinkedInUrl(url) {
+			try {
+				const trimmed = url.trim().toLowerCase();
+
+				// Handle domain variations
+				let normalized = trimmed.replace(/^https?:\/\/linkedin\.com/, 'https://www.linkedin.com');
+				if (normalized.startsWith('www.linkedin.com')) {
+					normalized = 'https://' + normalized;
+				}
+
+				const urlObj = new URL(normalized);
+
+				// Remove query parameters and fragments
+				urlObj.search = '';
+				urlObj.hash = '';
+
+				// Remove trailing slash
+				if (urlObj.pathname.endsWith('/') && urlObj.pathname.length > 1) {
+					urlObj.pathname = urlObj.pathname.slice(0, -1);
+				}
+
+				return urlObj.toString();
+			} catch (error) {
+				// Fallback for malformed URLs
+				return url.trim().toLowerCase()
+					.replace(/\/$/, '') // Remove trailing slash
+					.replace(/[?#].*$/, ''); // Remove query params and fragments
+			}
+		}
+
+		const normalizedUrl = normalizeLinkedInUrl(linkedinUrl);
+
 		// Basic LinkedIn URL validation
 		if (!linkedinUrl.includes('linkedin.com/posts/') && !linkedinUrl.includes('linkedin.com/feed/update/')) {
 			return json(
@@ -49,11 +82,11 @@ export async function POST(event) {
 			return json(sanitized, { status: 429 });
 		}
 
-		// Check if post already exists for this user
+		// Check if post already exists for this user (using normalized URL)
 		const { data: existingPost } = await supabaseAdmin
 			.from('linkedin_posts')
 			.select('id')
-			.eq('url', linkedinUrl)
+			.eq('url', normalizedUrl)
 			.eq('userId', userId)
 			.single();
 
@@ -62,13 +95,13 @@ export async function POST(event) {
 		}
 
 		// Add job to database for tracking
-		console.log(`Creating scraping job for user ${userId}: ${linkedinUrl}`);
+		console.log(`Creating scraping job for user ${userId}: ${normalizedUrl} (original: ${linkedinUrl})`);
 
 		try {
 			const job = await jobQueue.addJob(
 				'scrape-post',
 				{
-					linkedinUrl,
+					linkedinUrl: normalizedUrl,
 					userId
 				},
 				userId
@@ -95,7 +128,7 @@ export async function POST(event) {
 								ref: 'main',
 								inputs: {
 									job_id: job.id,
-									linkedin_url: linkedinUrl,
+									linkedin_url: normalizedUrl,
 									user_id: userId
 								}
 							})
