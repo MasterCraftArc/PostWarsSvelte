@@ -1,0 +1,80 @@
+[
+  {
+    "name": "li_at",
+    "value": "AQEDATy5Gq0BrdGKAAABmTnNubgAAAGZ6GlA_VYAOHP-VJ7_bTkc9X8jGuP2yThYvZHXyhi7tltazvRxNb9dOJ7c4VsSC529CEWUxCpyzyCYapHzNVTOxQMJhPp-IFp3DoiBapZEK3UCcqpFQiAcXLvB",
+    "domain": ".www.linkedin.com",
+    "path": "/",
+    "expires": 1760015836.134,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "li_rm",
+    "value": "AQEIExO3s8RkaQAAAZiajnEFQ53qB3STnlYCAS-TJcDmVy43t2i0cUzXubiyb3tJ5-dMBhSI2y-mbnjScNlDQML6rRtpPXAQJXKI7FHrZo_MCZnj4rjvAtjP",
+    "domain": ".www.linkedin.com",
+    "path": "/",
+    "expires": 1757607807.842,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "li_sugr",
+    "value": "0d7ef08e-db41-4285-b49e-c6af49a0b9ab",
+    "domain": ".linkedin.com",
+    "path": "/",
+    "expires": 1767398009.726,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "li_theme",
+    "value": "light",
+    "domain": ".www.linkedin.com",
+    "path": "/",
+    "expires": 1743854009,
+    "httpOnly": false,
+    "secure": true
+  },
+  {
+    "name": "li_theme_set",
+    "value": "app",
+    "domain": ".www.linkedin.com",
+    "path": "/",
+    "expires": 1743854009,
+    "httpOnly": false,
+    "secure": true
+  },
+  {
+    "name": "liap",
+    "value": "true",
+    "domain": ".linkedin.com",
+    "path": "/",
+    "expires": 1760015836.134,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "lidc",
+    "value": "b=OB49:s=O:r=O:a=O:p=O:g=6010:u=807:x=1:i=1759936409:t=1760015728:v=2:sig=AQG2FJNbLMPCj4qZOaCvg3mz2llUTBhM",
+    "domain": ".linkedin.com",
+    "path": "/",
+    "expires": 1760015728.691,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "lms_ads",
+    "value": "AQEZoCauNBsJ6gAAAZnEXPo66rQaHmANFaYvBWjGopyclI9JFY8QssNjed43wvO7h9WD0Azj0zEbtu03RfymZHfFONwUaauX",
+    "domain": ".linkedin.com",
+    "path": "/",
+    "expires": 1730995651.745,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  }
+]

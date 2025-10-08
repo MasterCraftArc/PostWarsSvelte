@@ -227,10 +227,23 @@
 				method: 'DELETE',
 				body: JSON.stringify({ id: goalId })
 			});
-			
+
 			await loadData();
 		} catch (err) {
 			alert('Failed to delete goal: ' + err.message);
+		}
+	}
+
+	async function deletePost(postId, userName) {
+		if (!confirm(`Are you sure you want to delete this post by "${userName}"? This action cannot be undone.`)) return;
+		try {
+			await authenticatedRequest(`/api/posts/${postId}`, {
+				method: 'DELETE'
+			});
+
+			await loadData();
+		} catch (err) {
+			alert('Failed to delete post: ' + err.message);
 		}
 	}
 
@@ -744,12 +757,20 @@
 													{(post.totalScore || 0).toLocaleString()}
 												</td>
 												<td class="px-4 py-3 text-center">
-													<button
-														onclick={() => openEditMetrics(post)}
-														class="rounded-lg px-3 py-1 text-xs text-white transition hover:brightness-110 hover:cursor-pointer"
-														style="background:linear-gradient(90deg,#1392d6,#24b0ff);">
-														Edit Metrics
-													</button>
+													<div class="flex gap-2 justify-center">
+														<button
+															onclick={() => openEditMetrics(post)}
+															class="rounded-lg px-3 py-1 text-xs text-white transition hover:brightness-110 hover:cursor-pointer"
+															style="background:linear-gradient(90deg,#1392d6,#24b0ff);">
+															Edit Metrics
+														</button>
+														<button
+															onclick={() => deletePost(post.id, post.userName)}
+															class="rounded-lg px-3 py-1 text-xs text-white transition hover:brightness-110 hover:cursor-pointer"
+															style="background:linear-gradient(90deg,#dc2626,#ef4444);">
+															Delete
+														</button>
+													</div>
 												</td>
 											</tr>
 										{/each}
