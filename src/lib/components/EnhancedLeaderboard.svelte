@@ -28,22 +28,28 @@
 				// For individual users, also load posts data for engagement calculation
 				const postsData = await authenticatedRequest('/api/posts');
 
-				// Calculate correct engagement from posts data
+				// Calculate correct engagement and total posts from posts data
 				const userEngagement = {};
+				const userTotalPosts = {};
 				if (postsData?.posts) {
 					postsData.posts.forEach((post) => {
 						const userId = post.userId;
 						if (!userEngagement[userId]) {
 							userEngagement[userId] = 0;
 						}
+						if (!userTotalPosts[userId]) {
+							userTotalPosts[userId] = 0;
+						}
 						userEngagement[userId] += getPostEngagement(post);
+						userTotalPosts[userId] += 1;
 					});
 				}
 
-				// Update leaderboard with correct engagement
+				// Update leaderboard with correct engagement and total posts
 				if (leaderboard?.leaderboard) {
 					leaderboard.leaderboard.forEach((player) => {
 						player.engagementInTimeframe = userEngagement[player.id] || 0;
+						player.totalPosts = userTotalPosts[player.id] || 0;
 					});
 				}
 
@@ -384,7 +390,7 @@
 											{#if player.teamName !== 'No Team'}
 												{player.teamName} •
 											{/if}
-											{player.postsInTimeframe || 0} posts
+											{player.totalPosts || 0} posts
 										</div>
 									</div>
 
@@ -475,7 +481,7 @@
 											{#if player.teamName !== 'No Team'}
 												{player.teamName} •
 											{/if}
-											{player.postsInTimeframe || 0} posts
+											{player.totalPosts || 0} posts
 										</div>
 									</div>
 
