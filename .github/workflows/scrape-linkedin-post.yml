@@ -51,4 +51,5 @@ jobs:
         SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
         PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+        LINKEDIN_COOKIES: ${{ secrets.LINKEDIN_COOKIES }}
       run: node scrape-script.js "${{ github.event.inputs.job_id }}" "${{ github.event.inputs.linkedin_url }}" "${{ github.event.inputs.user_id }}"
