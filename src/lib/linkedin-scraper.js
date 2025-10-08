@@ -14,11 +14,16 @@ async function loadLinkedInCookies(page) {
 	try {
 		let cookies;
 
-		// Try to load from environment variable first (for GitHub Actions)
+		// Debug: Check if environment variable exists
 		const cookiesEnv = process.env.LINKEDIN_COOKIES;
+		console.log(`🔍 Environment variable check - LINKEDIN_COOKIES exists: ${!!cookiesEnv}`);
+		if (cookiesEnv) {
+			console.log(`📊 Environment variable length: ${cookiesEnv.length} characters`);
+		}
+
+		// Try to load from environment variable first (for GitHub Actions)
 		if (cookiesEnv) {
 			console.log('📱 Loading cookies from environment variable'); // Always log
-			console.log(`📊 Environment variable length: ${cookiesEnv.length} characters`); // Debug length
 			cookies = JSON.parse(cookiesEnv);
 		} else {
 			// Fallback to local file
