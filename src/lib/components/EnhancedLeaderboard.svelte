@@ -123,6 +123,14 @@
 		window.location.href = `/user/${userId}`;
 	}
 
+	// Export function to allow external refresh
+	export function refreshLeaderboard() {
+		leaderboardData = null;
+		if ($user) {
+			loadLeaderboard();
+		}
+	}
+
 	// Svelte 5: Effect to load leaderboard when user becomes available
 	$effect(() => {
 		if ($user && !leaderboardData) {
@@ -140,8 +148,8 @@
 		<!-- Company Goals Progress -->
 		<CompanyGoals />
 
-		<!-- View Toggle -->
-		<div class="flex justify-center">
+		<!-- View Toggle and Refresh -->
+		<div class="flex justify-center items-center space-x-4">
 			<div
 				class="inline-flex rounded-lg p-1 backdrop-blur-md"
 				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff;"
@@ -165,6 +173,15 @@
 					🏆 Team Competition
 				</button>
 			</div>
+
+			<button
+				onclick={refreshLeaderboard}
+				class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 backdrop-blur-md"
+				style="background-color:rgba(255,255,255,0.05); border:1px solid #24b0ff; color:#24b0ff;"
+				title="Refresh leaderboard data"
+			>
+				🔄 Refresh
+			</button>
 		</div>
 
 		<!-- Scrollable Leaderboard -->
