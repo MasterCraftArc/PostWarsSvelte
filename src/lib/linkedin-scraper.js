@@ -1481,23 +1481,23 @@ export async function scrapeSinglePostQueued(url, userId) {
 	const pageInfo = await browserPool.getPage(browser, userId);
 
 	try {
-		debugLog('🌐 Navigating to post with optimized loading...');
-		// Use optimized loading from main scraper
-		await pageInfo.page.goto(url, { 
-			waitUntil: 'domcontentloaded', 
-			timeout: 30000 
-		});
-		
-		// Apply smart content loading optimizations
-		await smartContentLoader(pageInfo.page);
-
-		// Load LinkedIn authentication cookies
+		// Load LinkedIn authentication cookies BEFORE navigation
 		debugLog('🍪 Loading LinkedIn authentication cookies...');
 		try {
 			await loadLinkedInCookies(pageInfo.page);
 		} catch (error) {
 			debugLog('⚠️ Failed to load cookies:', error.message);
 		}
+
+		debugLog('🌐 Navigating to post with optimized loading...');
+		// Use optimized loading from main scraper
+		await pageInfo.page.goto(url, {
+			waitUntil: 'domcontentloaded',
+			timeout: 30000
+		});
+
+		// Apply smart content loading optimizations
+		await smartContentLoader(pageInfo.page);
 
 		// Add debug logging to understand what LinkedIn is serving
 		debugLog('🔍 Checking page state before container search...');
