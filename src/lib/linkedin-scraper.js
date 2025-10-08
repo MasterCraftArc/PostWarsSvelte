@@ -1459,11 +1459,57 @@ export async function scrapeSinglePostQueued(url, userId) {
 		// Apply smart content loading optimizations
 		await smartContentLoader(pageInfo.page);
 
+		// Add debug logging to understand what LinkedIn is serving
+		debugLog('🔍 Checking page state before container search...');
+		const pageTitle = await pageInfo.page.title();
+		const currentUrl = pageInfo.page.url();
+		debugLog(`📄 Page title: ${pageTitle}`);
+		debugLog(`🔗 Current URL: ${currentUrl}`);
+
+		// Check for common LinkedIn bot detection patterns
+		const pageAnalysis = await pageInfo.page.evaluate(() => {
+			const bodyText = document.body ? document.body.innerText.toLowerCase() : '';
+			const bodyHTML = document.body ? document.body.innerHTML : '';
+
+			return {
+				hasLoginWall: bodyText.includes('sign in') || bodyText.includes('log in') || bodyText.includes('join now'),
+				hasCaptcha: bodyText.includes('captcha') || bodyText.includes('verification') || bodyText.includes('challenge'),
+				hasAccessDenied: bodyText.includes('access denied') || bodyText.includes('blocked') || bodyText.includes('unusual activity'),
+				bodyLength: bodyText.length,
+				hasContent: bodyHTML.length > 1000,
+				bodySnippet: bodyHTML.substring(0, 500) + '...'
+			};
+		});
+
+		debugLog('🚨 Page analysis:', pageAnalysis);
+
 		// Use optimized parallel selector search
 		const postContainer = await findPostContainerFast(pageInfo.page, SINGLE_POST_SELECTORS);
 
 		if (!postContainer) {
-			throw new Error('Could not find post container on page');
+			debugLog('❌ No post container found. Available selectors on page:');
+
+			// Check what selectors are actually available
+			const availableSelectors = await pageInfo.page.evaluate(() => {
+				const selectors = [
+					'.feed-shared-update-v2',
+					"div[data-urn*='urn:li:activity']",
+					"div[data-urn*='urn:li:ugcPost']",
+					'[data-id]',
+					'.artdeco-card',
+					'.scaffold-layout__content'
+				];
+
+				return selectors.map(selector => ({
+					selector,
+					count: document.querySelectorAll(selector).length,
+					exists: document.querySelector(selector) !== null
+				}));
+			});
+
+			debugLog('🔍 Available selectors:', availableSelectors);
+
+			throw new Error(`Could not find post container on page. Page analysis: ${JSON.stringify(pageAnalysis)}`);
 		}
 
 		// Extract post data using optimized extraction
