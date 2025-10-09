@@ -15,7 +15,7 @@ const achievements = [
     name: 'First Post',
     description: 'Share your first LinkedIn post',
     icon: '🎉',
-    points: 50,
+    points: 5,
     requirementType: 'posts_count',
     requirementValue: 1
   },
@@ -24,7 +24,7 @@ const achievements = [
     name: 'Consistent Creator',
     description: 'Post 5 times in a month',
     icon: '📝',
-    points: 100,
+    points: 10,
     requirementType: 'posts_count',
     requirementValue: 5
   },
@@ -33,7 +33,7 @@ const achievements = [
     name: 'Engagement Magnet',
     description: 'Get 100 total reactions across all posts',
     icon: '🧲',
-    points: 150,
+    points: 15,
     requirementType: 'engagement_total',
     requirementValue: 100
   },
@@ -42,7 +42,7 @@ const achievements = [
     name: 'Week Warrior',
     description: 'Post for 7 consecutive days',
     icon: '🔥',
-    points: 200,
+    points: 20,
     requirementType: 'streak_days',
     requirementValue: 7
   },
@@ -51,9 +51,27 @@ const achievements = [
     name: 'Viral Moment',
     description: 'Get 50 reactions on a single post',
     icon: '🚀',
-    points: 300,
+    points: 25,
     requirementType: 'single_post_reactions',
     requirementValue: 50
+  },
+  {
+    id: '550e8400-e29b-41d4-a716-446655440006',
+    name: 'Leaderboard Champion',
+    description: 'Reach #1 on the individual leaderboard',
+    icon: '👑',
+    points: 30,
+    requirementType: 'leaderboard_first_place',
+    requirementValue: 1
+  },
+  {
+    id: '550e8400-e29b-41d4-a716-446655440007',
+    name: 'Race Winner',
+    description: 'Be part of a team that wins a race goal',
+    icon: '🏆',
+    points: 25,
+    requirementType: 'team_race_victory',
+    requirementValue: 1
   }
 ];
 

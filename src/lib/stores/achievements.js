@@ -41,10 +41,17 @@ export async function fetchUserRecentAchievements(userIds) {
 
 /**
  * Get recent achievement for a specific user from store
- * @param {string} userId - User ID  
+ * @param {string} userId - User ID
  * @param {Object} $userAchievements - Store value
  * @returns {Object|null} Recent achievement or null
  */
 export function getUserRecentAchievement(userId, $userAchievements) {
-	return $userAchievements[userId] || null;
+	const achievement = $userAchievements[userId];
+
+	// Handle both array and object formats
+	if (Array.isArray(achievement)) {
+		return achievement.length > 0 ? achievement[0] : null;
+	}
+
+	return achievement || null;
 }

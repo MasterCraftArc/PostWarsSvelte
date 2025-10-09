@@ -415,11 +415,13 @@
 									<div class="mr-2 text-center">
 										{#if getUserRecentAchievement(player.id, $userAchievements)}
 											{@const recentAchievement = getUserRecentAchievement(player.id, $userAchievements)}
-											<div
-												class="text-sm"
-												title="{recentAchievement.name} - {recentAchievement.points} points"
-											>
-												{recentAchievement.icon}
+											<div class="flex flex-col items-center">
+												<div class="text-lg mb-1">
+													{recentAchievement.icon}
+												</div>
+												<div class="text-xs" style="color:#24b0ff;" title="{recentAchievement.points} points">
+													{recentAchievement.name}
+												</div>
 											</div>
 										{:else}
 											<div class="text-sm opacity-30">🏆</div>
@@ -506,11 +508,13 @@
 									<div class="mr-2 text-center">
 										{#if getUserRecentAchievement(player.id, $userAchievements)}
 											{@const recentAchievement = getUserRecentAchievement(player.id, $userAchievements)}
-											<div
-												class="text-sm"
-												title="{recentAchievement.name} - {recentAchievement.points} points"
-											>
-												{recentAchievement.icon}
+											<div class="flex flex-col items-center">
+												<div class="text-lg mb-1">
+													{recentAchievement.icon}
+												</div>
+												<div class="text-xs" style="color:#24b0ff;" title="{recentAchievement.points} points">
+													{recentAchievement.name}
+												</div>
 											</div>
 										{:else}
 											<div class="text-sm opacity-30">🏆</div>
