@@ -24,10 +24,10 @@ export async function GET(event) {
 
 		console.log('🎉 Total dashboard API time:', Date.now() - startTime, 'ms');
 
-		// Cache response for 5 minutes
+		// Prevent caching of private user data (security fix for cross-user data leakage)
 		const response = json(data);
-		response.headers.set('Cache-Control', 'public, max-age=300');
-		
+		response.headers.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+
 		return response;
 	} catch (error) {
 		console.error('❌ Dashboard error after', Date.now() - startTime, 'ms:', error);
