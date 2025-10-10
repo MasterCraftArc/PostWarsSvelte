@@ -23,7 +23,7 @@ describe('New Achievements', () => {
 
 			expect(leaderboardChampion).toBeDefined();
 			expect(leaderboardChampion.requirementType).toBe('leaderboard_first_place');
-			expect(leaderboardChampion.points).toBe(500);
+			expect(leaderboardChampion.points).toBe(30);
 			expect(leaderboardChampion.icon).toBe('👑');
 		});
 	});
@@ -37,7 +37,7 @@ describe('New Achievements', () => {
 
 			expect(raceWinner).toBeDefined();
 			expect(raceWinner.requirementType).toBe('team_race_victory');
-			expect(raceWinner.points).toBe(250);
+			expect(raceWinner.points).toBe(25);
 			expect(raceWinner.icon).toBe('🏆');
 		});
 	});
@@ -52,12 +52,12 @@ describe('New Achievements', () => {
 			const raceWinner = gamificationAchievements.find(a => a.name === 'Race Winner');
 
 			expect(leaderboardChampion).toBeDefined();
-			expect(leaderboardChampion.points).toBe(500);
+			expect(leaderboardChampion.points).toBe(30);
 			expect(leaderboardChampion.icon).toBe('👑');
 			expect(leaderboardChampion.requirementType).toBe('leaderboard_first_place');
 
 			expect(raceWinner).toBeDefined();
-			expect(raceWinner.points).toBe(250);
+			expect(raceWinner.points).toBe(25);
 			expect(raceWinner.icon).toBe('🏆');
 			expect(raceWinner.requirementType).toBe('team_race_victory');
 		});
