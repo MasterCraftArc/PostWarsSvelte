@@ -146,7 +146,6 @@
 				<ul class="mt-2 space-y-1 text-sm" style="color:#cbd5e1;">
 					<li>• Reaction: 0.1 points each</li>
 					<li>• Comment: 0.5 points each</li>
-					<li>• Reposts: 0 points (excluded)</li>
 				</ul>
 				<p class="mt-2 text-xs" style="color:#94a3b8;">
 					🚀 Viral posts (200+ reactions) can achieve 20+ points!

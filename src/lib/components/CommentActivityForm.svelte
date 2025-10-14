@@ -60,7 +60,7 @@
   </h3>
   
   <p class="text-sm text-gray-600 mb-4">
-    Earn 2 points for each LinkedIn post you comment on. Paste the URL of the post you commented on below.
+    Earn 0.5 base points (plus streak bonus) for each LinkedIn post you comment on. Paste the URL of the post you commented on below.
   </p>
   
   <div class="space-y-4">
@@ -95,7 +95,7 @@
       disabled={isSubmitting || !targetPostUrl.trim()}
       class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
     >
-      {isSubmitting ? 'Submitting...' : 'Log Comment (+2 points)'}
+      {isSubmitting ? 'Submitting...' : 'Log Comment Activity'}
     </button>
   </div>
 </div>

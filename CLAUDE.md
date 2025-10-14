@@ -272,8 +272,8 @@ import { supabase } from '$lib/supabase.js';            // CLIENT access
 export const SCORING_CONFIG = {
   BASE_POST_POINTS: 1,      // Conservative base scoring
   REACTION_POINTS: 0.1,     // 0.1 points per reaction
-  COMMENT_POINTS: 1,        // 1 point per comment  
-  REPOST_POINTS: 2,         // 2 points per repost
+  COMMENT_POINTS: 0.5,      // 0.5 points per comment
+  REPOST_POINTS: 0,         // Reposts excluded from scoring
 };
 
 // NO alternative scoring systems permitted

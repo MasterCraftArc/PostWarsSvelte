@@ -171,9 +171,9 @@
 						<strong>Post with 50 reactions, 10 comments, 3-day streak:</strong>
 					</p>
 					<ul class="ml-4 space-y-1">
-						<li>• Base: 1 point × 1.3 (30% streak bonus) = 1.3 points</li>
-						<li>• Engagement: (50 × 0.1) + (10 × 1) = 15 points</li>
-						<li>• <strong style="color:#22c55e;">Total: 16.3 points</strong></li>
+						<li>• Base: 1 point × 1.45 (45% streak bonus) = 1.45 points</li>
+						<li>• Engagement: (50 × 0.1) + (10 × 0.5) = 10 points</li>
+						<li>• <strong style="color:#22c55e;">Total: 11.45 points</strong></li>
 					</ul>
 				</div>
 			</div>

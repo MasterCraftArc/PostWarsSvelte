@@ -243,62 +243,57 @@
 								</div>
 
 								{#if post.type !== 'comment_activity'}
-									<div class="mt-3 flex items-center justify-between border-t pt-3" style="border-color:rgba(148,163,184,0.2);">
-										<div class="grid flex-1 grid-cols-3 gap-4">
-											<div class="text-center">
-												<div class="font-medium" style="color:#f1f5f9;">{post.reactions}</div>
-												<div class="text-xs" style="color:#94a3b8;">Reactions</div>
-												{#if post.status}
-													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
-												{:else if post.growth.reactions !== 0}
-													<div class="text-xs" style="color:{post.growth.reactions > 0 ? '#24b0ff' : '#ef4444'};">
-														{post.growth.reactions > 0 ? '+' : ''}{post.growth.reactions}
-													</div>
-												{:else}
-													<div class="text-xs" style="color:#94a3b8;">
-														+{(post.reactions * 0.1).toFixed(1)} pts
-													</div>
-												{/if}
+									<div class="mt-3 border-t pt-3" style="border-color:rgba(148,163,184,0.2);">
+										<div class="flex items-center justify-between">
+											<div class="grid flex-1 grid-cols-2 gap-4">
+												<div class="text-center">
+													<div class="font-medium" style="color:#f1f5f9;">{post.reactions}</div>
+													<div class="text-xs" style="color:#94a3b8;">Reactions</div>
+													{#if post.status}
+														<div class="text-xs" style="color:#24b0ff;">+? pts</div>
+													{:else if post.growth.reactions !== 0}
+														<div class="text-xs" style="color:{post.growth.reactions > 0 ? '#24b0ff' : '#ef4444'};">
+															{post.growth.reactions > 0 ? '+' : ''}{post.growth.reactions}
+														</div>
+													{:else}
+														<div class="text-xs" style="color:#94a3b8;">
+															+{Math.round(post.reactions * 0.1)} pts
+														</div>
+													{/if}
+												</div>
+
+												<div class="text-center">
+													<div class="font-medium" style="color:#f1f5f9;">{post.comments}</div>
+													<div class="text-xs" style="color:#94a3b8;">Comments</div>
+													{#if post.status}
+														<div class="text-xs" style="color:#24b0ff;">+? pts</div>
+													{:else if post.growth.comments !== 0}
+														<div class="text-xs" style="color:{post.growth.comments > 0 ? '#24b0ff' : '#ef4444'};">
+															{post.growth.comments > 0 ? '+' : ''}{post.growth.comments}
+														</div>
+													{:else}
+														<div class="text-xs" style="color:#94a3b8;">
+															+{Math.round(post.comments * 0.5)} pts
+														</div>
+													{/if}
+												</div>
 											</div>
 
-											<div class="text-center">
-												<div class="font-medium" style="color:#f1f5f9;">{post.comments}</div>
-												<div class="text-xs" style="color:#94a3b8;">Comments</div>
-												{#if post.status}
-													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
-												{:else if post.growth.comments !== 0}
-													<div class="text-xs" style="color:{post.growth.comments > 0 ? '#24b0ff' : '#ef4444'};">
-														{post.growth.comments > 0 ? '+' : ''}{post.growth.comments}
-													</div>
-												{:else}
-													<div class="text-xs" style="color:#94a3b8;">
-														+{post.comments * 1} pts
-													</div>
-												{/if}
-											</div>
-
-											<div class="text-center">
-												<div class="font-medium" style="color:#f1f5f9;">{post.reposts}</div>
-												<div class="text-xs" style="color:#94a3b8;">Reposts</div>
-												{#if post.status}
-													<div class="text-xs" style="color:#24b0ff;">+? pts</div>
-												{:else if post.growth.reposts !== 0}
-													<div class="text-xs" style="color:{post.growth.reposts > 0 ? '#24b0ff' : '#ef4444'};">
-														{post.growth.reposts > 0 ? '+' : ''}{post.growth.reposts}
-													</div>
-												{:else}
-													<div class="text-xs" style="color:#94a3b8;">
-														+{post.reposts * 2} pts
-													</div>
-												{/if}
+											<div class="ml-4 text-right">
+												<div class="text-sm" style="color:#cbd5e1;">
+													{post.status ? 'Submitted' : 'Last updated'}
+												</div>
+												<div class="text-xs" style="color:#94a3b8;">{formatDate(post.lastScrapedAt)}</div>
 											</div>
 										</div>
 
-										<div class="ml-4 text-right">
-											<div class="text-sm" style="color:#cbd5e1;">
-												{post.status ? 'Submitted' : 'Last updated'}
+										<div class="mt-3 pt-3 text-center border-t" style="border-color:rgba(148,163,184,0.2);">
+											<div class="text-sm font-medium" style="color:#22c55e;">
+												Total Post Score: {post.totalScore} points
 											</div>
-											<div class="text-xs" style="color:#94a3b8;">{formatDate(post.lastScrapedAt)}</div>
+											<div class="text-xs mt-1" style="color:#94a3b8;">
+												(includes base + engagement + bonuses)
+											</div>
 										</div>
 									</div>
 								{:else}
