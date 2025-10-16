@@ -18,7 +18,7 @@ export async function updateAllPostAnalytics() {
 			`)
 			.lt('lastScrapedAt', oneHourAgo.toISOString())
 			.order('lastScrapedAt', { ascending: true })
-			.limit(50);
+			.limit(30); // Reduced from 50 for faster completion (runs 2x daily = 60 posts/day coverage)
 
 		if (postsError) {
 			console.error('Error fetching posts to update:', postsError);
@@ -30,97 +30,147 @@ export async function updateAllPostAnalytics() {
 		let successCount = 0;
 		let errorCount = 0;
 
-		for (const post of postsToUpdate) {
-			try {
-				console.log(`Updating post ${post.id} (${post.url})`);
+		// Import browser pool scraper for concurrent processing
+		const { scrapeSinglePostQueued, browserPool } = await import('../linkedin-scraper.js');
 
-				// Scrape current data
-				const { scrapeSinglePost } = await import('../linkedin-scraper.js');
-				const currentData = await scrapeSinglePost(post.url, {
-					headed: false,
-					storageStatePath: 'non-existent-auth-file.json'
-				});
+		// Process posts in parallel batches for 10x speedup
+		const BATCH_SIZE = 10;
+		const batches = [];
+		for (let i = 0; i < postsToUpdate.length; i += BATCH_SIZE) {
+			batches.push(postsToUpdate.slice(i, i + BATCH_SIZE));
+		}
 
-				if (!currentData) {
-					console.log(`No data extracted for post ${post.id}`);
-					continue;
+		console.log(`⚡ Processing ${batches.length} batches of up to ${BATCH_SIZE} posts in parallel`);
+		const startTime = Date.now();
+
+		for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+			const batch = batches[batchIndex];
+			const batchStartTime = Date.now();
+			console.log(`\n📦 Batch ${batchIndex + 1}/${batches.length}: Processing ${batch.length} posts concurrently...`);
+
+			// Process all posts in batch concurrently
+			const batchPromises = batch.map(async (post) => {
+				try {
+					console.log(`  🔄 [${post.id}] Starting scrape: ${post.url}`);
+
+					// Use browser pool for faster scraping with reused contexts
+					const currentData = await scrapeSinglePostQueued(post.url, post.userId);
+
+					if (!currentData) {
+						console.log(`  ⚠️  [${post.id}] No data extracted`);
+						return { success: false, postId: post.id, error: 'No data extracted' };
+					}
+
+					// Calculate growth since last check
+					const lastAnalytics = post.analytics && post.analytics.length > 0 ?
+						post.analytics.sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))[0] :
+						null;
+					const reactionGrowth = currentData.reactions - (lastAnalytics?.reactions || post.reactions);
+					const commentGrowth = currentData.comments - (lastAnalytics?.comments || post.comments);
+					const repostGrowth = currentData.reposts - (lastAnalytics?.reposts || post.reposts);
+
+					// Recalculate scoring with current engagement
+					const { data: userPosts } = await supabaseAdmin
+						.from('linkedin_posts')
+						.select('*')
+						.eq('userId', post.userId)
+						.order('postedAt', { ascending: false });
+
+					const currentStreak = userPosts.length;
+					const scoring = calculatePostScore(
+						{
+							word_count: post.wordCount,
+							reactions: currentData.reactions,
+							comments: currentData.comments,
+							reposts: currentData.reposts,
+							timestamp: post.postedAt instanceof Date ? post.postedAt.toISOString() : post.postedAt
+						},
+						currentStreak
+					);
+
+					// Update post with new engagement data
+					const { error: updateError } = await supabaseAdmin
+						.from('linkedin_posts')
+						.update({
+							reactions: currentData.reactions,
+							comments: currentData.comments,
+							reposts: currentData.reposts,
+							totalEngagement: currentData.total_engagement,
+							engagementScore: scoring.engagementScore,
+							totalScore: scoring.totalScore,
+							lastScrapedAt: new Date().toISOString()
+						})
+						.eq('id', post.id);
+
+					if (updateError) {
+						console.error(`  ❌ [${post.id}] Database update failed:`, updateError.message);
+						return { success: false, postId: post.id, error: updateError.message };
+					}
+
+					// Create new analytics record
+					const { error: analyticsError } = await supabaseAdmin
+						.from('post_analytics')
+						.insert({
+							postId: post.id,
+							reactions: currentData.reactions,
+							comments: currentData.comments,
+							reposts: currentData.reposts,
+							totalEngagement: currentData.total_engagement,
+							reactionGrowth,
+							commentGrowth,
+							repostGrowth
+						});
+
+					if (analyticsError) {
+						console.error(`  ⚠️  [${post.id}] Analytics insert failed:`, analyticsError.message);
+					}
+
+					console.log(`  ✅ [${post.id}] Updated successfully (${currentData.reactions} reactions, ${currentData.comments} comments, ${currentData.reposts} reposts)`);
+					return { success: true, postId: post.id };
+
+				} catch (error) {
+					console.error(`  ❌ [${post.id}] Failed:`, error.message);
+					return { success: false, postId: post.id, error: error.message };
 				}
+			});
 
-				// Calculate growth since last check
-				const lastAnalytics = post.analytics && post.analytics.length > 0 ? 
-					post.analytics.sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))[0] : 
-					null;
-				const reactionGrowth = currentData.reactions - (lastAnalytics?.reactions || post.reactions);
-				const commentGrowth = currentData.comments - (lastAnalytics?.comments || post.comments);
-				const repostGrowth = currentData.reposts - (lastAnalytics?.reposts || post.reposts);
+			// Wait for all posts in batch to complete
+			const batchResults = await Promise.allSettled(batchPromises);
 
-				// Recalculate scoring with current engagement
-				const { data: userPosts } = await supabaseAdmin
-					.from('linkedin_posts')
-					.select('*')
-					.eq('userId', post.userId)
-					.order('postedAt', { ascending: false });
-
-				const currentStreak = userPosts.length;
-				const scoring = calculatePostScore(
-					{
-						word_count: post.wordCount,
-						reactions: currentData.reactions,
-						comments: currentData.comments,
-						reposts: currentData.reposts,
-						timestamp: post.postedAt instanceof Date ? post.postedAt.toISOString() : post.postedAt
-					},
-					currentStreak
-				);
-
-				// Update post with new engagement data
-				const { error: updateError } = await supabaseAdmin
-					.from('linkedin_posts')
-					.update({
-						reactions: currentData.reactions,
-						comments: currentData.comments,
-						reposts: currentData.reposts,
-						totalEngagement: currentData.total_engagement,
-						engagementScore: scoring.engagementScore,
-						totalScore: scoring.totalScore,
-						lastScrapedAt: new Date().toISOString()
-					})
-					.eq('id', post.id);
-
-				if (updateError) {
-					console.error(`Error updating post ${post.id}:`, updateError);
+			// Count successes and failures for this batch
+			let batchSuccess = 0;
+			let batchErrors = 0;
+			batchResults.forEach(result => {
+				if (result.status === 'fulfilled' && result.value.success) {
+					successCount++;
+					batchSuccess++;
+				} else {
 					errorCount++;
-					continue;
+					batchErrors++;
 				}
+			});
 
-				// Create new analytics record
-				const { error: analyticsError } = await supabaseAdmin
-					.from('post_analytics')
-					.insert({
-						postId: post.id,
-						reactions: currentData.reactions,
-						comments: currentData.comments,
-						reposts: currentData.reposts,
-						totalEngagement: currentData.total_engagement,
-						reactionGrowth,
-						commentGrowth,
-						repostGrowth
-					});
+			const batchDuration = ((Date.now() - batchStartTime) / 1000).toFixed(1);
+			console.log(`  📊 Batch ${batchIndex + 1} completed in ${batchDuration}s: ${batchSuccess} successes, ${batchErrors} errors`);
 
-				if (analyticsError) {
-					console.error(`Error creating analytics for post ${post.id}:`, analyticsError);
-				}
-
-				successCount++;
-				console.log(`Successfully updated post ${post.id}`);
-
-				// Add delay to be respectful to LinkedIn
-				await new Promise((resolve) => setTimeout(resolve, 2000));
-			} catch (error) {
-				console.error(`Error updating post ${post.id}:`, error);
-				errorCount++;
+			// Short delay between batches (respectful to LinkedIn but much faster)
+			if (batchIndex < batches.length - 1) {
+				await new Promise((resolve) => setTimeout(resolve, 500));
 			}
 		}
+
+		// Cleanup browser pool
+		console.log('\n🧹 Cleaning up browser pool...');
+		try {
+			await browserPool.cleanup();
+			console.log('✅ Browser pool cleaned up successfully');
+		} catch (cleanupError) {
+			console.error('⚠️  Browser cleanup error:', cleanupError.message);
+		}
+
+		const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1);
+		console.log(`\n⚡ Total scraping time: ${totalDuration}s (avg ${(totalDuration / postsToUpdate.length).toFixed(1)}s per post)`);
+		console.log(`📈 Performance: ${postsToUpdate.length} posts in ${totalDuration}s = ${(postsToUpdate.length / (totalDuration / 60)).toFixed(1)} posts/minute`);
 
 		// Update all user stats after post updates
 		const uniqueUserIds = [...new Set(postsToUpdate.map((p) => p.userId))];
