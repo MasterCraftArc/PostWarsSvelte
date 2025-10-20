@@ -206,7 +206,7 @@ async function getFallbackDashboardData(userId) {
 			name: userData.data.name,
 			email: userData.data.email,
 			totalScore: userData.data.totalScore,
-			postsThisMonth: userData.data.postsThisMonth,
+			postsThisMonth: monthlyPosts || 0,
 			currentStreak: userData.data.currentStreak,
 			bestStreak: userData.data.bestStreak,
 			rank: userRank
@@ -214,7 +214,7 @@ async function getFallbackDashboardData(userId) {
 		stats: {
 			totalPosts: totalPosts || 0,
 			totalEngagement,
-			monthlyPosts: 0,
+			monthlyPosts: monthlyPosts || 0,
 			monthlyEngagement: 0,
 			averageEngagement: totalPosts > 0 ? Math.round(totalEngagement / totalPosts) : 0,
 			totalCommentActivities,
