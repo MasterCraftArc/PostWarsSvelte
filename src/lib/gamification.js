@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase-node.js';
+import { randomUUID } from 'crypto';
 
 export const SCORING_CONFIG = {
 	// Base points for posting
@@ -76,18 +77,31 @@ export function calculateUserStreak(userPosts) {
 	// Sort posts by date (newest first)
 	const sortedPosts = userPosts.sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
 
+	// Get unique post dates (handle multiple posts per day)
+	const uniqueDates = [];
+	const seenDates = new Set();
+
+	for (const post of sortedPosts) {
+		const postDate = new Date(post.postedAt);
+		postDate.setHours(0, 0, 0, 0);
+		const dateKey = postDate.getTime();
+
+		if (!seenDates.has(dateKey)) {
+			seenDates.add(dateKey);
+			uniqueDates.push(postDate);
+		}
+	}
+
+	// Calculate streak from unique dates
 	let streak = 0;
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
 
-	for (let i = 0; i < sortedPosts.length; i++) {
-		const postDate = new Date(sortedPosts[i].postedAt);
-		postDate.setHours(0, 0, 0, 0);
-
+	for (let i = 0; i < uniqueDates.length; i++) {
 		const expectedDate = new Date(today);
 		expectedDate.setDate(today.getDate() - i);
 
-		if (postDate.getTime() === expectedDate.getTime()) {
+		if (uniqueDates[i].getTime() === expectedDate.getTime()) {
 			streak++;
 		} else {
 			break;
@@ -145,9 +159,9 @@ export async function updateUserStats(userId) {
 		(post) => new Date(post.postedAt) >= thisMonth
 	).length;
 
-	const bestStreak = Math.max(user.bestStreak, currentStreak);
+	const bestStreak = Math.max(user.bestStreak || 0, currentStreak);
 
-	const { data: updatedUser, error: updateError } = await supabaseAdmin
+	const { data: updatedUsers, error: updateError } = await supabaseAdmin
 		.from('users')
 		.update({
 			totalScore,
@@ -156,15 +170,14 @@ export async function updateUserStats(userId) {
 			bestStreak
 		})
 		.eq('id', userId)
-		.select()
-		.single();
+		.select();
 
 	if (updateError) {
 		console.error('Error updating user stats:', updateError);
 		return null;
 	}
 
-	return updatedUser;
+	return updatedUsers && updatedUsers.length > 0 ? updatedUsers[0] : null;
 }
 
 export const ACHIEVEMENTS = [
@@ -400,7 +413,7 @@ export async function checkAndAwardAchievements(userId) {
 			const { error: insertError } = await supabaseAdmin
 				.from('user_achievements')
 				.insert({
-					id: crypto.randomUUID(),
+					id: randomUUID(),
 					userId: userId,
 					achievementId: existingAchievement.id
 				});
