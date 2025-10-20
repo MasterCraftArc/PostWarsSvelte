@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../supabase-node.js';
-import { calculatePostScore, updateUserStats } from '../gamification.js';
+import { calculatePostScore, updateUserStats, calculateUserStreak } from '../gamification.js';
 
 export async function updateAllPostAnalytics() {
 	console.log('Starting analytics update job...');
@@ -76,7 +76,7 @@ export async function updateAllPostAnalytics() {
 						.eq('userId', post.userId)
 						.order('postedAt', { ascending: false });
 
-					const currentStreak = userPosts.length;
+					const currentStreak = calculateUserStreak(userPosts);
 					const scoring = calculatePostScore(
 						{
 							word_count: post.wordCount,

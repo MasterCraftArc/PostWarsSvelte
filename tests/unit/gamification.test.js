@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculatePostScore,
   calculateCommentActivityScore,
+  calculateUserStreak,
   SCORING_CONFIG
 } from '../../src/lib/gamification.js';
 
@@ -133,6 +134,83 @@ describe('Gamification System', () => {
       const result = calculateCommentActivityScore(20); // Very high streak
 
       expect(result.streakMultiplier).toBe(SCORING_CONFIG.MAX_STREAK_BONUS); // Should be capped at 2.0
+    });
+  });
+
+  describe('calculateUserStreak', () => {
+    it('should return 0 for no posts', () => {
+      const result = calculateUserStreak([]);
+      expect(result).toBe(0);
+    });
+
+    it('should return 1 for single post today', () => {
+      const today = new Date();
+      const posts = [{ postedAt: today.toISOString() }];
+      const result = calculateUserStreak(posts);
+      expect(result).toBe(1);
+    });
+
+    it('should calculate consecutive day streak correctly', () => {
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      const twoDaysAgo = new Date(today);
+      twoDaysAgo.setDate(today.getDate() - 2);
+
+      const posts = [
+        { postedAt: today.toISOString() },
+        { postedAt: yesterday.toISOString() },
+        { postedAt: twoDaysAgo.toISOString() }
+      ];
+
+      const result = calculateUserStreak(posts);
+      expect(result).toBe(3);
+    });
+
+    it('should break streak when day is missed', () => {
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      const threeDaysAgo = new Date(today);
+      threeDaysAgo.setDate(today.getDate() - 3); // Gap!
+
+      const posts = [
+        { postedAt: today.toISOString() },
+        { postedAt: yesterday.toISOString() },
+        { postedAt: threeDaysAgo.toISOString() } // Missing 2 days ago
+      ];
+
+      const result = calculateUserStreak(posts);
+      expect(result).toBe(2); // Only counts today and yesterday
+    });
+
+    it('should handle multiple posts on same day', () => {
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+
+      const posts = [
+        { postedAt: today.toISOString() },
+        { postedAt: today.toISOString() }, // Second post today
+        { postedAt: yesterday.toISOString() }
+      ];
+
+      const result = calculateUserStreak(posts);
+      expect(result).toBe(2); // Should still be 2-day streak
+    });
+
+    it('should not count future posts', () => {
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+
+      const posts = [
+        { postedAt: yesterday.toISOString() }
+        // No post today
+      ];
+
+      const result = calculateUserStreak(posts);
+      expect(result).toBe(0); // Streak broken (no post today)
     });
   });
 });
