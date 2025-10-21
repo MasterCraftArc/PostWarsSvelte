@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../supabase-node.js';
-import { calculatePostScore, updateUserStats, calculateUserStreak } from '../gamification.js';
+import { calculatePostScore, updateUserStats, calculateUserStreak, checkAndAwardAchievements } from '../gamification.js';
 
 export async function updateAllPostAnalytics() {
 	console.log('Starting analytics update job...');
@@ -179,6 +179,8 @@ export async function updateAllPostAnalytics() {
 		for (const userId of uniqueUserIds) {
 			try {
 				await updateUserStats(userId);
+				// Check and award achievements after stats update
+				await checkAndAwardAchievements(userId);
 			} catch (error) {
 				console.error(`Error updating user stats for ${userId}:`, error);
 			}

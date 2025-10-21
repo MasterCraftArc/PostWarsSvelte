@@ -93,13 +93,32 @@ export function calculateUserStreak(userPosts) {
 	}
 
 	// Calculate streak from unique dates
+	// Allow streak to start from yesterday if today isn't complete yet
 	let streak = 0;
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
 
+	const yesterday = new Date(today);
+	yesterday.setDate(today.getDate() - 1);
+
+	// Check if most recent post is today or yesterday
+	const mostRecentPost = uniqueDates[0];
+	let startOffset = 0;
+
+	if (mostRecentPost.getTime() === today.getTime()) {
+		// Posted today, start from today
+		startOffset = 0;
+	} else if (mostRecentPost.getTime() === yesterday.getTime()) {
+		// Haven't posted today yet, but posted yesterday - streak continues
+		startOffset = 1;
+	} else {
+		// Haven't posted in 2+ days - streak is broken
+		return 0;
+	}
+
 	for (let i = 0; i < uniqueDates.length; i++) {
 		const expectedDate = new Date(today);
-		expectedDate.setDate(today.getDate() - i);
+		expectedDate.setDate(today.getDate() - (i + startOffset));
 
 		if (uniqueDates[i].getTime() === expectedDate.getTime()) {
 			streak++;
@@ -269,14 +288,24 @@ export async function checkAndAwardAchievements(userId) {
 			.from('achievements')
 			.select('id, name, description, icon, points')
 			.eq('name', achievementData.name)
-			.single();
+			.maybeSingle();
 
-		if (achievementError) {
-			const { data: createdAchievement } = await supabaseAdmin
+		// If achievement doesn't exist, create it
+		if (!existingAchievement) {
+			if (achievementError) {
+				console.error(`Error looking up achievement ${achievementData.name}:`, achievementError);
+			}
+
+			const { data: createdAchievement, error: createError } = await supabaseAdmin
 				.from('achievements')
 				.insert(achievementData)
 				.select('id, name, description, icon, points')
 				.single();
+
+			if (createError) {
+				console.error(`Failed to create achievement ${achievementData.name}:`, createError);
+				continue;
+			}
 			existingAchievement = createdAchievement;
 		}
 
@@ -415,10 +444,13 @@ export async function checkAndAwardAchievements(userId) {
 				.insert({
 					id: randomUUID(),
 					userId: userId,
-					achievementId: existingAchievement.id
+					achievementId: existingAchievement.id,
+					earnedAt: new Date().toISOString()
 				});
 
-			if (!insertError) {
+			if (insertError) {
+				console.error(`Failed to award achievement ${existingAchievement.name}:`, insertError);
+			} else {
 				newAchievements.push(existingAchievement);
 			}
 		}
