@@ -74,57 +74,61 @@ export function calculatePostScore(postData, userStreak = 0) {
 export function calculateUserStreak(userPosts) {
 	if (!userPosts || userPosts.length === 0) return 0;
 
-	// Sort posts by date (newest first)
-	const sortedPosts = userPosts.sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
+	// Use createdAt (when user submitted to app) instead of postedAt (LinkedIn's timestamp)
+	// This avoids timezone issues where late-night posts show as next day
+	const sortedPosts = userPosts.sort((a, b) => {
+		const aTime = new Date(a.createdAt || a.postedAt);
+		const bTime = new Date(b.createdAt || b.postedAt);
+		return bTime - aTime;
+	});
 
-	// Get unique post dates (handle multiple posts per day)
-	const uniqueDates = [];
-	const seenDates = new Set();
+	// Check if most recent post is within grace period (36 hours to account for all timezones)
+	const now = new Date();
+	const mostRecentPostTime = new Date(sortedPosts[0].createdAt || sortedPosts[0].postedAt);
+	const hoursSinceLastPost = (now - mostRecentPostTime) / (1000 * 60 * 60);
 
-	for (const post of sortedPosts) {
-		const postDate = new Date(post.postedAt);
-		postDate.setHours(0, 0, 0, 0);
-		const dateKey = postDate.getTime();
-
-		if (!seenDates.has(dateKey)) {
-			seenDates.add(dateKey);
-			uniqueDates.push(postDate);
-		}
-	}
-
-	// Calculate streak from unique dates
-	// Allow streak to start from yesterday if today isn't complete yet
-	let streak = 0;
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-
-	const yesterday = new Date(today);
-	yesterday.setDate(today.getDate() - 1);
-
-	// Check if most recent post is today or yesterday
-	const mostRecentPost = uniqueDates[0];
-	let startOffset = 0;
-
-	if (mostRecentPost.getTime() === today.getTime()) {
-		// Posted today, start from today
-		startOffset = 0;
-	} else if (mostRecentPost.getTime() === yesterday.getTime()) {
-		// Haven't posted today yet, but posted yesterday - streak continues
-		startOffset = 1;
-	} else {
-		// Haven't posted in 2+ days - streak is broken
+	// If no post in 36 hours, streak is broken
+	if (hoursSinceLastPost > 36) {
 		return 0;
 	}
 
-	for (let i = 0; i < uniqueDates.length; i++) {
-		const expectedDate = new Date(today);
-		expectedDate.setDate(today.getDate() - (i + startOffset));
+	// Get unique post dates (handle multiple posts per day)
+	// Use 27-hour windows instead of strict calendar days to handle timezone differences
+	const uniquePostDays = [];
+	const dayThreshold = 27 * 60 * 60 * 1000; // 27 hours in milliseconds
 
-		if (uniqueDates[i].getTime() === expectedDate.getTime()) {
-			streak++;
-		} else {
+	for (const post of sortedPosts) {
+		const postTime = new Date(post.createdAt || post.postedAt);
+
+		// Check if this post is in a new "day" compared to existing days
+		const isNewDay = uniquePostDays.every(existingDay => {
+			const timeDiff = Math.abs(postTime - existingDay);
+			return timeDiff >= dayThreshold;
+		});
+
+		if (isNewDay) {
+			uniquePostDays.push(postTime);
+		}
+	}
+
+	// Sort the unique days (newest first)
+	uniquePostDays.sort((a, b) => b - a);
+
+	// Calculate streak by checking gaps between consecutive posting days
+	let streak = 1; // Start with 1 for the most recent post
+
+	for (let i = 0; i < uniquePostDays.length - 1; i++) {
+		const currentDay = uniquePostDays[i];
+		const nextDay = uniquePostDays[i + 1];
+		const hoursBetween = (currentDay - nextDay) / (1000 * 60 * 60);
+
+		// If gap is more than 36 hours (1.5 days), streak is broken
+		// This accounts for: posted Mon 11pm EST, then Wed 6am EST = ~31 hours (still valid)
+		if (hoursBetween > 36) {
 			break;
 		}
+
+		streak++;
 	}
 
 	return streak;
