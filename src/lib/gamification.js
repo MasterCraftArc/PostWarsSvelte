@@ -74,61 +74,67 @@ export function calculatePostScore(postData, userStreak = 0) {
 export function calculateUserStreak(userPosts) {
 	if (!userPosts || userPosts.length === 0) return 0;
 
-	// Use createdAt (when user submitted to app) instead of postedAt (LinkedIn's timestamp)
-	// This avoids timezone issues where late-night posts show as next day
+	// Use postedAt (LinkedIn's timestamp) to get the actual post date
+	// Convert to EST timezone to get calendar dates
 	const sortedPosts = userPosts.sort((a, b) => {
-		const aTime = new Date(a.createdAt || a.postedAt);
-		const bTime = new Date(b.createdAt || b.postedAt);
+		const aTime = new Date(a.postedAt || a.createdAt);
+		const bTime = new Date(b.postedAt || b.createdAt);
 		return bTime - aTime;
 	});
 
-	// Check if most recent post is within grace period (36 hours to account for all timezones)
+	// Check if most recent post is within grace period (36 hours)
 	const now = new Date();
-	const mostRecentPostTime = new Date(sortedPosts[0].createdAt || sortedPosts[0].postedAt);
+	const mostRecentPostTime = new Date(sortedPosts[0].postedAt || sortedPosts[0].createdAt);
 	const hoursSinceLastPost = (now - mostRecentPostTime) / (1000 * 60 * 60);
 
-	// If no post in 36 hours, streak is broken
 	if (hoursSinceLastPost > 36) {
 		return 0;
 	}
 
-	// Get unique post dates (handle multiple posts per day)
-	// Use 27-hour windows instead of strict calendar days to handle timezone differences
-	const uniquePostDays = [];
-	const dayThreshold = 27 * 60 * 60 * 1000; // 27 hours in milliseconds
+	// Get unique calendar dates using EST timezone
+	const uniqueDates = new Set();
 
 	for (const post of sortedPosts) {
-		const postTime = new Date(post.createdAt || post.postedAt);
+		const postTime = new Date(post.postedAt || post.createdAt);
 
-		// Check if this post is in a new "day" compared to existing days
-		const isNewDay = uniquePostDays.every(existingDay => {
-			const timeDiff = Math.abs(postTime - existingDay);
-			return timeDiff >= dayThreshold;
+		// Convert to EST and get the date string (YYYY-MM-DD)
+		const estDate = postTime.toLocaleDateString('en-US', {
+			timeZone: 'America/New_York',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit'
 		});
 
-		if (isNewDay) {
-			uniquePostDays.push(postTime);
-		}
+		// Convert MM/DD/YYYY to YYYY-MM-DD for sorting
+		const [month, day, year] = estDate.split('/');
+		const dateKey = `${year}-${month}-${day}`;
+
+		uniqueDates.add(dateKey);
 	}
 
-	// Sort the unique days (newest first)
-	uniquePostDays.sort((a, b) => b - a);
+	// Sort unique dates (newest first)
+	const sortedDates = Array.from(uniqueDates).sort().reverse();
 
-	// Calculate streak by checking gaps between consecutive posting days
-	let streak = 1; // Start with 1 for the most recent post
+	if (sortedDates.length === 0) return 0;
+	if (sortedDates.length === 1) return 1;
 
-	for (let i = 0; i < uniquePostDays.length - 1; i++) {
-		const currentDay = uniquePostDays[i];
-		const nextDay = uniquePostDays[i + 1];
-		const hoursBetween = (currentDay - nextDay) / (1000 * 60 * 60);
+	// Calculate streak by checking if dates are consecutive
+	let streak = 1;
 
-		// If gap is more than 36 hours (1.5 days), streak is broken
-		// This accounts for: posted Mon 11pm EST, then Wed 6am EST = ~31 hours (still valid)
-		if (hoursBetween > 36) {
+	for (let i = 0; i < sortedDates.length - 1; i++) {
+		const currentDate = new Date(sortedDates[i]);
+		const nextDate = new Date(sortedDates[i + 1]);
+
+		// Calculate the calendar day difference
+		const daysDiff = Math.round((currentDate - nextDate) / (1000 * 60 * 60 * 24));
+
+		// Must be consecutive days (difference of 1 day)
+		if (daysDiff === 1) {
+			streak++;
+		} else {
+			// Gap detected, streak is broken
 			break;
 		}
-
-		streak++;
 	}
 
 	return streak;
@@ -182,7 +188,43 @@ export async function updateUserStats(userId) {
 		(post) => new Date(post.postedAt) >= thisMonth
 	).length;
 
-	const bestStreak = Math.max(user.bestStreak || 0, currentStreak);
+	// Calculate best streak by finding the longest consecutive streak ever
+	let calculatedBestStreak = 1;
+	if (linkedinPosts && linkedinPosts.length > 0) {
+		// Get all unique dates using postedAt in EST
+		const uniqueDates = new Set();
+		linkedinPosts.forEach(post => {
+			const postTime = new Date(post.postedAt);
+			const estDate = postTime.toLocaleDateString('en-US', {
+				timeZone: 'America/New_York',
+				year: 'numeric',
+				month: '2-digit',
+				day: '2-digit'
+			});
+			const [month, day, year] = estDate.split('/');
+			const dateKey = `${year}-${month}-${day}`;
+			uniqueDates.add(dateKey);
+		});
+
+		const sortedDates = Array.from(uniqueDates).sort().reverse();
+
+		// Find longest consecutive streak
+		let currentRunStreak = 1;
+		for (let i = 0; i < sortedDates.length - 1; i++) {
+			const currentDate = new Date(sortedDates[i]);
+			const nextDate = new Date(sortedDates[i + 1]);
+			const daysDiff = Math.round((currentDate - nextDate) / (1000 * 60 * 60 * 24));
+
+			if (daysDiff === 1) {
+				currentRunStreak++;
+				calculatedBestStreak = Math.max(calculatedBestStreak, currentRunStreak);
+			} else {
+				currentRunStreak = 1;
+			}
+		}
+	}
+
+	const bestStreak = Math.max(user.bestStreak || 0, currentStreak, calculatedBestStreak);
 
 	const { data: updatedUsers, error: updateError } = await supabaseAdmin
 		.from('users')
