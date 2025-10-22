@@ -82,12 +82,13 @@ export function calculateUserStreak(userPosts) {
 		return bTime - aTime;
 	});
 
-	// Check if most recent post is within grace period (36 hours)
+	// Check if most recent post is within grace period (48 hours)
+	// This allows posting once per day: post late on day 1, skip day 2, still have time on day 3
 	const now = new Date();
 	const mostRecentPostTime = new Date(sortedPosts[0].postedAt || sortedPosts[0].createdAt);
 	const hoursSinceLastPost = (now - mostRecentPostTime) / (1000 * 60 * 60);
 
-	if (hoursSinceLastPost > 36) {
+	if (hoursSinceLastPost > 48) {
 		return 0;
 	}
 
