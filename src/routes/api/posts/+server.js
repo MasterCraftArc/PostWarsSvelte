@@ -27,9 +27,10 @@ export async function GET(event) {
 				reposts,
 				totalScore,
 				createdAt,
+				postedAt,
 				user:users(id, name)
 			`)
-			.order('createdAt', { ascending: false });
+			.order('postedAt', { ascending: false });
 
 		// Apply filter if userId provided
 		if (userIdParam) {
@@ -56,6 +57,7 @@ export async function GET(event) {
 			reposts: post.reposts || 0,
 			totalScore: post.totalScore || 0,
 			createdAt: post.createdAt,
+			postedAt: post.postedAt,
 			userName: post.user?.name || 'Unknown'
 		}));
 
