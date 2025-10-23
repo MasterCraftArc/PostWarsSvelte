@@ -23,7 +23,8 @@ export async function authenticatedFetch(url, options = {}) {
 
 	const response = await fetch(url, {
 		...options,
-		headers
+		headers,
+		cache: 'no-store'  // Force fresh request, bypass browser cache
 	});
 	
 	return response;
@@ -64,14 +65,15 @@ export async function batchRequest(requests) {
 	}
 	
 	// Execute multiple API calls in parallel
-	const promises = requests.map(({ url, options = {} }) => 
+	const promises = requests.map(({ url, options = {} }) =>
 		fetch(url, {
 			...options,
 			headers: {
 				'Content-Type': 'application/json',
 				'Authorization': `Bearer ${session.access_token}`,
 				...options.headers
-			}
+			},
+			cache: 'no-store'  // Force fresh request, bypass browser cache
 		})
 	);
 	
