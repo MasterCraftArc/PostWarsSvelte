@@ -24,7 +24,7 @@ export const SCORING_CONFIG = {
 };
 
 export function calculatePostScore(postData, userStreak = 0) {
-	const { reactions, comments, reposts, timestamp } = postData;
+	const { reactions, comments, reposts } = postData;
 
 	// Base score
 	let score = SCORING_CONFIG.BASE_POST_POINTS;
@@ -45,16 +45,9 @@ export function calculatePostScore(postData, userStreak = 0) {
 	// Apply streak bonus to base score
 	const baseWithBonus = score * streakMultiplier;
 
-	// Freshness factor
-	const postDate = new Date(timestamp);
-	const now = new Date();
-	const hoursSincePost = (now - postDate) / (1000 * 60 * 60);
-
-	let freshnessFactor = 1;
-	if (hoursSincePost > SCORING_CONFIG.FRESH_HOURS) {
-		const daysOld = (hoursSincePost - SCORING_CONFIG.FRESH_HOURS) / 24;
-		freshnessFactor = Math.max(0.1, 1 - daysOld * SCORING_CONFIG.DECAY_RATE);
-	}
+	// REMOVED: Freshness decay was causing users to lose points over time (120+ → 97)
+	// Posts should retain their value permanently once scored
+	const freshnessFactor = 1;
 
 	const finalScore = Math.round((baseWithBonus + engagementScore) * freshnessFactor);
 
