@@ -198,7 +198,7 @@
 											View on LinkedIn →
 										</a>
 										<div class="text-xs text-[#94a3b8] mt-1">
-											{formatDate(post.createdAt)}
+											{formatDate(post.postedAt || post.createdAt)}
 										</div>
 									</div>
 									<div class="text-right ml-4">
