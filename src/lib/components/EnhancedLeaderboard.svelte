@@ -372,7 +372,7 @@
 							🦄 Sparkling
 						</h3>
 						<div class="space-y-3">
-							{#each leaderboardData.leaderboard.slice(0, 10) as player}
+							{#each leaderboardData.leaderboard as player}
 								<button
 									onclick={() => navigateToUser(player.id)}
 									class="w-full flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02] hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#24b0ff]/50"
@@ -465,7 +465,7 @@
 							😭 Growing Their Horns
 						</h3>
 						<div class="flex flex-col-reverse gap-3">
-							{#each leaderboardData.leaderboard.slice(-10) as player}
+							{#each leaderboardData.leaderboard as player}
 								<button
 									onclick={() => navigateToUser(player.id)}
 									class="w-full flex items-center justify-between rounded-lg p-4 transition-all duration-200 hover:scale-[1.02] hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#24b0ff]/50"
