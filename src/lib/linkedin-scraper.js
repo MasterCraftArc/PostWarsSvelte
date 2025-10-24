@@ -472,7 +472,15 @@ async function findPostContainerFast(page, selectors) {
 
 function parseRelativeTime(timeText) {
 	if (!timeText) {
-		return new Date().toISOString().split('T')[0];
+		// Return today's date in EST
+		const estDate = new Date().toLocaleDateString('en-US', {
+			timeZone: 'America/New_York',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit'
+		});
+		const [month, day, year] = estDate.split('/');
+		return `${year}-${month}-${day}`;
 	}
 
 	const now = new Date();
@@ -480,7 +488,15 @@ function parseRelativeTime(timeText) {
 
 	const match = lowerText.match(/(\d+)\s*(second|minute|hour|day|week|month|year)s?\s+ago/);
 	if (!match) {
-		return now.toISOString().split('T')[0];
+		// Return today's date in EST
+		const estDate = now.toLocaleDateString('en-US', {
+			timeZone: 'America/New_York',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit'
+		});
+		const [month, day, year] = estDate.split('/');
+		return `${year}-${month}-${day}`;
 	}
 
 	const amount = parseInt(match[1]);
@@ -512,7 +528,16 @@ function parseRelativeTime(timeText) {
 			break;
 	}
 
-	return targetDate.toISOString().split('T')[0];
+	// Convert the calculated datetime to EST and extract the date
+	// This ensures posts made at 9pm CST (10pm EST) on Oct 23 are dated as Oct 23, not Oct 24
+	const estDate = targetDate.toLocaleDateString('en-US', {
+		timeZone: 'America/New_York',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	});
+	const [month, day, year] = estDate.split('/');
+	return `${year}-${month}-${day}`;
 }
 
 function cleanText(rawText, authorName = '') {
