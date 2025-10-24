@@ -75,13 +75,44 @@ export function calculateUserStreak(userPosts) {
 		return bTime - aTime;
 	});
 
-	// Check if most recent post is within grace period (48 hours)
-	// This allows posting once per day: post late on day 1, skip day 2, still have time on day 3
+	// Check if most recent post is from today or yesterday (EST calendar days)
+	// This fixes the bug where 48-hour check used midnight timestamps, causing random streak breaks
+	// Now: As long as you posted today OR yesterday in EST, streak continues
 	const now = new Date();
-	const mostRecentPostTime = new Date(sortedPosts[0].postedAt || sortedPosts[0].createdAt);
-	const hoursSinceLastPost = (now - mostRecentPostTime) / (1000 * 60 * 60);
+	const todayEST = now.toLocaleDateString('en-US', {
+		timeZone: 'America/New_York',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	});
+	const [todayMonth, todayDay, todayYear] = todayEST.split('/');
+	const todayKey = `${todayYear}-${todayMonth}-${todayDay}`;
 
-	if (hoursSinceLastPost > 48) {
+	// Get yesterday's date in EST
+	const yesterday = new Date(now);
+	yesterday.setDate(yesterday.getDate() - 1);
+	const yesterdayEST = yesterday.toLocaleDateString('en-US', {
+		timeZone: 'America/New_York',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	});
+	const [yesterdayMonth, yesterdayDay, yesterdayYear] = yesterdayEST.split('/');
+	const yesterdayKey = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
+
+	// Get most recent post date in EST
+	const mostRecentPostTime = new Date(sortedPosts[0].postedAt || sortedPosts[0].createdAt);
+	const mostRecentEST = mostRecentPostTime.toLocaleDateString('en-US', {
+		timeZone: 'America/New_York',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	});
+	const [recentMonth, recentDay, recentYear] = mostRecentEST.split('/');
+	const recentKey = `${recentYear}-${recentMonth}-${recentDay}`;
+
+	// If most recent post is NOT from today or yesterday, streak is broken
+	if (recentKey !== todayKey && recentKey !== yesterdayKey) {
 		return 0;
 	}
 
