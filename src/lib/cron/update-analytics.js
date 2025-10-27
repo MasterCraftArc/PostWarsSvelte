@@ -5,7 +5,7 @@ export async function updateAllPostAnalytics() {
 	console.log('Starting analytics update job...');
 
 	try {
-		// Get all posts that need updating (older than 1 hour since last scrape)
+		// Get all posts that need updating (never scraped OR older than 1 hour since last scrape)
 		const oneHourAgo = new Date();
 		oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
@@ -16,8 +16,8 @@ export async function updateAllPostAnalytics() {
 				user:users(*),
 				analytics:post_analytics(*)
 			`)
-			.lt('lastScrapedAt', oneHourAgo.toISOString())
-			.order('lastScrapedAt', { ascending: true })
+			.or(`lastScrapedAt.is.null,lastScrapedAt.lt.${oneHourAgo.toISOString()}`)
+			.order('lastScrapedAt', { ascending: true, nullsFirst: true })
 			.limit(30); // Reduced from 50 for faster completion (runs 2x daily = 60 posts/day coverage)
 
 		if (postsError) {

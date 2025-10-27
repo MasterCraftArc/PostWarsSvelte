@@ -1,0 +1,142 @@
+name: Streak System Tests
+
+on:
+  # Run on every push to main
+  push:
+    branches:
+      - main
+
+  # Run on every pull request
+  pull_request:
+    branches:
+      - main
+
+  # Run daily at 6 AM MT (1 PM UTC) to catch data drift
+  schedule:
+    - cron: '0 13 * * *'
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run streak unit tests
+        run: npm run test:unit -- --run tests/unit/streak
+
+  integration-tests:
+    name: Integration Tests (Database Verification)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database verification tests
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+        run: npm run test:unit -- --run tests/integration/streak-database-verification.test.js
+
+      - name: Report test results
+        if: failure()
+        run: |
+          echo "::error::Streak database verification failed! Database values do not match calculated streaks."
+          echo "::error::Run 'node recalculate-user-points.js' to fix stale data."
+
+  code-consistency:
+    name: Code Consistency Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for incorrect streak calculations
+        run: npm run test:unit -- --run tests/unit/streak-calculation-consistency.test.js
+
+      - name: Report violations
+        if: failure()
+        run: |
+          echo "::error::Found code using incorrect streak calculations!"
+          echo "::error::Use calculateUserStreak() instead of manual calculations."
+
+  notify-on-failure:
+    name: Notify on Test Failure
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, code-consistency]
+    if: failure() && github.event_name == 'schedule'
+
+    steps:
+      - name: Create issue on failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 Streak System Tests Failed (Daily Check)';
+            const body = `
+            ## Automated Test Failure
+
+            The daily streak system verification failed.
+
+            **Possible causes:**
+            - Database values are stale (streak ≠ calculated)
+            - New code introduced incorrect calculations
+            - Scraping queue is not processing posts
+
+            **Action required:**
+            1. Check test results: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            2. Run: \`node recalculate-user-points.js\`
+            3. Verify scraping queue is working
+
+            **Related files:**
+            - \`src/lib/gamification.js\` (calculateUserStreak)
+            - \`src/lib/cron/update-analytics.js\` (scraping queue)
+            - \`tests/integration/streak-database-verification.test.js\`
+
+            cc: @${github.actor}
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['bug', 'streak-system', 'automated']
+            });

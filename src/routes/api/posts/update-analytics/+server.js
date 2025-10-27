@@ -67,7 +67,7 @@ export async function POST(event) {
 			.eq('userId', user.id)
 			.order('postedAt', { ascending: false });
 
-		const currentStreak = userPosts?.length || 0;
+		const currentStreak = calculateUserStreak(userPosts || []);
 		const scoring = calculatePostScore(
 			{
 				word_count: post.wordCount,

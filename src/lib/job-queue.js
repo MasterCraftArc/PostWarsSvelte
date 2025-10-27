@@ -261,8 +261,8 @@ class JobQueue extends EventEmitter {
 			.eq('userId', userId)
 			.order('postedAt', { ascending: false });
 
-		const currentStreak = userPosts && userPosts.length > 0 ? 
-			Math.max(...userPosts.map((p) => p.totalScore)) : 0;
+		const { calculateUserStreak } = await import('./gamification.js');
+		const currentStreak = calculateUserStreak(userPosts || []);
 
 		// Calculate scoring (all posts get full points)
 		const scoring = calculatePostScore({

@@ -109,8 +109,8 @@ jobs:
                   .eq('userId', userId)
                   .order('postedAt', { ascending: false });
                 
-                const currentStreak = userPosts && userPosts.length > 0 ? 
-                  Math.max(...userPosts.map((p) => p.totalScore)) : 0;
+                const { calculateUserStreak } = await import('./src/lib/gamification.js');
+                const currentStreak = calculateUserStreak(userPosts || []);
                 
                 // Calculate scoring
                 const scoring = calculatePostScore({
