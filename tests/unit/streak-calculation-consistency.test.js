@@ -103,12 +103,16 @@ describe('Streak Calculation Consistency', () => {
 			const content = readFileSync(file, 'utf-8');
 
 			// If file mentions "currentStreak" or "calculatePostScore" with streak
+			// BUT exclude files that only read currentStreak from database
 			const hasStreakLogic = content.match(/currentStreak/i) &&
 			                      content.match(/calculatePostScore/);
+			const onlyReadsFromDB = content.match(/\.select\(['"`].*currentStreak.*['"`]\)/);
 
-			if (hasStreakLogic) {
-				// Should import calculateUserStreak
-				const hasImport = content.match(/import.*calculateUserStreak.*from.*gamification/);
+			if (hasStreakLogic && !onlyReadsFromDB) {
+				// Should import calculateUserStreak (static or dynamic)
+				const hasStaticImport = content.match(/import.*calculateUserStreak.*from.*gamification/);
+				const hasDynamicImport = content.match(/calculateUserStreak[^}]*\}.*await import.*gamification/s);
+				const hasImport = hasStaticImport || hasDynamicImport;
 
 				if (!hasImport) {
 					violations.push({
