@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { supabaseAdmin } from './supabase-node.js';
+import { calculateUserStreak } from './gamification.js';
 
 class JobQueue extends EventEmitter {
 	constructor() {
@@ -261,8 +262,7 @@ class JobQueue extends EventEmitter {
 			.eq('userId', userId)
 			.order('postedAt', { ascending: false });
 
-		const { calculateUserStreak } = await import('./gamification.js');
-		const currentStreak = calculateUserStreak(userPosts || []);
+				const currentStreak = calculateUserStreak(userPosts || []);
 
 		// Calculate scoring (all posts get full points)
 		const scoring = calculatePostScore({

@@ -35,10 +35,11 @@
     
     // Import required modules
     const { scrapeSinglePostQueued } = await import('./src/lib/linkedin-scraper.js');
-    const { 
-      calculatePostScore, 
-      updateUserStats, 
-      checkAndAwardAchievements 
+    const {
+      calculatePostScore,
+      calculateUserStreak,
+      updateUserStats,
+      checkAndAwardAchievements
     } = await import('./src/lib/gamification.js');
     const { supabaseAdmin } = await import('./src/lib/supabase-node.js');
     const { randomUUID } = await import('crypto');
@@ -65,8 +66,7 @@
       .eq('userId', userId)
       .order('postedAt', { ascending: false });
     
-    const currentStreak = userPosts && userPosts.length > 0 ? 
-      Math.max(...userPosts.map((p) => p.totalScore)) : 0;
+    const currentStreak = calculateUserStreak(userPosts || []);
     
     // Calculate scoring
     const scoring = calculatePostScore({
