@@ -9,7 +9,6 @@
 		getUserRecentAchievement
 	} from '$lib/stores/achievements.js';
 	import CompanyGoals from './CompanyGoals.svelte';
-	import TeamVsRobChallenge from './TeamVsRobChallenge.svelte';
 	import TeamMembersModal from './TeamMembersModal.svelte';
 
 	let leaderboardData = $state(null);
@@ -148,9 +147,6 @@
 	<div class="space-y-6">
 		<!-- Company Goals Progress -->
 		<CompanyGoals />
-
-		<!-- Team vs Rob Challenge -->
-		<TeamVsRobChallenge />
 
 		<!-- View Toggle and Refresh -->
 		<div class="flex justify-center items-center space-x-4">
