@@ -168,7 +168,7 @@ export function calculateUserStreak(userPosts) {
 export async function updateUserStats(userId) {
 	const { data: user, error: userError } = await supabaseAdmin
 		.from('users')
-		.select('id, bestStreak')
+		.select('id, name, bestStreak, currentStreak')
 		.eq('id', userId)
 		.single();
 
@@ -180,6 +180,8 @@ export async function updateUserStats(userId) {
 		.eq('userId', userId)
 		.order('postedAt', { ascending: false });
 
+	console.log('[STREAK] Query result for', user.name || userId, '| posts:', linkedinPosts?.length || 0, '| mostRecent:', linkedinPosts?.[0]?.postedAt || 'none');
+
 	// Get comment activities for total score calculation
 	const { data: commentActivities } = await supabaseAdmin
 		.from('comment_activities')
@@ -189,6 +191,7 @@ export async function updateUserStats(userId) {
 	if (!linkedinPosts && !commentActivities) return null;
 
 	const currentStreak = calculateUserStreak(linkedinPosts || []);
+	console.log('[STREAK] Calculated streak for', user.name || userId, '| streak:', currentStreak, '| previous:', user.currentStreak || 0);
 	const postsScore = (linkedinPosts || []).reduce((sum, post) => sum + (post.totalScore || 0), 0);
 	const commentScore = (commentActivities || []).reduce((sum, activity) => sum + (activity.points_awarded || 0), 0);
 
@@ -250,6 +253,11 @@ export async function updateUserStats(userId) {
 	}
 
 	const bestStreak = Math.max(user.bestStreak || 0, currentStreak, calculatedBestStreak);
+
+	// Log when streak is being reset from non-zero to zero
+	if (user.currentStreak > 0 && currentStreak === 0) {
+		console.log('[STREAK RESET]', user.name || userId, '| oldStreak:', user.currentStreak, '→ 0 | posts:', linkedinPosts?.length || 0, '| mostRecent:', linkedinPosts?.[0]?.postedAt || 'none');
+	}
 
 	const { data: updatedUsers, error: updateError } = await supabaseAdmin
 		.from('users')
