@@ -9,7 +9,7 @@ export async function GET(event) {
 	}
 
 	try {
-		// Fetch active company goals (using the company-team-id)
+		// Fetch active company goals (company-team-id) AND active race goals (teamId is null, is_race is true)
 		const { data: goals, error: goalsError } = await supabaseAdmin
 			.from('goals')
 			.select(`
@@ -23,9 +23,11 @@ export async function GET(event) {
 				startDate,
 				endDate,
 				createdAt,
-				updatedAt
+				updatedAt,
+				is_race,
+				teamId
 			`)
-			.eq('teamId', 'company-team-id')
+			.or('teamId.eq.company-team-id,and(teamId.is.null,is_race.eq.true)')
 			.eq('status', 'ACTIVE')
 			.order('createdAt', { ascending: false });
 
