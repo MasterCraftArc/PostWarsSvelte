@@ -125,31 +125,78 @@
 								</p>
 							{/if}
 
-							<!-- Team Rankings -->
+							<!-- Team Rankings (matching team competition board style) -->
 							{#if raceData?.teamProgress && raceData.teamProgress.length > 0}
-								<div class="space-y-2">
-									{#each raceData.teamProgress.slice(0, 3) as team, index}
-										<div class="flex items-center justify-between p-2 rounded"
-											style="background-color:rgba(255,165,0,{team.isWinning ? '0.2' : '0.1'});">
-											<div class="flex items-center gap-2">
-												<span class="text-lg font-bold" style="color:{team.isWinning ? '#ffa500' : '#fdfdfd'};">
-													#{team.rank}
-												</span>
-												<div>
-													<div class="font-semibold text-sm" style="color:#fdfdfd;">
-														{team.teamName}
+								<div class="space-y-3">
+									{#each raceData.teamProgress as team}
+										<div
+											class="w-full flex items-center justify-between rounded-lg p-4 transition-all duration-200"
+											style="background-color:rgba(16,35,73,0.28); border:2px solid rgba(36,176,255,0.35);"
+										>
+											<!-- Rank -->
+											<div class="w-12 text-center">
+												<div
+													class="text-lg font-bold"
+													style="color:#24b0ff;"
+												>
+													{#if team.rank === 1}
+														🥇
+													{:else if team.rank === 2}
+														🥈
+													{:else if team.rank === 3}
+														🥉
+													{:else}
+														#{team.rank}
+													{/if}
+												</div>
+											</div>
+
+											<!-- Team Info -->
+											<div class="flex-1 min-w-0">
+												<div
+													class="font-semibold truncate"
+													style="color:#fdfdfd;"
+												>
+													{team.teamName}
+												</div>
+
+												<!-- Race Progress -->
+												<div class="mt-2">
+													<div class="flex items-center justify-between text-xs mb-1">
+														<span style="color:#94a3b8;">
+															{team.currentValue}/{goal.targetValue}
+															{goal.type === 'POSTS_COUNT' ? 'posts' :
+															 goal.type === 'TOTAL_ENGAGEMENT' ? 'engagement' : 'points'}
+														</span>
+														<span class="font-bold" style="color:{team.progress >= 100 ? '#22c55e' : '#ffa500'};">
+															{team.progress.toFixed(1)}%
+														</span>
 													</div>
-													<div class="text-xs" style="color:#94a3b8;">
-														{team.memberCount} members
+													<div class="w-full bg-gray-700 rounded-full h-2">
+														<div
+															class="h-2 rounded-full transition-all duration-300"
+															style="width: {Math.min(team.progress, 100)}%; background-color: {team.progress >= 100 ? '#22c55e' : team.progress >= 75 ? '#ffa500' : '#24b0ff'};"
+														></div>
 													</div>
 												</div>
 											</div>
+
+											<!-- Stats -->
 											<div class="text-right">
-												<div class="font-bold" style="color:{team.isWinning ? '#ffa500' : '#fdfdfd'};">
-													{team.currentValue.toLocaleString()} / {goal.targetValue.toLocaleString()}
+												<div
+													class="text-lg font-bold"
+													style="color:{team.progress >= 100 ? '#22c55e' : team.rank === 1 ? '#ffa500' : '#fdfdfd'};"
+												>
+													{#if team.progress >= 100}
+														🏆 WINNER!
+													{:else if team.rank === 1}
+														🥇 LEADING
+													{:else}
+														{team.progress.toFixed(1)}%
+													{/if}
 												</div>
 												<div class="text-xs" style="color:#94a3b8;">
-													{team.progress.toFixed(1)}%
+													{team.currentValue} / {goal.targetValue}
 												</div>
 											</div>
 										</div>
