@@ -64,6 +64,18 @@ export function calculatePostScore(postData, userStreak = 0) {
 	};
 }
 
+// Helper function to normalize dates to YYYY-MM-DD format
+function toDateKey(date) {
+	const estDate = date.toLocaleDateString('en-US', {
+		timeZone: 'America/New_York',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	});
+	const [month, day, year] = estDate.split('/');
+	return `${year}-${month}-${day}`;
+}
+
 export function calculateUserStreak(userPosts) {
 	if (!userPosts || userPosts.length === 0) return 0;
 
@@ -78,47 +90,23 @@ export function calculateUserStreak(userPosts) {
 	// Check if most recent post is from today or yesterday (EST calendar days)
 	// This fixes the bug where 48-hour check used midnight timestamps, causing random streak breaks
 	// Now: As long as you posted today OR yesterday in EST, streak continues
-	const now = new Date();
-	const todayEST = now.toLocaleDateString('en-US', {
-		timeZone: 'America/New_York',
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit'
-	});
-	const [todayMonth, todayDay, todayYear] = todayEST.split('/');
-	const todayKey = `${todayYear}-${todayMonth}-${todayDay}`;
 
-	// Get yesterday's date in EST
+	// Normalize all dates to YYYY-MM-DD format for consistent comparison
+	const now = new Date();
+	const todayKey = toDateKey(now);
+
 	const yesterday = new Date(now);
 	yesterday.setDate(yesterday.getDate() - 1);
-	const yesterdayEST = yesterday.toLocaleDateString('en-US', {
-		timeZone: 'America/New_York',
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit'
-	});
-	const [yesterdayMonth, yesterdayDay, yesterdayYear] = yesterdayEST.split('/');
-	const yesterdayKey = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
+	const yesterdayKey = toDateKey(yesterday);
 
-	// Get most recent post date in EST
-	// CRITICAL: Ensure date is treated as UTC to prevent timezone shifts
-	// Posts stored as '2025-10-29T00:00:00' (no timezone) must be treated as UTC
-	// Otherwise JavaScript treats as local time and converts to EST, shifting the calendar date
+	// Get most recent post date as calendar date
+	// CRITICAL: Posts are stored as '2025-10-29T00:00:00' representing calendar dates in EST
+	// We extract the date portion directly (YYYY-MM-DD) without timezone conversion
+	// This prevents the midnight UTC → EST conversion bug that shifted dates backwards
 	const rawPostDate = sortedPosts[0].postedAt || sortedPosts[0].createdAt;
-	const utcPostDate = rawPostDate.includes('Z') || rawPostDate.includes('+') || rawPostDate.includes('-', 10)
-		? rawPostDate
-		: rawPostDate + 'Z'; // Append Z to treat as UTC if no timezone present
-	const mostRecentPostTime = new Date(utcPostDate);
-	const mostRecentEST = mostRecentPostTime.toLocaleDateString('en-US', {
-		timeZone: 'America/New_York',
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit'
-	});
-	const [recentMonth, recentDay, recentYear] = mostRecentEST.split('/');
-	const recentKey = `${recentYear}-${recentMonth}-${recentDay}`;
+	const recentKey = rawPostDate.substring(0, 10); // Extract 'YYYY-MM-DD' directly
 
-	console.log('[STREAK DEBUG] Date comparison:', { todayKey, yesterdayKey, recentKey, rawPostDate, utcPostDate });
+	console.log('[STREAK DEBUG] Date comparison:', { todayKey, yesterdayKey, recentKey, rawPostDate });
 	console.log('[STREAK DEBUG] Matches today?', recentKey === todayKey, '| Matches yesterday?', recentKey === yesterdayKey);
 
 	// If most recent post is NOT from today or yesterday, streak is broken
@@ -230,23 +218,11 @@ export async function updateUserStats(userId) {
 	// Calculate best streak by finding the longest consecutive streak ever
 	let calculatedBestStreak = 1;
 	if (linkedinPosts && linkedinPosts.length > 0) {
-		// Get all unique dates using postedAt in EST
+		// Get all unique dates - extract calendar dates directly
 		const uniqueDates = new Set();
 		linkedinPosts.forEach(post => {
-			// CRITICAL: Treat dates as UTC to prevent timezone shifts (same fix as above)
-			const rawDate = post.postedAt;
-			const utcDate = rawDate.includes('Z') || rawDate.includes('+') || rawDate.includes('-', 10)
-				? rawDate
-				: rawDate + 'Z';
-			const postTime = new Date(utcDate);
-			const estDate = postTime.toLocaleDateString('en-US', {
-				timeZone: 'America/New_York',
-				year: 'numeric',
-				month: '2-digit',
-				day: '2-digit'
-			});
-			const [month, day, year] = estDate.split('/');
-			const dateKey = `${year}-${month}-${day}`;
+			// CRITICAL: Extract date directly without timezone conversion (same fix as above)
+			const dateKey = post.postedAt.substring(0, 10); // 'YYYY-MM-DD'
 			uniqueDates.add(dateKey);
 		});
 
