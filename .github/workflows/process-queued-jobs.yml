@@ -1,9 +1,9 @@
 name: Process Queued Jobs
 
 on:
-  # Run twice daily at 5 AM and 5 PM Mountain Time (11 AM and 11 PM UTC)
+  # Run twice daily at 9 AM and 9 PM Mountain Time (4 PM and 4 AM UTC)
   schedule:
-    - cron: '0 11,23 * * *'
+    - cron: '0 16,4 * * *'
   
   # Allow manual triggering
   workflow_dispatch:
@@ -108,9 +108,13 @@ jobs:
                   .select('totalScore, postedAt')
                   .eq('userId', userId)
                   .order('postedAt', { ascending: false });
-                
+
+                console.log(\`[QUEUE] User posts query: \${userPosts?.length || 0} posts | mostRecent: \${userPosts?.[0]?.postedAt || 'none'}\`);
+
                 const { calculateUserStreak } = await import('./src/lib/gamification.js');
                 const currentStreak = calculateUserStreak(userPosts || []);
+
+                console.log(\`[QUEUE] Calculated streak for job \${job.id}: \${currentStreak}\`);
                 
                 // Calculate scoring
                 const scoring = calculatePostScore({
@@ -214,10 +218,16 @@ jobs:
                 }
                 
                 // Update user stats
+                console.log(\`[QUEUE] Updating user stats for userId: \${userId}\`);
                 await updateUserStats(userId);
-                
+                console.log(\`[QUEUE] User stats updated for userId: \${userId}\`);
+
                 // Check for new achievements
+                console.log(\`[QUEUE] Checking achievements for userId: \${userId}\`);
                 const newAchievements = await checkAndAwardAchievements(userId);
+                if (newAchievements && newAchievements.length > 0) {
+                  console.log(\`[QUEUE] Awarded \${newAchievements.length} new achievements\`);
+                }
                 
                 // Update job status to completed
                 await supabaseAdmin

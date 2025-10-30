@@ -111,8 +111,12 @@ export function calculateUserStreak(userPosts) {
 	const [recentMonth, recentDay, recentYear] = mostRecentEST.split('/');
 	const recentKey = `${recentYear}-${recentMonth}-${recentDay}`;
 
+	console.log('[STREAK DEBUG] Date comparison:', { todayKey, yesterdayKey, recentKey, rawPostDate: sortedPosts[0].postedAt });
+	console.log('[STREAK DEBUG] Matches today?', recentKey === todayKey, '| Matches yesterday?', recentKey === yesterdayKey);
+
 	// If most recent post is NOT from today or yesterday, streak is broken
 	if (recentKey !== todayKey && recentKey !== yesterdayKey) {
+		console.log('[STREAK DEBUG] ⚠️  RETURNING 0 - Post not from today or yesterday');
 		return 0;
 	}
 
