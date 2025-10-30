@@ -152,7 +152,7 @@
 											</div>
 
 											<!-- Team Info -->
-											<div class="flex-1 min-w-0">
+											<div class="flex-1 min-w-0 mr-4">
 												<div
 													class="font-semibold truncate"
 													style="color:#fdfdfd;"
@@ -192,7 +192,7 @@
 													{:else if team.rank === 1}
 														🥇 LEADING
 													{:else}
-														{team.progress.toFixed(1)}%
+														#{team.rank}
 													{/if}
 												</div>
 												<div class="text-xs" style="color:#94a3b8;">
