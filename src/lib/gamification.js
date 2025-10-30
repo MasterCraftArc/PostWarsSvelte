@@ -101,7 +101,14 @@ export function calculateUserStreak(userPosts) {
 	const yesterdayKey = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
 
 	// Get most recent post date in EST
-	const mostRecentPostTime = new Date(sortedPosts[0].postedAt || sortedPosts[0].createdAt);
+	// CRITICAL: Ensure date is treated as UTC to prevent timezone shifts
+	// Posts stored as '2025-10-29T00:00:00' (no timezone) must be treated as UTC
+	// Otherwise JavaScript treats as local time and converts to EST, shifting the calendar date
+	const rawPostDate = sortedPosts[0].postedAt || sortedPosts[0].createdAt;
+	const utcPostDate = rawPostDate.includes('Z') || rawPostDate.includes('+') || rawPostDate.includes('-', 10)
+		? rawPostDate
+		: rawPostDate + 'Z'; // Append Z to treat as UTC if no timezone present
+	const mostRecentPostTime = new Date(utcPostDate);
 	const mostRecentEST = mostRecentPostTime.toLocaleDateString('en-US', {
 		timeZone: 'America/New_York',
 		year: 'numeric',
@@ -111,7 +118,7 @@ export function calculateUserStreak(userPosts) {
 	const [recentMonth, recentDay, recentYear] = mostRecentEST.split('/');
 	const recentKey = `${recentYear}-${recentMonth}-${recentDay}`;
 
-	console.log('[STREAK DEBUG] Date comparison:', { todayKey, yesterdayKey, recentKey, rawPostDate: sortedPosts[0].postedAt });
+	console.log('[STREAK DEBUG] Date comparison:', { todayKey, yesterdayKey, recentKey, rawPostDate, utcPostDate });
 	console.log('[STREAK DEBUG] Matches today?', recentKey === todayKey, '| Matches yesterday?', recentKey === yesterdayKey);
 
 	// If most recent post is NOT from today or yesterday, streak is broken
@@ -226,7 +233,12 @@ export async function updateUserStats(userId) {
 		// Get all unique dates using postedAt in EST
 		const uniqueDates = new Set();
 		linkedinPosts.forEach(post => {
-			const postTime = new Date(post.postedAt);
+			// CRITICAL: Treat dates as UTC to prevent timezone shifts (same fix as above)
+			const rawDate = post.postedAt;
+			const utcDate = rawDate.includes('Z') || rawDate.includes('+') || rawDate.includes('-', 10)
+				? rawDate
+				: rawDate + 'Z';
+			const postTime = new Date(utcDate);
 			const estDate = postTime.toLocaleDateString('en-US', {
 				timeZone: 'America/New_York',
 				year: 'numeric',
