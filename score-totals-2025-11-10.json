@@ -1,0 +1,247 @@
+{
+  "generatedAt": "2025-11-10T17:14:24.809Z",
+  "users": [
+    {
+      "name": "Michaela Flatau",
+      "teamId": "team-phoenixes",
+      "totalPosts": 31,
+      "totalCommentActivities": 44,
+      "postScore": 438,
+      "commentActivityScore": 44,
+      "achievementScore": 75,
+      "finalTotalScore": 557,
+      "maxStreakAchieved": 24
+    },
+    {
+      "name": "Rob Slaughter",
+      "teamId": "team-eagles",
+      "totalPosts": 27,
+      "totalCommentActivities": 35,
+      "postScore": 397,
+      "commentActivityScore": 35,
+      "achievementScore": 75,
+      "finalTotalScore": 507,
+      "maxStreakAchieved": 16
+    },
+    {
+      "name": "Brandt Keller",
+      "teamId": "team-lions",
+      "totalPosts": 34,
+      "totalCommentActivities": 34,
+      "postScore": 336,
+      "commentActivityScore": 34,
+      "achievementScore": 75,
+      "finalTotalScore": 445,
+      "maxStreakAchieved": 31
+    },
+    {
+      "name": "Rebecca Lively",
+      "teamId": "team-phoenixes",
+      "totalPosts": 22,
+      "totalCommentActivities": 8,
+      "postScore": 205,
+      "commentActivityScore": 8,
+      "achievementScore": 75,
+      "finalTotalScore": 288,
+      "maxStreakAchieved": 11
+    },
+    {
+      "name": "Jon Schulman",
+      "teamId": "team-phoenixes",
+      "totalPosts": 28,
+      "totalCommentActivities": 24,
+      "postScore": 158,
+      "commentActivityScore": 24,
+      "achievementScore": 75,
+      "finalTotalScore": 257,
+      "maxStreakAchieved": 24
+    },
+    {
+      "name": "Mary Parsons",
+      "teamId": "team-eagles",
+      "totalPosts": 30,
+      "totalCommentActivities": 40,
+      "postScore": 120,
+      "commentActivityScore": 40,
+      "achievementScore": 50,
+      "finalTotalScore": 210,
+      "maxStreakAchieved": 13
+    },
+    {
+      "name": "Kyle Palko",
+      "teamId": "team-eagles",
+      "totalPosts": 6,
+      "totalCommentActivities": 5,
+      "postScore": 57,
+      "commentActivityScore": 5,
+      "achievementScore": 55,
+      "finalTotalScore": 117,
+      "maxStreakAchieved": 3
+    },
+    {
+      "name": "Josh Thompson",
+      "teamId": "team-phoenixes",
+      "totalPosts": 5,
+      "totalCommentActivities": 10,
+      "postScore": 33,
+      "commentActivityScore": 10,
+      "achievementScore": 55,
+      "finalTotalScore": 98,
+      "maxStreakAchieved": 4
+    },
+    {
+      "name": "Eva Torres",
+      "teamId": "team-eagles",
+      "totalPosts": 9,
+      "totalCommentActivities": 0,
+      "postScore": 41,
+      "commentActivityScore": 0,
+      "achievementScore": 55,
+      "finalTotalScore": 96,
+      "maxStreakAchieved": 2
+    },
+    {
+      "name": "Mike",
+      "teamId": "team-eagles",
+      "totalPosts": 5,
+      "totalCommentActivities": 0,
+      "postScore": 19,
+      "commentActivityScore": 0,
+      "achievementScore": 15,
+      "finalTotalScore": 34,
+      "maxStreakAchieved": 2
+    },
+    {
+      "name": "Alexis Gerst",
+      "teamId": "team-eagles",
+      "totalPosts": 5,
+      "totalCommentActivities": 1,
+      "postScore": 17,
+      "commentActivityScore": 1,
+      "achievementScore": 15,
+      "finalTotalScore": 33,
+      "maxStreakAchieved": 2
+    },
+    {
+      "name": "Eric Wyles",
+      "teamId": "team-lions",
+      "totalPosts": 4,
+      "totalCommentActivities": 2,
+      "postScore": 20,
+      "commentActivityScore": 2,
+      "achievementScore": 5,
+      "finalTotalScore": 27,
+      "maxStreakAchieved": 3
+    },
+    {
+      "name": "Wayne Starr",
+      "teamId": "team-lions",
+      "totalPosts": 1,
+      "totalCommentActivities": 0,
+      "postScore": 14,
+      "commentActivityScore": 0,
+      "achievementScore": 5,
+      "finalTotalScore": 19,
+      "maxStreakAchieved": 1
+    },
+    {
+      "name": "Courtney Partain",
+      "teamId": "team-lions",
+      "totalPosts": 1,
+      "totalCommentActivities": 3,
+      "postScore": 9,
+      "commentActivityScore": 3,
+      "achievementScore": 5,
+      "finalTotalScore": 17,
+      "maxStreakAchieved": 1
+    },
+    {
+      "name": "Case",
+      "teamId": "team-lions",
+      "totalPosts": 1,
+      "totalCommentActivities": 0,
+      "postScore": 7,
+      "commentActivityScore": 0,
+      "achievementScore": 5,
+      "finalTotalScore": 12,
+      "maxStreakAchieved": 1
+    },
+    {
+      "name": "Barron Stone",
+      "teamId": "team-phoenixes",
+      "totalPosts": 0,
+      "totalCommentActivities": 0,
+      "postScore": 0,
+      "commentActivityScore": 0,
+      "achievementScore": 0,
+      "finalTotalScore": 0,
+      "maxStreakAchieved": 0
+    },
+    {
+      "name": "Gavin Scallon",
+      "teamId": "team-phoenixes",
+      "totalPosts": 0,
+      "totalCommentActivities": 0,
+      "postScore": 0,
+      "commentActivityScore": 0,
+      "achievementScore": 0,
+      "finalTotalScore": 0,
+      "maxStreakAchieved": 0
+    },
+    {
+      "name": "James Sevedge",
+      "teamId": "team-eagles",
+      "totalPosts": 0,
+      "totalCommentActivities": 0,
+      "postScore": 0,
+      "commentActivityScore": 0,
+      "achievementScore": 0,
+      "finalTotalScore": 0,
+      "maxStreakAchieved": 0
+    },
+    {
+      "name": "Maciej Szulik",
+      "teamId": "team-eagles",
+      "totalPosts": 0,
+      "totalCommentActivities": 0,
+      "postScore": 0,
+      "commentActivityScore": 0,
+      "achievementScore": 0,
+      "finalTotalScore": 0,
+      "maxStreakAchieved": 0
+    },
+    {
+      "name": "Mallory Grim",
+      "teamId": "team-phoenixes",
+      "totalPosts": 0,
+      "totalCommentActivities": 0,
+      "postScore": 0,
+      "commentActivityScore": 0,
+      "achievementScore": 0,
+      "finalTotalScore": 0,
+      "maxStreakAchieved": 0
+    },
+    {
+      "name": "Manny Martinez",
+      "teamId": "team-lions",
+      "totalPosts": 0,
+      "totalCommentActivities": 0,
+      "postScore": 0,
+      "commentActivityScore": 0,
+      "achievementScore": 0,
+      "finalTotalScore": 0,
+      "maxStreakAchieved": 0
+    },
+    {
+      "name": "Steven Gettys",
+      "teamId": "team-lions",
+      "totalPosts": 0,
+      "totalCommentActivities": 0,
+      "postScore": 0,
+      "commentActivityScore": 0,
+      "achievementScore": 0,
+      "finalTotalScore": 0,
+      "maxStreakAchieved": 0
+    }
+  ]
+}

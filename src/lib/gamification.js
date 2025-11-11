@@ -49,11 +49,11 @@ export function calculatePostScore(postData, userStreak = 0) {
 	// Posts should retain their value permanently once scored
 	const freshnessFactor = 1;
 
-	const finalScore = Math.round((baseWithBonus + engagementScore) * freshnessFactor);
+	const finalScore = Math.ceil((baseWithBonus + engagementScore) * freshnessFactor);
 
 	return {
-		baseScore: Math.round(score),
-		engagementScore: Math.round(engagementScore),
+		baseScore: Math.ceil(score),
+		engagementScore: Math.ceil(engagementScore),
 		totalScore: finalScore,
 		breakdown: {
 			basePoints: score,
@@ -617,7 +617,7 @@ export function calculateCommentActivityScore(userStreak = 0) {
 		SCORING_CONFIG.MAX_STREAK_BONUS
 	);
 
-	const finalScore = Math.round(baseScore * streakMultiplier);
+	const finalScore = Math.ceil(baseScore * streakMultiplier);
 
 	return {
 		baseScore: baseScore,
@@ -628,6 +628,106 @@ export function calculateCommentActivityScore(userStreak = 0) {
 			streakBonus: finalScore - baseScore
 		}
 	};
+}
+
+// Helper: Convert date to YYYY-MM-DD string
+function toHistoricalDateKey(date) {
+	return new Date(date).toISOString().split('T')[0];
+}
+
+// Helper: Check if two dates are consecutive days
+function isConsecutiveDays(date1, date2) {
+	// Parse as UTC midnight to avoid timezone issues
+	const d1 = new Date(date1 + 'T00:00:00Z');
+	const d2 = new Date(date2 + 'T00:00:00Z');
+
+	// Calculate difference in milliseconds
+	const diffMs = d2 - d1; // Don't use Math.abs - we want forward progression
+
+	// Convert to days (should be exactly 1 for consecutive)
+	const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+	return diffDays === 1;
+}
+
+/**
+ * Calculate the historical streak that existed on a specific date
+ * This uses the same logic as calculate-accurate-scores.js
+ * @param {string} userId - User ID
+ * @param {string} targetDate - Date to get streak for (YYYY-MM-DD)
+ * @returns {Promise<number>} - Streak value on that date
+ */
+export async function calculateHistoricalStreak(userId, targetDate) {
+	// Fetch all posts for this user
+	const { data: posts } = await supabaseAdmin
+		.from('linkedin_posts')
+		.select('*')
+		.eq('userId', userId)
+		.order('postedAt', { ascending: true });
+
+	// Fetch all comment activities
+	const { data: commentActivities } = await supabaseAdmin
+		.from('comment_activities')
+		.select('*')
+		.eq('user_id', userId)
+		.order('created_at', { ascending: true });
+
+	// Merge posts and comment activities into timeline
+	const timeline = [];
+
+	if (posts && posts.length > 0) {
+		posts.forEach(post => {
+			timeline.push({
+				type: 'post',
+				date: toHistoricalDateKey(post.postedAt),
+				data: post
+			});
+		});
+	}
+
+	if (commentActivities && commentActivities.length > 0) {
+		commentActivities.forEach(activity => {
+			timeline.push({
+				type: 'comment_activity',
+				date: toHistoricalDateKey(activity.created_at),
+				data: activity
+			});
+		});
+	}
+
+	// Sort timeline by date
+	timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+	// Extract unique dates up to and including targetDate
+	const uniqueDates = [...new Set(timeline.map(item => item.date))]
+		.filter(date => date <= targetDate)
+		.sort();
+
+	if (uniqueDates.length === 0) return 1; // First activity
+
+	// Calculate streak for each date
+	const dateStreaks = {};
+	let currentStreak = 0;
+	let previousDate = null;
+
+	for (const date of uniqueDates) {
+		if (previousDate === null) {
+			// First date
+			currentStreak = 1;
+		} else if (isConsecutiveDays(previousDate, date)) {
+			// Consecutive day
+			currentStreak += 1;
+		} else {
+			// Gap - reset streak
+			currentStreak = 1;
+		}
+
+		dateStreaks[date] = currentStreak;
+		previousDate = date;
+	}
+
+	// Return the streak for the target date
+	return dateStreaks[targetDate] || 1;
 }
 
 // Function to award Race Winner achievement to all members of winning team

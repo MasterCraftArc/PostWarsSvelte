@@ -60,14 +60,13 @@ export async function POST(event) {
 		const commentGrowth = currentData.comments - (lastAnalytics?.comments || post.comments);
 		const repostGrowth = currentData.reposts - (lastAnalytics?.reposts || post.reposts);
 
-		// Recalculate scoring with current engagement
-		const { data: userPosts } = await supabaseAdmin
-			.from('linkedin_posts')
-			.select('*')
-			.eq('userId', user.id)
-			.order('postedAt', { ascending: false });
+		// Recalculate scoring with HISTORICAL streak (streak at time of posting)
+		const { calculateHistoricalStreak } = await import('$lib/gamification.js');
+		const postDate = typeof post.postedAt === 'string' ?
+			post.postedAt.split('T')[0] :
+			post.postedAt.toISOString().split('T')[0];
 
-		const currentStreak = calculateUserStreak(userPosts || []);
+		const historicalStreak = await calculateHistoricalStreak(user.id, postDate);
 		const scoring = calculatePostScore(
 			{
 				word_count: post.wordCount,
@@ -76,7 +75,7 @@ export async function POST(event) {
 				reposts: currentData.reposts,
 				timestamp: post.postedAt // Already a string from DB
 			},
-			currentStreak
+			historicalStreak
 		);
 
 		// Update post with new engagement data
