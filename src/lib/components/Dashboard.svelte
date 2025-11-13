@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/auth.js';
-	import { authenticatedRequest } from '$lib/api.js';
+	import { authenticatedRequest, authenticatedFetch } from '$lib/api.js';
 	import CompanyGoals from './CompanyGoals.svelte';
 	let dashboardData = null;
 	let loading = true;
@@ -71,6 +71,43 @@
 		if (growth > 0) return 'text-green-600';
 		if (growth < 0) return 'text-red-600';
 		return 'text-gray-500';
+	}
+
+	// Download breakdown functionality
+	let downloadingBreakdown = false;
+	let downloadError = '';
+
+	async function downloadBreakdown() {
+		try {
+			downloadingBreakdown = true;
+			downloadError = '';
+
+			// Use authenticatedFetch to get raw Response for blob handling
+			const response = await authenticatedFetch('/api/user/breakdown');
+
+			if (!response.ok) {
+				throw new Error(`Failed to download breakdown: ${response.status}`);
+			}
+
+			// Get the response as blob
+			const blob = await response.blob();
+
+			// Create download link
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `score-breakdown-${new Date().toISOString().split('T')[0]}.txt`;
+			document.body.appendChild(a);
+			a.click();
+
+			// Cleanup
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);
+		} catch (err) {
+			downloadError = err.message || 'Failed to download breakdown';
+		} finally {
+			downloadingBreakdown = false;
+		}
 	}
 
 </script>
@@ -144,6 +181,27 @@
 						<div class="text-sm" style="color:#cbd5e1;">Comments</div>
 						<div class="text-xs" style="color:#94a3b8;">{dashboardData.stats.monthlyCommentActivities || 0} this month</div>
 					</div>
+				</div>
+
+				<!-- Download Breakdown Button -->
+				<div class="mt-6 text-center">
+					<button
+						onclick={downloadBreakdown}
+						disabled={downloadingBreakdown}
+						class="rounded-lg px-6 py-3 font-medium transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+						style="background-color:rgba(36,176,255,0.2); color:#24b0ff; border:1px solid #24b0ff;"
+					>
+						{#if downloadingBreakdown}
+							⏳ Generating...
+						{:else}
+							📊 Download Score Breakdown
+						{/if}
+					</button>
+					{#if downloadError}
+						<div class="mt-2 text-sm" style="color:#ff5456;">
+							{downloadError}
+						</div>
+					{/if}
 				</div>
 			</div>
 
